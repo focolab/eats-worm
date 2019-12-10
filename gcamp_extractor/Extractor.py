@@ -7,7 +7,7 @@ import copy
 from .Threads import *
 import pickle
 import os
-from multifiletiff import *
+from .multifiletiff import *
 from .segfunctions import *
 def mkdir(path):
     try: os.mkdir(path)
