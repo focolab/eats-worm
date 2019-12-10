@@ -174,7 +174,7 @@ class Extractor:
         try:self.numz = kwargs['numz']
         except:self.numz = 10
         try:self.frames= kwargs['frames']
-        except:self.frames = list(range(numz))
+        except:self.frames = list(range(self.numz))
         try:self.offset= kwargs['offset']
         except:self.offset = 0
         try:self.t = kwargs['t']
