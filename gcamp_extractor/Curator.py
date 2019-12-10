@@ -1,7 +1,7 @@
 from .Extractor import *
 from .Threads import *
 import numpy as np
-from matplotlib.pyplot import *
+import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, Slider, CheckButtons, TextBox, RadioButtons
 from .multifiletiff import *
 import json
