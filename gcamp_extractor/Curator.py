@@ -3,7 +3,7 @@ from .Threads import *
 import numpy as np
 from matplotlib.pyplot import *
 from matplotlib.widgets import Button, Slider, CheckButtons, TextBox, RadioButtons
-from multifiletiff import *
+from .multifiletiff import *
 import json
 import atexit
 
