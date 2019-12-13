@@ -275,7 +275,6 @@ class Curator:
         self.timeplot.set_ydata((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
         plt.draw()
     def update_t(self, val):
-        
         # Update index for t
         self.t = val
         # update image for t

@@ -93,19 +93,27 @@ class MultiFileTiff():
             offset = kwargs['offset']
 
         ## Calculate indexing
+        _s = np.cumsum(self.lens)
+
+        for i in range(len(_s)):
+            if offset > _s[i]:
+                pass
+            else:
+                filecounter = i
+                if i == 0:
+                    pagecounter  = offset
+                else:
+                    pagecounter = offset - _s[i-1]
+                break
         self.indexing = {}
-        pagecounter = 0
-        filecounter = 0
-        for i in range(self.numframes):
+        for i in range(self.numframes-offset):
             if pagecounter < self.lens[filecounter]:
-                if not i < offset:
-                    self.indexing[i] = [filecounter, pagecounter]
+                self.indexing[i] = [filecounter, pagecounter]
                 pagecounter += 1
             else:
-                pagecounter = 1
+                pagecounter = 0
                 filecounter += 1
-                if not i < offset:
-                    self.indexing[i] = [filecounter, pagecounter]
+                self.indexing[i] = [filecounter, pagecounter]
 
         # Get some shape data from file
         self.sizexy = self.tf[0].pages[0].asarray().shape

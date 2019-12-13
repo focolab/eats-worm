@@ -14,7 +14,7 @@ arguments = {
     'numz':20,
     'frames':[0,1,2,3,4,5,6,7,8,9,10,11],
     'offset':0,
-    't':200,
+    't':2000,
     'gaussian':(25,4,3,1),
     'quantile':0.99,
     'reg_peak_dist':5.99,
@@ -30,9 +30,9 @@ arguments = {
 }
 
 #e = Extractor(**default_arguments)
-#e.calc_blob_threads()
-#e.quantify()
+e.calc_blob_threads()
+e.quantify()
 
 
-e = load_extractor(default_arguments['root'])
+e = load_extractor(arguments['root'])
 Curator(e)

@@ -23,9 +23,9 @@ default_arguments = {
     't':999,
     'gaussian':(25,4,3,1),
     'quantile':0.99,
-    'reg_peak_dist':5.99,
-    'anisotropy':(6,1,1),
-    'blob_merge_dist_thresh':5.8,
+    'reg_peak_dist':10,
+    'anisotropy':(7,1,1),
+    'blob_merge_dist_thresh':6.8,
     'mip_movie':True,
     'marker_movie':True,
     'infill':True,
@@ -204,9 +204,9 @@ class Extractor:
         try:self.incomplete = kwargs['incomplete']
         except:self.incomplete = False 
 
-        self.im = MultiFileTiff(self.root)
-        self.im.set_frames(self.frames)
-        self.im.numz = self.numz
+        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames)
+        #self.im.set_frames(self.frames)
+        #e.imself.im.numz = self.numz
         self.im.t = 0
         if self.t==0:
             self.t=self.im.numframes//self.im.numz
@@ -237,7 +237,7 @@ class Extractor:
             peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
             peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             #print(peaks)
-            self.spool.reel(peaks)
+            self.spool.reel(peaks,self.anisotropy)
             if not self.suppress_output:
                 print('\r' + 'Frames Processed (Blob Threads): ' + str(i)+'/'+str(self.t), sep='', end='', flush=True)
         
