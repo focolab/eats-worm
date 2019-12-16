@@ -71,7 +71,7 @@ class MultiFileTiff():
         if len(self.filenames) == 0:
             print('Not the root to a directory')
             return 0 
-        self.filenames.sort()
+        self.sort_filenames()
         
         ## Create TiffFile objects for each file in directory
         self.tf = []
@@ -355,3 +355,28 @@ class MultiFileTiff():
             else:
                 self.t += 1
                 return self.get_frame(f + (self.t-1) * self.numz)
+
+
+
+    def sort_filenames(self):
+        """
+        sort filenames by index. written for compatibility between files with 'XXX-1.tif' and 'XXX-02.tif'
+        """
+
+        ### Remove .tif or .ome.tif
+
+        if self.filenames[0][-8:] == '.ome.tif':    
+            files = [self.filenames[i][:-8] for i in range(len(self.filenames))]
+        elif self.filenames[0][-4:] == '.tif':
+            files = [self.filenames[i][:-4] for i in range(len(self.filenames))]
+
+        ndx = []
+        for i in range(len(files)):
+            for j in range(1,10):
+                if files[i][-j].isdigit():
+                    pass
+                else:
+                    ndx.append(int(files[i][-j+1:]))
+                    break
+        self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
+
