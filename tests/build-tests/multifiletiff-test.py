@@ -1,4 +1,5 @@
 from gcamp_extractor import *
+im = MultiFileTiff('/Users/stevenban/Documents/Data/20190917/binned')
 
 
 

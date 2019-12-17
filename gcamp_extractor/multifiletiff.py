@@ -114,6 +114,7 @@ class MultiFileTiff():
                 pagecounter = 0
                 filecounter += 1
                 self.indexing[i] = [filecounter, pagecounter]
+                pagecounter += 1
 
         # Get some shape data from file
         self.sizexy = self.tf[0].pages[0].asarray().shape
