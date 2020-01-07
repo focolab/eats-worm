@@ -5,6 +5,9 @@ import tifffile as tiff
 import glob
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
+import pickle
+import os
+
 class MultiFileTiff():
     """
     File for handling volumetric recording data that has been spread over multiple separate tiff files. 
@@ -19,7 +22,9 @@ class MultiFileTiff():
         integer representing number of z slices per time point
     frames : list, optional (keyword argument only)
         list of integers representing frames to keep mod numz for analysis. Python indexing applies, so to keep the first 5 frames per numz frames, pass frames = [0,1,2,3,4]
-
+    regen : bool, optional (keyword argument only)
+        boolean, whether to regenerate mft from 'mft.obj' stored somewhere in root directory
+    
     Attributes
     ----------
     filenames : list
@@ -51,20 +56,20 @@ class MultiFileTiff():
         ## Find root in args/kwargs
         if 'root' in kwargs.keys() or len(args)!=0:
             try:
-                root = kwargs['root']
+                self.root = kwargs['root']
             except:
-                root = args[0]
+                self.root = args[0]
         ## Check to make sure root is path to directory
-        if isinstance(root, str):
-            if root[-1] != '/': #make sure path ends with "/"
-                root = root + '/'
+        if isinstance(self.root, str):
+            if self.root[-1] != '/': #make sure path ends with "/"
+                self.root = self.root + '/'
 
             ## Find all tiff files in root folder
-            self.filenames = glob.glob(root + '*.tif')
+            self.filenames = glob.glob(self.root + '*.tif')
 
             ## If they don't exist, find all tiff files in subdirectory
             if len(self.filenames) == 0:
-                self.filenames = self.list_files(root)
+                self.filenames = self.list_files_tiff(self.root)
         else:
             print('Not the root to a directory')
             return 0 
@@ -78,6 +83,43 @@ class MultiFileTiff():
         for i in range(len(self.filenames)):
             self.tf.append(tiff.TiffFile(self.filenames[i]))
 
+
+        ## If MFT is being regenerated from an 'mft.obj' file:
+        if kwargs.get('regen'):
+            ndx = []
+            l = self.list_all_files(self.root)
+            for i in range(len(l)):
+                if 'mft.obj' in l[i]:
+                    ndx.append(i)
+            if len(ndx) == 0:
+                print('mft.obj file not found. loading defaults')
+                self.default_load(*args, **kwargs)
+            elif len(ndx) == 1:
+                mft_filename = l[ndx[0]]
+                mft = pickle.load(open(mft_filename, "rb"))
+                self.filenames = mft.filenames
+                self.lens = mft.lens
+                self.indexing = mft.indexing
+                self.numz = mft.numz
+                self.frames = mft.frames
+                self.sizexy = mft.sizexy
+                del mft
+            else:
+                print('loading file at: '+l[ndx[0]])
+                mft_filename = l[ndx[0]]
+                mft = pickle.load(open(mft_filename, "rb"))
+                self.filenames = mft.filenames
+                self.lens = mft.lens
+                self.indexing = mft.indexing
+                self.numz = mft.numz
+                self.frames = mft.frames
+                self.sizexy = mft.sizexy
+                del mft
+
+        else:
+            self.default_load(*args, **kwargs)
+
+    def default_load(self, *args, **kwargs):
         ## Calculate lengths of each file for indexing purposes
         self.lens = [0 for x in self.tf]
         workers = max(multiprocessing.cpu_count() // 2, 1)
@@ -129,8 +171,42 @@ class MultiFileTiff():
         self.frames = np.array([i for i in range(self.numz)])
         if 'frames' in kwargs.keys():
             self.frames = np.array(kwargs['frames'])
-        #self.numframes = self.tf[0].series[0].shape[0]
-    def list_files(self, path):
+        
+
+
+    def list_files_tiff(self, path):
+        """
+        method for listing all .tif files in directory and all subdirectories. internal method only
+
+
+        Parameters
+        ----------
+        path : str
+            path to directory
+
+
+        Outputs
+        -------
+        names : list
+            list of strings, each of which are paths to files existing in the directory. 
+        """
+        # create a list of file and sub directories 
+        # names in the given directory 
+        listOfFile = os.listdir(path)
+        allFiles = list()
+        # Iterate over all the entries
+        for entry in listOfFile:
+            # Create full path
+            fullPath = os.path.join(path, entry)
+            # If entry is a directory then get the list of files in this directory 
+            if os.path.isdir(fullPath):
+                allFiles = allFiles + self.list_files_tiff(fullPath)
+            else:
+            	if fullPath[-4:]=='.tif':
+                	allFiles.append(fullPath)
+
+        return allFiles
+    def list_all_files(self,path):
         """
         method for listing all files in directory and all subdirectories. internal method only
 
@@ -156,13 +232,10 @@ class MultiFileTiff():
             fullPath = os.path.join(path, entry)
             # If entry is a directory then get the list of files in this directory 
             if os.path.isdir(fullPath):
-                allFiles = allFiles + list_files(fullPath)
+                allFiles = allFiles + self.list_all_files(fullPath)
             else:
-            	if fullPath[-4:]=='.tif':
-                	allFiles.append(fullPath)
-
+                allFiles.append(fullPath)
         return allFiles
-
     def get_frame(self, frame):
         """
         method for getting a single frame from your recording, mostly used internally. if you're going to call this function, please make sure you know what's going on.
@@ -381,3 +454,37 @@ class MultiFileTiff():
                     break
         self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
 
+    def save(self, *args, **kwargs):
+        path = self.root + 'extractor-objects/mft.obj'
+
+        if kwargs.get('path'):
+            path = kwargs['path']
+        elif len(args) == 1:
+            path = args[0]
+
+
+        m  = minimal_mft(self)
+        f = open(path, 'wb') 
+        pickle.dump(m, f)
+        f.close()
+
+class minimal_mft:
+    def __init__(self,mft):
+        self.filenames = mft.filenames
+        self.lens = mft.lens
+        self.indexing = mft.indexing
+        self.numz = mft.numz
+        self.frames = mft.frames
+        self.sizexy = mft.sizexy
+'''
+
+from multifiletiff import *
+im = MultiFileTiff('/Users/stevenban/Documents/Data/20190917/binned')
+im.filenames
+#im.save()
+#im.list_all_files(im.root)
+
+
+im1 = MultiFileTiff('/Users/stevenban/Documents/Data/20190917/binned', regen = True)
+
+'''

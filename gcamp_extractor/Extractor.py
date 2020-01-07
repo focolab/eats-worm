@@ -90,6 +90,7 @@ def load_extractor(path):
         return 1
     else:
         paramsf = folders[0]+'/params.json'
+        mftf = folders[0]+'/mft.obj'
         threadf = folders[0]+'/threads.obj'
         timef = folders[0]+'/timeseries.txt'
 
@@ -204,7 +205,9 @@ class Extractor:
         try:self.incomplete = kwargs['incomplete']
         except:self.incomplete = False 
 
-        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames)
+        mkdir(self.root+'extractor-objects')
+        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames, regen=True)
+        self.im.save()
         #self.im.set_frames(self.frames)
         #e.imself.im.numz = self.numz
         self.im.t = 0
