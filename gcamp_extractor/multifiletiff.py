@@ -103,6 +103,7 @@ class MultiFileTiff():
                 self.numz = mft.numz
                 self.frames = mft.frames
                 self.sizexy = mft.sizexy
+                self.numframes = mft.numframes
                 del mft
             else:
                 print('loading file at: '+l[ndx[0]])
@@ -114,6 +115,7 @@ class MultiFileTiff():
                 self.numz = mft.numz
                 self.frames = mft.frames
                 self.sizexy = mft.sizexy
+                self.numframes = mft.numframes
                 del mft
 
         else:
@@ -476,6 +478,7 @@ class minimal_mft:
         self.numz = mft.numz
         self.frames = mft.frames
         self.sizexy = mft.sizexy
+        self.numframes = mft.numframes
 '''
 
 from multifiletiff import *
