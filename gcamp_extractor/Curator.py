@@ -167,7 +167,7 @@ class Curator:
         self.max = np.max(self.im) # just some arbitrary value
         
         ## maximum t
-        self.tmax = self.tf.numframes//self.tf.numz
+        self.tmax = e.t
 
         
         ## Figure to display

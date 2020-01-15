@@ -3,6 +3,7 @@ import numpy as np
 import pdb
 import time
 import scipy.spatial
+from scipy.optimize import linear_sum_assignment
 import copy
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
@@ -64,7 +65,7 @@ class Spool:
         self.t = None
         self.dvec = np.zeros((self.maxt,3))
  
-    def reel(self, positions, anisotropy = (6,1,1), t=0):
+    def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
 
         # if no threads already exist, add all incoming points to new threads them and positions tracker
         if self.threads == []:
@@ -77,7 +78,7 @@ class Spool:
         else:
             # match points based on a max-threshold euclidean distance based matching
             #try:
-
+            self.predictions = self.predictions + offset
             for i in range(len(anisotropy)):
                 self.predictions[:,i]=self.predictions[:,i]*anisotropy[i]
                 positions[:,i]=positions[:,i]*anisotropy[i]
@@ -113,7 +114,29 @@ class Spool:
         - mat:         incoming distance matrix
         - thresh:     max-dist threshold
         """
-        matchings = []
+
+        unmatched = []
+        newpoints = []
+
+        for i in range(mat.shape[0]):
+            if np.min(mat[i,:]) >= thresh:
+                #mat = np.delete(mat, i, 0)
+                unmatched.append(i)
+        for j in range(mat.shape[1]):
+            if np.min(mat[:,j]) >= thresh:
+                #mat = np.delete(mat, i, 1)
+                newpoints.append(j)
+        unmatched.sort(reverse = True)
+        newpoints.sort(reverse = True)
+        for i in unmatched:
+            mat = np.delete(mat,i,0)
+        for i in newpoints:
+            mat = np.delete(mat,i,1)
+
+        row,column = linear_sum_assignment(mat)
+        matchings = np.array([row, column]).T
+
+        '''
         for i in range(mat.shape[0]): #iterate over existing points
             if np.min(mat[i,:]) < thresh:
                 index = np.where(mat[i,:] == np.min(mat[i,:]))[0][0]
@@ -130,6 +153,7 @@ class Spool:
         else:
             unmatched = list(range(mat.shape[0]))
             newpoints = list(range(mat.shape[1]))
+        '''
         return matchings, unmatched, newpoints
 
     def update_positions(self):

@@ -14,6 +14,7 @@ def mkdir(path):
     except: pass
 import glob
 import json
+import imreg_dft as ird
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -204,15 +205,19 @@ class Extractor:
         except:self.suppress_output = False
         try:self.incomplete = kwargs['incomplete']
         except:self.incomplete = False 
-
+        try: self.register = kwargs['register_frames']
+        except: self.register = False
         mkdir(self.root+'extractor-objects')
-        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames, regen=True)
+        
+        _regen_mft = kwargs.get('regen_mft')
+
+        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames, regen=_regen_mft)
         self.im.save()
         #self.im.set_frames(self.frames)
         #e.imself.im.numz = self.numz
         self.im.t = 0
         if self.t==0:
-            self.t=self.im.numframes//self.im.numz
+            self.t=(self.im.numframes-self.offset)//self.im.numz
         self.spool = Spool(self.blob_merge_dist_thresh, self.t)
         self.timeseries = []
 
@@ -239,8 +244,17 @@ class Extractor:
             im1 = gaussian3d(im1,self.gaussian)
             peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
             peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+
+            if self.register and i!=0:
+                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+
+                _off = np.insert(_off, 0,0)
+                #peaks = peaks+ _off
+                #print(_off)
             #print(peaks)
-            self.spool.reel(peaks,self.anisotropy)
+                self.spool.reel(peaks,self.anisotropy, offset=_off)
+            else:
+                self.spool.reel(peaks,self.anisotropy)
             if not self.suppress_output:
                 print('\r' + 'Frames Processed (Blob Threads): ' + str(i)+'/'+str(self.t), sep='', end='', flush=True)
         
