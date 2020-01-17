@@ -97,11 +97,12 @@ def load_extractor(path):
 
         with open(paramsf) as f:
             params = json.load(f)
+        params['regen_mft'] = True
         e = Extractor(**params)
 
         try:
             thread = pickle.load(open(threadf, "rb"))
-            e.spool = thread
+            self.spool = thread
         except:
             pass
 
@@ -148,7 +149,7 @@ class Extractor:
     im:MultiFileTiff
         a MultiFileTiff object for the time series data to be analyzed. See multifiletiff documentation for arguments, attributes, and methods
     spool: Spool
-        a Spool object that contains methods for registering incoming neuron centers to existing centers, and for infilling the positions of neurons not found with the first pass. See Spool documentation for arguments, attributes, and methods
+        a Spool object that contains methods for registering incoming neuron centers to existing centers, and for infilling the positions of neurons not found with the first pass. Seself.spool documentation for arguments, attributes, and methods
 
     Methods
     -------
@@ -181,6 +182,8 @@ class Extractor:
         except:self.offset = 0
         try:self.t = kwargs['t']
         except:self.t = 0
+
+
         try:self.gaussian= kwargs['gaussian']
         except:self.gaussian = (25,4,3,1)
         try:self.quantile= kwargs['quantile']
@@ -195,30 +198,31 @@ class Extractor:
         except:self.mip_movie = True
         try:self.marker_movie= kwargs['marker_movie']
         except:self.marker_movie = True
-        try:self.infill= kwargs['infill']
-        except:self.infill = True
-        try:self.save_threads= kwargs['save_threads']
-        except:self.save_threads = True
-        try:self.save_timeseries= kwargs['save_timeseries']
-        except:self.save_timeseries = True
         try:self.suppress_output= kwargs['suppress_output']
         except:self.suppress_output = False
         try:self.incomplete = kwargs['incomplete']
         except:self.incomplete = False 
         try: self.register = kwargs['register_frames']
         except: self.register = False
+        try: self.predict = kwargs['predict']
+        except: self.predict = True 
+
+
+        self.threed = kwargs.get('3d')
         mkdir(self.root+'extractor-objects')
         
         _regen_mft = kwargs.get('regen_mft')
-
         self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames, regen=_regen_mft)
         self.im.save()
         #self.im.set_frames(self.frames)
         #e.imself.im.numz = self.numz
         self.im.t = 0
-        if self.t==0:
+        
+
+        if self.t==0 or self.t>(self.im.numframes-self.offset)//self.im.numz:
             self.t=(self.im.numframes-self.offset)//self.im.numz
-        self.spool = Spool(self.blob_merge_dist_thresh, self.t)
+
+        self.spool = Spool(self.blob_merge_dist_thresh, max_t = self.t,predict = self.predict)
         self.timeseries = []
 
         if kwargs.get('regen'):
@@ -242,7 +246,10 @@ class Extractor:
             im1 = self.im.get_t()
             im1 = medFilter2d(im1)
             im1 = gaussian3d(im1,self.gaussian)
-            peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
+            if self.threed:
+                peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
+            else:
+                peaks = findpeaks2d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
             peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
@@ -255,17 +262,57 @@ class Extractor:
                 self.spool.reel(peaks,self.anisotropy, offset=_off)
             else:
                 self.spool.reel(peaks,self.anisotropy)
+            
             if not self.suppress_output:
-                print('\r' + 'Frames Processed (Blob Threads): ' + str(i)+'/'+str(self.t), sep='', end='', flush=True)
+                print('\r' + 'Frames Processed (Blob Threads): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
         
         self.spool.infill()
         print('\nInfilling...')
 
-        print('Saving blob threads as pickle object...')
+        
+        imshape = tuple([self.numz]) + self.im.sizexy
+        def collided(positions, imshape, window = 3):
+
+            for i in [1,2]:
+                if np.sum(positions[:,i] < window) != 0:
+                    return True
+
+                if np.sum(imshape[i] - positions[:,i] < window) != 0:
+                    return True
+            if np.sum(positions[:,0]<0) != 0 or np.sum(positions[0]>imshape[0]-1) != 0:
+                return True
+
+            #if positions[0] < 0 or int(positions[0]) == imshape[0]:
+            #    return True
+            return False
+
+
+
+            #for i in range(1,len(p)):
+            #    if p[i] < window:
+            #        return True
+            #    elif s[i]-p[i] < window:
+             #       return True
+
+        destroy = []
+        _a = len(self.spool.threads)
+        for i in range(_a):
+            if collided(self.spool.threads[i].positions,imshape):
+                destroy.append(i)
+            print('\r' + 'Blob Threads Checked: ' + str(i+1)+'/'+str(_a), sep='', end='', flush=True)
+        print('\n')
+        destroy = sorted(list(set(destroy)), reverse = True)
+        if destroy:
+            for item in destroy:
+                self.spool.threads.pop(item)
+
+        
+        print('Saving blob timeseries as numpy object...')
         mkdir(self.root+'extractor-objects')
         file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
         pickle.dump(self.spool, file_pi)
         file_pi.close()
+
     def quantify(self, quant_function=default_quant_function):
         """
         generates timeseries based on calculated threads. 
@@ -293,14 +340,37 @@ class Extractor:
         for i in range(self.t):
             self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))])
             if not self.suppress_output:
-                print('\r' + 'Frames Processed (Quantification): ' + str(i)+'/'+str(self.t), sep='', end='', flush=True)
-        
+                print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
+
         mkdir(self.root + 'extractor-objects')
         np.savetxt(self.root+'extractor-objects/timeseries.txt',self.timeseries)
         print('\nSaved timeseries as text file...')
-
-
     
+    def save_threads(self):
+        print('Saving blob threads as pickle object...')
+        mkdir(self.root+'extractor-objects')
+        file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
+        pickle.dump(self.spool, file_pi)
+        file_pi.close()
 
 
+    def save_timeseries(self):
+        print('Saving blob threads as pickle object...')
+        mkdir(self.root+'extractor-objects')
+        file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
+        pickle.dump(self.spool, file_pi)
+        file_pi.close()
+
+    def save_MIP(self):
+        _t = self.im.t
+        self.im.t = 0
+        _output = np.zeros(tuple([self.t]) + self.im.sizexy, dtype = np.uint16)
+        
+        with tiff.TiffWriter(self.root + "/extractor-objects/MIP.tif",bigtiff = True) as tif:
+            for i in range(self.t):
+                tif.save(np.max(self.im.get_t(), axis = 0))
+                print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
+        print('\n')
 

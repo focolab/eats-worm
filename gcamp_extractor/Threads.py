@@ -62,6 +62,10 @@ class Spool:
         elif len(args) == 2:
             self.maxt = args[1]
 
+
+        self.predict = kwargs.get('predict')
+
+
         self.t = None
         self.dvec = np.zeros((self.maxt,3))
  
@@ -70,10 +74,10 @@ class Spool:
         # if no threads already exist, add all incoming points to new threads them and positions tracker
         if self.threads == []:
             for i in range(len(positions)):
-                self.threads.append(Thread(positions[i]))
+                self.threads.append(Thread(positions[i], maxt = self.maxt))
             self.update_positions()
             self.predictions = copy.copy(self.positions)
-            self.t = 0
+            self.t = 1
         # if threads already exist
         else:
             # match points based on a max-threshold euclidean distance based matching
@@ -99,10 +103,10 @@ class Spool:
                 self.dvec[self.t] = 0
             #print(self.dvec[self.t])
             for match in unmatched:
-                self.threads[match].update_position(self.threads[match].get_position_mostrecent() + self.dvec[self.t])
+                self.threads[match].update_position(self.threads[match].get_position_mostrecent() + self.dvec[self.t], t=self.t)
 
             for point in newpoints:
-                self.threads.append(Thread(positions[point], t=self.t))
+                self.threads.append(Thread(positions[point], t=self.t, maxt = self.maxt))
             
             self.update_positions()
             self.update_predictions()
@@ -114,10 +118,11 @@ class Spool:
         - mat:         incoming distance matrix
         - thresh:     max-dist threshold
         """
-
+        '''
         unmatched = []
         newpoints = []
-
+        orig_nd_r = np.array(range(mat.shape[0]))
+        orig_nd_c = np.array(range(mat.shape[1]))
         for i in range(mat.shape[0]):
             if np.min(mat[i,:]) >= thresh:
                 #mat = np.delete(mat, i, 0)
@@ -130,13 +135,17 @@ class Spool:
         newpoints.sort(reverse = True)
         for i in unmatched:
             mat = np.delete(mat,i,0)
+            orig_nd_r = np.delete(orig_nd_r, i, 0)
         for i in newpoints:
             mat = np.delete(mat,i,1)
-
+            orig_nd_c = np.delete(orig_nd_c, i, 0)
+        #print(mat.shape)
         row,column = linear_sum_assignment(mat)
+        row, column = orig_nd_r[row], orig_nd_c[column]
         matchings = np.array([row, column]).T
-
+        #print(matchings)
         '''
+        matchings = []
         for i in range(mat.shape[0]): #iterate over existing points
             if np.min(mat[i,:]) < thresh:
                 index = np.where(mat[i,:] == np.min(mat[i,:]))[0][0]
@@ -145,7 +154,7 @@ class Spool:
                 mat[i,:] = 10000
                 mat[:,index] = 10000
             else: pass
-
+        
         matchings = np.array(matchings)
         if matchings.any():
             unmatched = list(set(range(mat.shape[0]))-set(matchings[:,0]))
@@ -153,7 +162,7 @@ class Spool:
         else:
             unmatched = list(range(mat.shape[0]))
             newpoints = list(range(mat.shape[1]))
-        '''
+        
         return matchings, unmatched, newpoints
 
     def update_positions(self):
@@ -169,11 +178,18 @@ class Spool:
     def update_predictions(self):
         self.predictions = np.zeros((len(self.threads), self.threads[0].get_position_mostrecent().shape[0]))
 
-        for i in range(len(self.threads)):
-            if len(self.threads[i].t) > 1:
-                self.predictions[i] = self.threads[i].get_position_t(self.threads[i].t[-1])+ self.dvec[self.t]
-            else:
+
+        if self.predict:
+            for i in range(len(self.threads)):
                 self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t]
+                
+                if len(self.threads[i].t) > 1:
+                    self.predictions[i] = self.threads[i].get_position_t(self.threads[i].t[-1])+ self.dvec[self.t]
+                else:
+                    self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t]
+        else:
+            for i in range(len(self.threads)):
+                self.predictions[i] = self.threads[i].get_position_mostrecent()
     def infill(self):
         for i in range(len(self.threads)):
             if self.threads[i].t[0]==0:
@@ -200,37 +216,46 @@ class Thread:
     Most recent edit: 
     10/23/2019
     """
-    def __init__(self, position = [], t = 0):
-        self.positions = []
-        self.t = []
+    def __init__(self, position = [], t = 0, **kwargs):
+        
 
+        maxt = kwargs.get('maxt')
+        self.positions = np.zeros((maxt,3))
+
+        #self.positions = []
+        self.t = []
         if position != []:
-            self.positions.append(np.array(position))
+            self.positions[t] = np.array(position)
+            #self.t = t + 1
+            #self.positions.append(np.array(position))
             self.t.append(int(t))
 
     def get_position_mostrecent(self):
         """    
-        returns most recnet position
+        returns most recent position
         """
-        return self.positions[-1]
+        return self.positions[self.t[-1]]
 
     def update_position(self, position, t = 0):
         """
         takes in position and updates the thread with the position
         """
 
-        if self.positions: #if self.positions exist
+        if self.t != []: #if self.positions exist
 
             if len(position) == len(self.positions[0]): #append only if positions is same dimensions
-
-                self.positions.append(np.array(position))
+                self.positions[t] = np.array(position)
+                self.t.append(t)
+                #self.positions.append(np.array(position))
             else:
                 return False
 
         else:
-            self.positions.append(np.array(position))
+            self.positions[t] = np.array(position)
+            self.t.append(t)
+            #self.positions.append(np.array(position))
 
-
+        '''
         # if passed time argument
         if t:
             if not self.t:# if self.t doesn't yet exist
@@ -247,10 +272,11 @@ class Thread:
         # if not passed time argument, but previous points exist
         else:
             self.t.append(self.t[-1]+1)
-
+        '''
     def infill(self, position):
         self.t.insert(0,self.t[0]-1)
-        self.positions.insert(0,position)
+        self.positions[self.t[0]] = np.array(position)
+        #self.positions.insert(0,position)
 
     def get_position_t(self, t = 0):
         """

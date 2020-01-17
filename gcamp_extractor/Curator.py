@@ -130,7 +130,7 @@ class Curator:
         max of image data (for setting ranges)
 
     """
-    def __init__(self,e):
+    def __init__(self,e,window=100):
         # get info from extractors
         self.s = e.spool
         self.timeseries = e.timeseries
@@ -174,7 +174,7 @@ class Curator:
         self.fig = plt.figure()
 
         ## Size of window around ROI in sub image
-        self.window = 100
+        self.window = window
 
         ## grid object for complicated subplot handing
         self.grid = plt.GridSpec(4, 2, wspace=0.1, hspace=0.2)
@@ -192,7 +192,7 @@ class Curator:
         plt.subplot(self.grid[:3,1])
         plt.subplots_adjust(bottom=0.4)
 
-        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t))
+        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
 
         self.img2 = plt.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
         self.point2 = plt.scatter(self.window//2-self.offset[1], self.window//2-self.offset[0],c='r', s=40)
@@ -262,7 +262,7 @@ class Curator:
     def get_subim_display(self):
         return (self.subim - self.min)/(self.max - self.min)
     def update_figures(self):
-        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t))
+        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.img1.set_data(self.get_im_display())
         self.point1.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
 
