@@ -104,6 +104,8 @@ If something goes wrong during reloading, you usually fix it by deleting the ass
 
 
 
+Known Issues:
+- Matplotlib interactive GUI in Curator doesn't work in some IDEs (e.g. Spyder). If possible, write a script to perform your processing/curating and run it from command line/terminal/conda terminal
 
 
 
