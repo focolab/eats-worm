@@ -39,20 +39,21 @@ def subaxis(im, position, window = 100):
     if xmin < 0:
         xmax -= xmin
         xmin = 0
-        offset[0] = xmin
+        offset[0] = -xmin
     if ymin < 0:
         ymax -= ymin
         ymin = 0 
-        offset[1] = ymin
+        offset[1] = -ymin
     if ymax > im.shape[-2]:
         ymin -= ymax-im.shape[-2] 
-        offset[1] = ymax-im.shape[-2] 
+        offset[1] = (ymax-im.shape[-2] )
         ymax = im.shape[-2]-1
 
     if xmax > im.shape[-1]:
         xmin -= xmax - im.shape[-1]
-        offset[0] = xmax - im.shape[-1]
+        offset[0] = (xmax - im.shape[-1])
         xmax = im.shape[-1]-1
+    #offset[0],offset[1] = offset[1], offset[0]
     return im[ymin:ymax, xmin:xmax], offset
 
 def subaxis_MIP(im, z,x,y, window = 100):

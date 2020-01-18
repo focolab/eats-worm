@@ -287,11 +287,12 @@ class Thread:
             - if time point larger than largest time point, take the last time point
             - if time point not in thread but smaller than largest time point, update with the last-observed position before the time specified
         """
+        t = int(t)
         if not self.t:
             return False
         
         elif t in self.t: #if time point exists, then just return that time point
-            return self.positions[np.where(np.array(self.t) == t)[0][0]]
+            return self.positions[t]
         
         elif t < self.t[0]: #if time point doesn't exist, and time point less than smallest point this blob thread was initialized
             return False

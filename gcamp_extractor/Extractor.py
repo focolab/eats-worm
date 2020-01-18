@@ -268,18 +268,17 @@ class Extractor:
         
         self.spool.infill()
         print('\nInfilling...')
-
         
-        imshape = tuple([self.numz]) + self.im.sizexy
+        
+        imshape = tuple([len(self.frames)]) + self.im.sizexy
         def collided(positions, imshape, window = 3):
-
             for i in [1,2]:
                 if np.sum(positions[:,i] < window) != 0:
                     return True
 
                 if np.sum(imshape[i] - positions[:,i] < window) != 0:
                     return True
-            if np.sum(positions[:,0]<0) != 0 or np.sum(positions[0]>imshape[0]-1) != 0:
+            if np.sum(positions[:,0]<0) != 0 or np.sum(positions[:,0] > imshape[0]-1) != 0:
                 return True
 
             #if positions[0] < 0 or int(positions[0]) == imshape[0]:
