@@ -117,11 +117,15 @@ def gaussian3d(im, *args):
                 sigma_y = args[0][4]
                 sigma_z = args[0][5]
     s = im.shape
+
+
     im = im.reshape(-1, im.shape[-2], im.shape[-1])
     im = gaussian2d(im, (width_x,width_y, sigma_x,sigma_y))
     im = im.reshape(s)
     #print('Starting 3D convolution')
-    im = convAxis(im, 0, cv2.getGaussianKernel(width_z,sigma_z))
+    
+    if len(s) == 3:
+        im = convAxis(im, 0, cv2.getGaussianKernel(width_z,sigma_z))
     return im 
 
 

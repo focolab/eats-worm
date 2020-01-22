@@ -101,7 +101,8 @@ def load_extractor(path):
         e = Extractor(**params)
 
         try:
-            thread = pickle.load(open(threadf, "rb"))
+            with open(threadf,'rb') as f:
+                thread = pickle.load(f)
             self.spool = thread
         except:
             pass
