@@ -265,10 +265,10 @@ class Extractor:
                 self.spool.reel(peaks,self.anisotropy)
             
             if not self.suppress_output:
-                print('\r' + 'Frames Processed (Blob Threads): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
-        
-        self.spool.infill()
+                print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
         print('\nInfilling...')
+        self.spool.infill()
+        
         
         
         imshape = tuple([len(self.frames)]) + self.im.sizexy

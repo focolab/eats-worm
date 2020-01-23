@@ -146,15 +146,16 @@ class Spool:
         #print(matchings)
         '''
         matchings = []
-        for i in range(mat.shape[0]): #iterate over existing points
-            if np.min(mat[i,:]) < thresh:
-                index = np.where(mat[i,:] == np.min(mat[i,:]))[0][0]
-                matchings.append([i,index])
+        if np.size(mat):
+            for i in range(mat.shape[0]): #iterate over existing points
+                if np.min(mat[i,:]) < thresh:
+                    index = np.where(mat[i,:] == np.min(mat[i,:]))[0][0]
+                    matchings.append([i,index])
 
-                mat[i,:] = 10000
-                mat[:,index] = 10000
-            else: pass
-        
+                    mat[i,:] = 10000
+                    mat[:,index] = 10000
+                else: pass
+            
         matchings = np.array(matchings)
         if matchings.any():
             unmatched = list(set(range(mat.shape[0]))-set(matchings[:,0]))
@@ -162,7 +163,7 @@ class Spool:
         else:
             unmatched = list(range(mat.shape[0]))
             newpoints = list(range(mat.shape[1]))
-        
+
         return matchings, unmatched, newpoints
 
     def update_positions(self):
