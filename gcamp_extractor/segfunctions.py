@@ -106,15 +106,15 @@ def gaussian3d(im, *args):
         if isinstance(args[0],tuple):
             if len(args[0]) == 4:
                 width_x = width_y = args[0][0]
-                width_z = args[0][1]
-                sigma_x = sigma_y = args[0][2]
+                width_z = args[0][2]
+                sigma_x = sigma_y = args[0][1]
                 sigma_z = args[0][3]
             elif len(args[0]) == 6: 
                 width_x = args[0][0]
                 width_y = args[0][1]
-                width_z = args[0][2]
-                sigma_x = args[0][3]
-                sigma_y = args[0][4]
+                width_z = args[0][4]
+                sigma_x = args[0][2]
+                sigma_y = args[0][3]
                 sigma_z = args[0][5]
     s = im.shape
 
@@ -126,6 +126,7 @@ def gaussian3d(im, *args):
     
     if len(s) == 3:
         im = convAxis(im, 0, cv2.getGaussianKernel(width_z,sigma_z))
+    
     return im 
 
 
