@@ -80,40 +80,50 @@ def load_extractor(path):
         loaded extractor 
     """
     folders = []
-    for r, d, f in os.walk(path):
-        for folder in d:
-            if 'extractor-objects' in folder:
-                folders.append(os.path.join(r, folder))
-    if len(folders) == 0:
-        print('no extractor objects found')
-    elif len(folders) != 1:
-        print('multiple extractor-objects found')
-        return 1
+    if 'extractor-objects' not in path:
+
+        for r, d, f in os.walk(path):
+            for folder in d:
+                if 'extractor-objects' in folder:
+                    folders.append(os.path.join(r, folder))
+        if len(folders) == 0:
+            print('no extractor objects found')
+        elif len(folders) != 1:
+            print('multiple extractor-objects found')
+            return 1
+        for folder in folders:
+            if folder[-1]!='/':
+                folder += '/'
     else:
-        paramsf = folders[0]+'/params.json'
-        mftf = folders[0]+'/mft.obj'
-        threadf = folders[0]+'/threads.obj'
-        timef = folders[0]+'/timeseries.txt'
+        if path[-1] != '/':
+            path += '/'
+        folders.append(path)
 
-        with open(paramsf) as f:
-            params = json.load(f)
-        params['regen_mft'] = True
-        e = Extractor(**params)
 
-        try:
-            with open(threadf,'rb') as f:
-                thread = pickle.load(f)
-            self.spool = thread
-        except:
-            pass
+    paramsf = folders[0]+'params.json'
+    mftf = folders[0]+'mft.obj'
+    threadf = folders[0]+'threads.obj'
+    timef = folders[0]+'timeseries.txt'
 
-        try:
-            time = np.genfromtxt(timef)
-            e.timeseries = time
-        except:
-            pass
+    with open(paramsf) as f:
+        params = json.load(f)
+    params['regen_mft'] = False
+    e = Extractor(**params)
 
-        return e
+    try:
+        with open(threadf,'rb') as f:
+            thread = pickle.load(f)
+        e.spool = thread
+    except:
+        pass
+
+    try:
+        time = np.genfromtxt(timef)
+        e.timeseries = time
+    except:
+        pass
+
+    return e
 
 
 class Extractor:
