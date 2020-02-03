@@ -50,7 +50,7 @@ def default_quant_function(im, positions):
     activity: list
         list of quantifications corresponding to the positions specified
     """
-
+    
     timeseries = []
     for i in range(len(positions)):
         center = positions[i]
@@ -64,7 +64,7 @@ def default_quant_function(im, positions):
         masked.sort()
         timeseries.append(np.mean(masked[-10:]))
     return timeseries
-
+    
 def load_extractor(path):
     """
     Function for loading an existing extractor object
@@ -98,8 +98,8 @@ def load_extractor(path):
         if path[-1] != '/':
             path += '/'
         folders.append(path)
-
-
+        
+        
     paramsf = folders[0]+'params.json'
     mftf = folders[0]+'mft.obj'
     threadf = folders[0]+'threads.obj'
@@ -372,12 +372,22 @@ class Extractor:
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
-    def save_MIP(self):
+    def save_MIP(self, fname = ''):
+        if fname == '':
+            fname = self.root + "/extractor-objects/MIP.tif"
+        elif '/' not in fname and '\\' not in fname:
+            fname = self.root + '/extractor-objects/' + fname
+        else:
+            pass
+
+        if fname[-4:] != '.tif' or fname[-5:] != '.tiff':
+            fname = fname + '.tif'
+        
         _t = self.im.t
         self.im.t = 0
         _output = np.zeros(tuple([self.t]) + self.im.sizexy, dtype = np.uint16)
         
-        with tiff.TiffWriter(self.root + "/extractor-objects/MIP.tif",bigtiff = True) as tif:
+        with tiff.TiffWriter(fname,bigtiff = True) as tif:
             for i in range(self.t):
                 tif.save(np.max(self.im.get_t(), axis = 0))
                 print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
