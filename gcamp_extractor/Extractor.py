@@ -373,16 +373,29 @@ class Extractor:
         file_pi.close()
 
     def save_MIP(self, fname = ''):
+
+        # if passed with no argument, save with default
         if fname == '':
             fname = self.root + "/extractor-objects/MIP.tif"
+        
+        # if just filename specified, save in extractor objects with the filename 
         elif '/' not in fname and '\\' not in fname:
             fname = self.root + '/extractor-objects/' + fname
-        else:
+
+
+        # if the filename passed is a directory: 
+        if os.path.isdir(fname):
+            fname = os.path.join(fname, 'MIP.tif')
+        # if filename isn't a directory but ends in .tif
+        elif fname[-4:] == '.tif':
+            pass #save filename as is
+        elif fname[-5:] == '.tiff':
             pass
 
-        if fname[-4:] != '.tif' or fname[-5:] != '.tiff':
+        # if filename isn't a directory and doesn't end in .tif, append .tif to filename
+        else:
             fname = fname + '.tif'
-        
+
         _t = self.im.t
         self.im.t = 0
         _output = np.zeros(tuple([self.t]) + self.im.sizexy, dtype = np.uint16)
