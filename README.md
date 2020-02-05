@@ -37,6 +37,7 @@ e = Extractor(**arguments)
 e.calc_blob_threads()
 e.quantify()
 c = Curator(e)
+c.log_curate()
 ```
 
 The only 'coding' necessary here is to modify the 'root' directory that contains all your .tif files from your recording, the number of z-planes used, what frames you want to keep. If you're feeling really fancy, maybe even parameters like the size of your Gaussian filter, the percentile you threshold, the anisotropy/voxel size of your recording, and etc. 
@@ -70,7 +71,7 @@ The only 'coding' necessary here is to modify the 'root' directory that contains
 * `e.save_threads()` : saves current state of threads, i.e. if you remove any of them/add any in through code
 * `e.save_timeseries()` : saves current state of timeseries, i.e. if you change the timeseries somehow
 * `e = load_extractor(root)` : reloads the extractor using the same root directory as specified when it was created. 
-* `Curator(e)` : launched an interactive matplotlib GUI that allows you to accept/reject individual blob threads. upon closing of the python environment, automatically saves your labels as a .json that gets reloaded the next time you run Curator on the loaded extractor. Optionally, it takes an additional argument called "window", which specifies how wide the zoomed-in view of the ROI+neuron goes. There is a known issue that if the ROI is too close to the edge of the image, the red dot in the zoomed in version doesn't necessarily correspond to where the actual found position is. If you suspect that's the case, reduce the window size so that the zoom-in doesn't get affected by image boundaries. 
+* `Curator(e)` : launched an interactive matplotlib GUI that allows you to accept/reject individual blob threads. upon closing of the Python environment, automatically saves your labels as a .json that gets reloaded the next time you run Curator on the loaded extractor. Optionally, it takes an additional argument called "window", which specifies how wide the zoomed-in view of the ROI+neuron goes. There is a known issue that if the ROI is too close to the edge of the image, the red dot in the zoomed in version doesn't necessarily correspond to where the actual found position is. If you suspect that's the case, reduce the window size so that the zoom-in doesn't get affected by image boundaries. 
 
 Generally, you will follow the sequence of:
 ```python3
@@ -83,7 +84,9 @@ e = Extractor(**arguments)
 e.calc_blob_threads()
 e.quantify()
 c = Curator(e)
+c.log_curate()
 ```
+
 
 If you're for some reason doing processing across multiple sessions, you can reload the extractor with
 
