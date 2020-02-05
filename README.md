@@ -73,6 +73,12 @@ The only 'coding' necessary here is to modify the 'root' directory that contains
 * `e = load_extractor(root)` : reloads the extractor using the same root directory as specified when it was created. 
 * `Curator(e)` : launched an interactive matplotlib GUI that allows you to accept/reject individual blob threads. upon closing of the Python environment, automatically saves your labels as a .json that gets reloaded the next time you run Curator on the loaded extractor. Optionally, it takes an additional argument called "window", which specifies how wide the zoomed-in view of the ROI+neuron goes. There is a known issue that if the ROI is too close to the edge of the image, the red dot in the zoomed in version doesn't necessarily correspond to where the actual found position is. If you suspect that's the case, reduce the window size so that the zoom-in doesn't get affected by image boundaries. 
 
+#### Curator Methods
+* `c = Curator(e)` : creates a Curator object based on an extractor. 
+* `c.log_curate()` : force-save the JSON containing which threads you've seen, decided to keep, or decided to trash. This **normally** gets automatcially saved when you quit the Python environment, but in some cases it doesn't happen (not sure why). Just to be save, call this function after every Curator session 
+* `c.restart()` : if you're running this in an interactive Python session (line-by-line, or in an IDE), and you have already run `c = Curator(e)` but closed the window and want to resume where you've left off, run `c.restart()` to re-open the matplotlib window and pick up curating where you left off. 
+
+
 Generally, you will follow the sequence of:
 ```python3
 from gcamp_extractor import *
