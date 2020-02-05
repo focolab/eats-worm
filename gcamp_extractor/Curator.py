@@ -137,7 +137,7 @@ class Curator:
         self.timeseries = e.timeseries
         self.tf = e.im
         self.tf.t = 0
-
+        self.window = window
         ## num neurons
         self.numneurons = len(self.s.threads)
 
@@ -154,6 +154,10 @@ class Curator:
             self.curate['0']='seen'
 
 
+        # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
+        self.pointstate = 0
+        self.show_settings = 0
+        self.showmip = 0 
         ## index for which thread
         #self.ind = 0
 
@@ -170,24 +174,44 @@ class Curator:
         ## maximum t
         self.tmax = e.t
 
-        
+        self.restart()
+        atexit.register(self.log_curate)
+
+    def restart(self):
         ## Figure to display
         self.fig = plt.figure()
 
         ## Size of window around ROI in sub image
-        self.window = window
+        #self.window = window
 
         ## grid object for complicated subplot handing
         self.grid = plt.GridSpec(4, 2, wspace=0.1, hspace=0.2)
 
 
         ### First subplot: whole image with red dot over ROI
-        plt.subplot(self.grid[:3,0])
+        self.ax1 = plt.subplot(self.grid[:3,0])
         plt.subplots_adjust(bottom=0.4)
-        self.img1 = plt.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-        self.point1 = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=20)
-        plt.axis("off")
+        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+        
+        # plotting for multiple points
+        
+        if self.pointstate==0:
+            pass
+            #self.point1 = plt.scatter()
+            #self.point1 = plt.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+        elif self.pointstate==1:
+            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        elif self.pointstate==2:
+            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        plt.axis('off')
 
+        # plotting for single point
+        #
+        #plt.axis("off")
+        #
 
         ### Second subplot: some window around the ROI
         plt.subplot(self.grid[:3,1])
@@ -232,6 +256,19 @@ class Curator:
         self.bprev.on_clicked(self.prev)
 
 
+        #### Axis for button for display
+        self.pointsax = plt.axes([0.75, 0.10, 0.1, 0.075])
+        self.pointsbutton = RadioButtons(self.pointsax, ('Single','Same Z','All'))
+        self.pointsbutton.set_active(self.pointstate)
+        self.pointsbutton.on_clicked(self.update_pointstate)
+
+        #### Axis for whether to display MIP on left
+        self.mipax = plt.axes([0.62, 0.10, 0.1, 0.075])
+        self.mipbutton = RadioButtons(self.mipax, ('Single Z','MIP'))
+        self.mipbutton.set_active(self.showmip)
+        self.mipbutton.on_clicked(self.update_mipstate)
+
+
         ### Axis for button to keep
         self.keepax = plt.axes([0.87, 0.20, 0.075, 0.075])
         self.keep_button = CheckButtons(self.keepax, ['Keep','Trash'], [False,False])
@@ -241,20 +278,22 @@ class Curator:
         ### Axis to determine which ones to show
         self.showax = plt.axes([0.87, 0.10, 0.075, 0.075])
         self.showbutton = RadioButtons(self.showax, ('All','Unlabelled','Kept','Trashed'))
-        self.showbutton.set_active(0)
+        self.showbutton.set_active(self.show_settings)
         self.showbutton.on_clicked(self.show)
-        self.show_settings = 0
-
-
+    
         plt.show()
-        atexit.register(self.log_curate)
-
+    ## Attempting to get autosave when instance gets deleted, not working right now TODO     
+    def __del__(self):
+        self.log_curate()
 
     def update_im(self):
-        print(self.t)
-        print(self.ind)
-        print(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
-        self.im = self.tf.get_tbyf(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
+        #print(self.t)
+        #print(self.ind)
+        #print(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
+        if self.showmip:
+            self.im = np.max(self.tf.get_t(self.t),axis = 0)
+        else:
+            self.im = self.tf.get_tbyf(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
     
     def get_im_display(self):
 
@@ -262,10 +301,26 @@ class Curator:
     
     def get_subim_display(self):
         return (self.subim - self.min)/(self.max - self.min)
+    
     def update_figures(self):
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.img1.set_data(self.get_im_display())
-        self.point1.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
+        
+
+        
+
+
+        if self.pointstate==0:
+            pass
+        elif self.pointstate==1:
+            self.point1.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
+            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        elif self.pointstate == 2:
+            self.point1.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
+        self.thispoint.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
+        plt.axis('off')
+        #plotting for single point
+        #
 
         self.img2.set_data(self.get_subim_display())
         self.point2.set_offsets([self.window//2-self.offset[1], self.window//2-self.offset[0]])
@@ -325,7 +380,7 @@ class Curator:
     def update_buttons(self):
 
         curr = self.keep_button.get_status()
-        print(curr)
+        #print(curr)
         future = [False for i in range(len(curr))]
         if self.curate.get(str(self.ind))=='seen':
             pass
@@ -347,7 +402,7 @@ class Curator:
             'Kept':2,
             'Trashed':3
         }
-        print(label)
+        #print(label)
         self.show_settings = d[label]
 
     def set_index_prev(self):
@@ -411,5 +466,44 @@ class Curator:
             pass
         else:
             self.curate[str(self.ind)] = 'seen'
+
+    def update_pointstate(self, label):
+        d = {
+            'Single':0,
+            'Same Z':1,
+            'All':2,
+        }
+        #print(label)
+        self.pointstate = d[label]
+        self.update_point1()
+        self.update_figures()
+    def update_point1(self):
+        self.ax1.clear()
+        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+        plt.axis('off')
+        if self.pointstate==0:
+            self.point1 = None
+        elif self.pointstate==1:
+            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        elif self.pointstate==2:
+            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        plt.axis('off')
+        #plt.show()
+
+    def update_mipstate(self, label):
+        d = {
+            'Single Z':0,
+            'MIP':1,
+        }
+        #print(label)
+        self.showmip = d[label]
+
+        self.update_im()
+        self.update_figures()
+
+
 
 

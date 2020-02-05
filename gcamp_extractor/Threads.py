@@ -68,7 +68,7 @@ class Spool:
 
         self.t = None
         self.dvec = np.zeros((self.maxt,3))
- 
+        self.allthreads = None
     def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
 
         # if no threads already exist, add all incoming points to new threads them and positions tracker
@@ -200,6 +200,36 @@ class Spool:
                 for j in reversed(range(self.threads[i].t[0])):
                     inferred = inferred - self.dvec[j]
                     self.threads[i].infill(inferred)
+
+    def make_allthreads(self):
+        # initialize numpy array based on how many timepoints and number of threads
+        self.allthreads = np.zeros((self.maxt, 3*len(self.threads)))
+
+        # fill in everything
+        for i in range(len(self.threads)):
+            self.allthreads[:,3*i:3*i+3] = self.threads[i].positions
+
+    def get_positions_t(self,t):
+        if self.allthreads is not None:
+
+            t = int(t)
+            
+            if t >= self.maxt:
+                return False
+            elif t < 0: return False
+            return self.allthreads[t].reshape((-1,3))
+
+        else:
+            print('Run make_allthreads first')
+            return False
+
+    def get_positions_t_z(self,t,z):
+        # get positions first
+        _a = self.get_positions_t(t)
+
+        z = int(z)
+        return _a[_a[:,0]==z]
+
 
 
 class Thread:
