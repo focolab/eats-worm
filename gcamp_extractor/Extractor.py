@@ -284,12 +284,13 @@ class Extractor:
         imshape = tuple([len(self.frames)]) + self.im.sizexy
         def collided(positions, imshape, window = 3):
             for i in [1,2]:
-                if np.sum(positions[:,i] < window) != 0:
+                if np.sum(positions[:,i].astype(int) < window) != 0:
                     return True
 
-                if np.sum(imshape[i] - positions[:,i] < window) != 0:
+                if np.sum(imshape[i] - positions[:,i].astype(int) < window+1) != 0:
                     return True
-            if np.sum(positions[:,0]<0) != 0 or np.sum(positions[:,0] > imshape[0]-1) != 0:
+
+            if np.sum(positions[:,0].astype(int)<0) != 0 or np.sum(positions[:,0].astype(int) > imshape[0]-1) != 0:
                 return True
 
             #if positions[0] < 0 or int(positions[0]) == imshape[0]:
