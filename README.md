@@ -37,6 +37,7 @@ e = Extractor(**arguments)
 e.calc_blob_threads()
 e.quantify()
 c = Curator(e)
+c.log_curate()
 ```
 
 The only 'coding' necessary here is to modify the 'root' directory that contains all your .tif files from your recording, the number of z-planes used, what frames you want to keep. If you're feeling really fancy, maybe even parameters like the size of your Gaussian filter, the percentile you threshold, the anisotropy/voxel size of your recording, and etc. 
@@ -66,11 +67,17 @@ The only 'coding' necessary here is to modify the 'root' directory that contains
 * `e = Extractor(**arguments)` : initializes the extractor based on arguments above. may take a while to open based on your recording size, since the first thing it does is read through your entire recording to calculate how many frames there are. 
 * `e.calc_blob_threads()` : calculates blob threads. also performs automatic border-collision detection and destroys threads that automatically collide with the image border. automatically saves as a numpy pickle object that can be reloaded. 
 * `e.quantify()` : performs quantification based on calculated threads. default quantification function is the average of top 10 pixel values in a 7x7 box around the calculated pixel index. automatically saves timeseries in a .txt file that can be read with np.genfromtxt('../timeseries.txt') and re-loaded into a python environment as a numpy array 
-* `e.save_MIP()` : saves a maximum intensity projection of your recording in extractor-objects/MIP.tif. note, this only performs a MIP that includes the frames specified in the 'frames' argument
+* `e.save_MIP()` : saves a maximum intensity projection of your recording in extractor-objects/MIP.tif. note, this only performs a MIP that includes the frames specified in the 'frames' argument. optionally, you can specify a filename or a specific directory to save the MIP. Default is to save it under 'extractor-objects/MIP.tif', but you could pass it 'MIP1.tif' or 'path/to/directory' or 'path/to/directory/MIP.tif' and etc. 
 * `e.save_threads()` : saves current state of threads, i.e. if you remove any of them/add any in through code
 * `e.save_timeseries()` : saves current state of timeseries, i.e. if you change the timeseries somehow
 * `e = load_extractor(root)` : reloads the extractor using the same root directory as specified when it was created. 
-* `Curator(e)` : launched an interactive matplotlib GUI that allows you to accept/reject individual blob threads. upon closing of the python environment, automatically saves your labels as a .json that gets reloaded the next time you run Curator on the loaded extractor. Optionally, it takes an additional argument called "window", which specifies how wide the zoomed-in view of the ROI+neuron goes. There is a known issue that if the ROI is too close to the edge of the image, the red dot in the zoomed in version doesn't necessarily correspond to where the actual found position is. If you suspect that's the case, reduce the window size so that the zoom-in doesn't get affected by image boundaries. 
+* `Curator(e)` : launched an interactive matplotlib GUI that allows you to accept/reject individual blob threads. upon closing of the Python environment, automatically saves your labels as a .json that gets reloaded the next time you run Curator on the loaded extractor. Optionally, it takes an additional argument called "window", which specifies how wide the zoomed-in view of the ROI+neuron goes. There is a known issue that if the ROI is too close to the edge of the image, the red dot in the zoomed in version doesn't necessarily correspond to where the actual found position is. If you suspect that's the case, reduce the window size so that the zoom-in doesn't get affected by image boundaries. 
+
+#### Curator Methods
+* `c = Curator(e)` : creates a Curator object based on an extractor. 
+* `c.log_curate()` : force-save the JSON containing which threads you've seen, decided to keep, or decided to trash. This **normally** gets automatcially saved when you quit the Python environment, but in some cases it doesn't happen (not sure why). Just to be save, call this function after every Curator session 
+* `c.restart()` : if you're running this in an interactive Python session (line-by-line, or in an IDE), and you have already run `c = Curator(e)` but closed the window and want to resume where you've left off, run `c.restart()` to re-open the matplotlib window and pick up curating where you left off. 
+
 
 Generally, you will follow the sequence of:
 ```python3
@@ -83,7 +90,9 @@ e = Extractor(**arguments)
 e.calc_blob_threads()
 e.quantify()
 c = Curator(e)
+c.log_curate()
 ```
+
 
 If you're for some reason doing processing across multiple sessions, you can reload the extractor with
 
