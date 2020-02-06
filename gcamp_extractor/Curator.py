@@ -44,14 +44,14 @@ def subaxis(im, position, window = 100):
         ymax -= ymin
         ymin = 0 
         offset[1] = -ymin
-    if ymax > im.shape[-2]:
-        ymin -= ymax-im.shape[-2] 
+    if ymax >= im.shape[-2]:
+        ymin -= ymax-im.shape[-2]+1
         offset[1] = (ymax-im.shape[-2] )
         ymax = im.shape[-2]-1
 
-    if xmax > im.shape[-1]:
-        xmin -= xmax - im.shape[-1]
-        offset[0] = (xmax - im.shape[-1])
+    if xmax >= im.shape[-1]:
+        xmin -= xmax - im.shape[-1]+1
+        offset[0] = (xmax - im.shape[-1]+1)
         xmax = im.shape[-1]-1
     #offset[0],offset[1] = offset[1], offset[0]
     return im[ymin:ymax, xmin:xmax], offset
@@ -220,7 +220,7 @@ class Curator:
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
 
         self.img2 = plt.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
-        self.point2 = plt.scatter(self.window//2-self.offset[1], self.window//2-self.offset[0],c='r', s=40)
+        self.point2 = plt.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
 
         self.title = self.fig.suptitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         plt.axis("off")
@@ -323,7 +323,7 @@ class Curator:
         #
 
         self.img2.set_data(self.get_subim_display())
-        self.point2.set_offsets([self.window//2-self.offset[1], self.window//2-self.offset[0]])
+        self.point2.set_offsets([self.window/2+self.offset[0], self.window/2+self.offset[1]])
         self.title.set_text('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         plt.draw()
 

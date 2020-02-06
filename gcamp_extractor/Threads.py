@@ -228,6 +228,8 @@ class Spool:
         _a = self.get_positions_t(t)
 
         z = int(z)
+        
+        
         return _a[_a[:,0]==z]
 
 
