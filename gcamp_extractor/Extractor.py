@@ -317,7 +317,7 @@ class Extractor:
             for item in destroy:
                 self.spool.threads.pop(item)
 
-        e.spool.make_allthreads()
+        self.spool.make_allthreads()
         print('Saving blob timeseries as numpy object...')
         mkdir(self.root+'extractor-objects')
         file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
