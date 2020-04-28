@@ -67,7 +67,7 @@ class Spool:
 
 
         self.t = None
-        self.dvec = np.zeros((self.maxt,3))
+        self.dvec = np.zeros((self.maxt-1,3))
         self.allthreads = None
     def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
 
@@ -75,35 +75,53 @@ class Spool:
         if self.threads == []:
             for i in range(len(positions)):
                 self.threads.append(Thread(positions[i], maxt = self.maxt))
+
+            # update numpy array containing most recently found position of all blobs
             self.update_positions()
+
+            # update numpy array containing predictions of positions for the next incoming timepoint
             self.predictions = copy.copy(self.positions)
             self.t = 1
         # if threads already exist
         else:
             # match points based on a max-threshold euclidean distance based matching
             #try:
+
+            # if doing dft registration, there's an offset in the arguments for reel. offset predictions by that amount
             self.predictions = self.predictions + offset
+
+            # if doing some anisotropy processing, need to offset positions by the anisotropy factor
             for i in range(len(anisotropy)):
                 self.predictions[:,i]=self.predictions[:,i]*anisotropy[i]
                 positions[:,i]=positions[:,i]*anisotropy[i]
+
+            # calculate distance matrix to perform matching on
             diff = scipy.spatial.distance.cdist(self.predictions, positions, metric='euclidean')
+            
+            # reset the positions to their original coordinate (pixel coordinates)
             for i in range(len(anisotropy)):        
                 self.predictions[:,i]=self.predictions[:,i]/anisotropy[i]
                 positions[:,i]=positions[:,i]/anisotropy[i]
             
+            # calculate the matchings 
             matchings, unmatched, newpoints = self.calc_match(diff, self.blob_dist_thresh)
 
             #dvec[self.t] = np.zeros(self.threads[0].get_position_mostrecent().shape)
+            
+            # for all the incoming peaks that were matched to existing threads
             for match in matchings:
-                self.dvec[self.t] -= self.threads[match[0]].get_position_mostrecent()-positions[match[1]]
-                self.threads[match[0]].update_position(positions[match[1]], t = self.t)
+
+                # update dvec 
+                self.dvec[self.t-1] -= self.threads[match[0]].get_position_mostrecent()-positions[match[1]]
+                self.threads[match[0]].update_position(positions[match[1]], t = self.t, found = True)
+            
             if matchings.any():
-                self.dvec[self.t] *= 1/len(matchings)
+                self.dvec[self.t-1] *= 1/len(matchings)
             else:
-                self.dvec[self.t] = 0
+                self.dvec[self.t-1] = 0
             #print(self.dvec[self.t])
             for match in unmatched:
-                self.threads[match].update_position(self.threads[match].get_position_mostrecent() + self.dvec[self.t], t=self.t)
+                self.threads[match].update_position(self.threads[match].get_position_mostrecent() + self.dvec[self.t-1], found = False, t=self.t)
 
             for point in newpoints:
                 self.threads.append(Thread(positions[point], t=self.t, maxt = self.maxt))
@@ -191,6 +209,7 @@ class Spool:
         else:
             for i in range(len(self.threads)):
                 self.predictions[i] = self.threads[i].get_position_mostrecent()
+    
     def infill(self):
         for i in range(len(self.threads)):
             if self.threads[i].t[0]==0:
@@ -200,7 +219,7 @@ class Spool:
                 for j in reversed(range(self.threads[i].t[0])):
                     inferred = inferred - self.dvec[j]
                     self.threads[i].infill(inferred)
-
+    
     def make_allthreads(self):
         # initialize numpy array based on how many timepoints and number of threads
         self.allthreads = np.zeros((self.maxt, 3*len(self.threads)))
@@ -254,7 +273,7 @@ class Thread:
 
         maxt = kwargs.get('maxt')
         self.positions = np.zeros((maxt,3))
-
+        self.found = np.zeros((maxt))
         #self.positions = []
         self.t = []
         if position != []:
@@ -269,7 +288,7 @@ class Thread:
         """
         return self.positions[self.t[-1]]
 
-    def update_position(self, position, t = 0):
+    def update_position(self, position, found = False, t = 0):
         """
         takes in position and updates the thread with the position
         """
@@ -279,6 +298,7 @@ class Thread:
             if len(position) == len(self.positions[0]): #append only if positions is same dimensions
                 self.positions[t] = np.array(position)
                 self.t.append(t)
+
                 #self.positions.append(np.array(position))
             else:
                 return False
@@ -286,6 +306,10 @@ class Thread:
         else:
             self.positions[t] = np.array(position)
             self.t.append(t)
+
+        if found:
+            self.found[t] = True
+
             #self.positions.append(np.array(position))
 
         '''

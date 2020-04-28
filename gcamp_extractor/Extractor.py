@@ -15,6 +15,9 @@ def mkdir(path):
 import glob
 import json
 import imreg_dft as ird
+from scipy.spatial.distance import pdist, squareform
+from fastcluster import linkage
+import scipy.cluster
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -305,6 +308,8 @@ class Extractor:
             #    elif s[i]-p[i] < window:
              #       return True
 
+        print('Removing bad threads')
+        #self.remove_bad_threads()
         destroy = []
         _a = len(self.spool.threads)
         for i in range(_a):
@@ -316,6 +321,10 @@ class Extractor:
         if destroy:
             for item in destroy:
                 self.spool.threads.pop(item)
+
+
+        self._merge_within_z()
+
 
         self.spool.make_allthreads()
         print('Saving blob timeseries as numpy object...')
@@ -407,4 +416,149 @@ class Extractor:
                 print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
 
         print('\n')
+
+    def remove_bad_threads(self):
+        d = np.zeros((len(self.spool.threads)))
+        orig = len(self.spool.threads)
+        for i in range(len(self.spool.threads)):
+            dvec = np.diff(self.spool.threads[i].positions, axis = 0)
+            d[i] = np.abs(self.spool.dvec - dvec).max()
+
+        ans = d > self.blob_merge_dist_thresh
+
+        throw_ndx = np.where(ans)[0]
+        throw_ndx = list(throw_ndx)
+
+        throw_ndx.sort(reverse = True)
+
+        for ndx in throw_ndx:
+            self.spool.threads.pop(int(ndx))
+        print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
+
+
+
+    def _merge_within_z(self):
+        # sort threads by z
+        tbyz = self._threads_by_z()
+        # calculate distance matrix list
+        dmatlist = self._calc_dist_mat_list(e, self._threads_by_z())
+
+        for i in range(len(dmatlist)):
+            sort_mat,b,c = compute_serial_matrix(dmatlist[i])
+            
+    def _calc_dist_mat(self, indices):
+        """
+        Calculates distance matrix among threads with indices specified
+
+        Arguments:
+            indices : list of ints
+                list of indices corresponding to which threads are present for the distance matrix calculation
+        """
+        
+        # initialize distance matrix
+        dmat = np.zeros((len(indices), len(indices)))
+
+        # calculate dmat, non-diagonals only
+        for i in range(len(indices)):
+            for j in range(i+1, len(indices)):
+                pos1 = self.spool.threads[indices[i]].positions
+                pos2 = self.spool.threads[indices[j]].positions
+
+                dmat[i,j] = np.linalg.norm(pos1 - pos2, axis = 1).mean()
+        dmat = dmat + dmat.T
+
+        return dmat
+
+
+    def _calc_dist_mat_list(self, indices: list) -> list:
+        """
+        Calculates list of distance matrices 
+
+        Arguments:
+            e : extractor
+                extractor object
+            indices : list of list of ints
+                list of list of indices made by threads_by_z
+        """
+        # initialize dmat list
+        dmatlist = []
+
+        # iterate over z planes
+        for i in range(len(indices)):
+            dmat = self._calc_dist_mat(e, indices[i])
+            dmatlist.append(dmat)
+        return dmatlist
+
+
+    def _threads_by_z(self):
+        """
+        Organizes thread indices by z plane
+
+        Arguments:
+            e : extractor
+                extractor object
+        """
+
+        # make object to store thread indices corresponding to z plane
+        threads_by_z = [[] for i in self.frames]
+
+
+        # iterate over threads, append index to threads_by_z
+        for i in range(len(e.spool.threads)):
+            z = int(self.spool.threads[i].positions[0,0])
+            ndx = np.where(np.array(self.frames) == z)[0][0]
+
+            threads_by_z[ndx].append(i)
+
+        return threads_by_z
+
+
+    def _seriation(self, Z,N,cur_index):
+        '''
+            input:
+                - Z is a hierarchical tree (dendrogram)
+                - N is the number of points given to the clustering process
+                - cur_index is the position in the tree for the recursive traversal
+            output:
+                - order implied by the hierarchical tree Z
+                
+            seriation computes the order implied by a hierarchical tree (dendrogram)
+        '''
+        if cur_index < N:
+            return [cur_index]
+        else:
+            left = int(Z[cur_index-N,0])
+            right = int(Z[cur_index-N,1])
+            return (self._seriation(Z,N,left) + self._seriation(Z,N,right))
+        
+    def _compute_serial_matrix(self, dist_mat,method="ward"):
+        '''
+        input:
+            - dist_mat is a distance matrix
+            - method = ["ward","single","average","complete"]
+        output:
+            - seriated_dist is the input dist_mat,
+              but with re-ordered rows and columns
+              according to the seriation, i.e. the
+              order implied by the hierarchical tree
+            - res_order is the order implied by
+              the hierarhical tree
+            - res_linkage is the hierarhical tree (dendrogram)
+        
+        compute_serial_matrix transforms a distance matrix into 
+        a sorted distance matrix according to the order implied 
+        by the hierarchical tree (dendrogram)
+        '''
+        N = len(dist_mat)
+        flat_dist_mat = squareform(dist_mat)
+        res_linkage = linkage(flat_dist_mat, method=method,preserve_input=True)
+        res_order = self._seriation(res_linkage, N, N + N-2)
+        seriated_dist = np.zeros((N,N))
+        a,b = np.triu_indices(N,k=1)
+        seriated_dist[a,b] = dist_mat[ [res_order[i] for i in a], [res_order[j] for j in b]]
+        seriated_dist[b,a] = seriated_dist[a,b]
+        
+        return seriated_dist, res_order, res_linkage
+
+
 

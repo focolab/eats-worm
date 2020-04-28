@@ -20,7 +20,8 @@ setuptools.setup(
           'tifffile>=0.15.1',
           'opencv-python>=4.1.0.25',
           'matplotlib>=2.1.0',
-          'imreg_dft'
+          'imreg_dft',
+          'fastcluster'
       ], 
     dependency_links=['https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft'],
     python_requires='>=3.6',
