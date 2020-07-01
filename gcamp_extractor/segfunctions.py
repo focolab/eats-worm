@@ -190,10 +190,10 @@ def findpeaks2d(im):
     """
     #print('Finding peaks...')
     centers_newway = np.array(np.where(\
-            np.roll(np.roll(im,1, axis = 1) > im, -1, axis = 1) \
-            * np.roll(np.roll(im,-1, axis = 1) > im, 1, axis = 1) \
-            * np.roll(np.roll(im,1, axis = 2) > im, -1, axis = 2) \
-            * np.roll(np.roll(im,-1, axis = 2) > im, 1, axis = 2) \
+              (np.roll(im,1, axis = 1) < im) \
+            * (np.roll(im,-1, axis = 1) < im) \
+            * (np.roll(im,1, axis = 2) < im) \
+            * (np.roll(im,-1, axis = 2) < im) \
             * (im!=0))).T
 
     return centers_newway
@@ -214,12 +214,13 @@ def findpeaks3d(im):
     """
 
     if len(im.shape) == 3:
-        centers_newway = np.array(np.where(np.roll(np.roll(im,1, axis = 0) >im, -1, axis = 0) \
-            * np.roll(np.roll(im,-1, axis = 0) > im, 1, axis = 0) \
-            * np.roll(np.roll(im,1, axis = 1) > im, -1, axis = 1) \
-            * np.roll(np.roll(im,-1, axis = 1) > im, 1, axis = 1) \
-            * np.roll(np.roll(im,1, axis = 2) > im, -1, axis = 2) \
-            * np.roll(np.roll(im,-1, axis = 2) > im, 1, axis = 2) \
+        centers_newway = np.array(np.where(
+              (np.roll(im,1, axis = 0) < im) \
+            * (np.roll(im,-1, axis = 0) < im) \
+            * (np.roll(im,1, axis = 1) < im) \
+            * (np.roll(im,-1, axis = 1) < im) \
+            * (np.roll(im,1, axis = 2) < im) \
+            * (np.roll(im,-1, axis = 2) < im) \
             * (im!=0))).T
 
     elif len(im.shape)==4:
