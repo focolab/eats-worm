@@ -67,7 +67,7 @@ class Spool:
 
 
         self.t = None
-        self.dvec = np.zeros((self.maxt-1,3))
+        self.dvec = np.zeros((self.maxt,3))
         self.allthreads = None
     def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
 

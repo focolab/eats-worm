@@ -441,10 +441,11 @@ class Extractor:
         # sort threads by z
         tbyz = self._threads_by_z()
         # calculate distance matrix list
-        dmatlist = self._calc_dist_mat_list(e, self._threads_by_z())
+        dmatlist = self._calc_dist_mat_list(self._threads_by_z())
 
         for i in range(len(dmatlist)):
-            sort_mat,b,c = compute_serial_matrix(dmatlist[i])
+            if len(dmatlist[i]) > 1:
+                sort_mat,b,c = self._compute_serial_matrix(dmatlist[i])
             
     def _calc_dist_mat(self, indices):
         """
@@ -485,7 +486,7 @@ class Extractor:
 
         # iterate over z planes
         for i in range(len(indices)):
-            dmat = self._calc_dist_mat(e, indices[i])
+            dmat = self._calc_dist_mat(indices[i])
             dmatlist.append(dmat)
         return dmatlist
 
@@ -504,7 +505,7 @@ class Extractor:
 
 
         # iterate over threads, append index to threads_by_z
-        for i in range(len(e.spool.threads)):
+        for i in range(len(self.spool.threads)):
             z = int(self.spool.threads[i].positions[0,0])
             ndx = np.where(np.array(self.frames) == z)[0][0]
 

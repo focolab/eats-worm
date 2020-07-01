@@ -159,7 +159,7 @@ class Curator:
         self.show_settings = 0
         self.showmip = 0 
         ## index for which thread
-        #self.ind = 0
+        self.ind = 0
 
         ## index for which time point to display
         self.t = 0
@@ -293,6 +293,8 @@ class Curator:
         if self.showmip:
             self.im = np.max(self.tf.get_t(self.t),axis = 0)
         else:
+            print(self.t, len(self.s.threads), self.ind)
+            print(self.s.threads[self.ind].get_position_t(self.t))
             self.im = self.tf.get_tbyf(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
     
     def get_im_display(self):
