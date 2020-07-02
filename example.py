@@ -12,6 +12,7 @@ import numpy as np
 from gcamp_extractor.Extractor import *
 from gcamp_extractor.Threads import *
 from gcamp_extractor.Curator import *
+from gcamp_extractor.gmm import do_fitting
 
 from gcamp_extractor import *
 
@@ -39,7 +40,8 @@ arguments = {
 start_time = time.process_time()
 e = Extractor(**arguments)
 e.calc_blob_threads()
+do_fitting(e, [6])
 e.quantify()
 print(time.process_time() - start_time, "seconds")
-c = Curator(e)
+# c = Curator(e)
 
