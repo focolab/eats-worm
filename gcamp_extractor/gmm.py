@@ -26,7 +26,18 @@ def do_fitting(e, volumes_to_output):
         gauss_peaks = []
         brightest_quantile = np.array(im1 > np.quantile(im1, 0.99))
         brightest_pixels = brightest_quantile * im1
-        structure = np.tile(generate_binary_structure(2,2), (3, 1, 1))
+        # structure = np.tile(generate_binary_structure(2,2), (3, 1, 1))
+        structure = np.array(
+            [[[False,  False, False],
+              [False,  True,  False],
+              [False,  False, False]],
+             [[False,  True,  False],
+              [ True,  True,  True],
+              [False,  True,  False]],
+             [[False,  False, False],
+              [False,  True,  False],
+              [False,  False, False]]],
+            dtype=bool)
         brightest_regions, num_bright_regions = label(brightest_quantile, structure=structure)
         drawn = []
 
