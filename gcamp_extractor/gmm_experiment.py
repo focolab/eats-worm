@@ -135,4 +135,29 @@ def visualize_radii_lengths(input_file):
         print(k, v)
 
 def visualize_major_axis_orientations(input_file):
-    pass
+    all_eigenvectors = []
+    z, x, y = [], [], []
+    with open(input_file) as json_file:
+        data = json.load(json_file)
+        for t in data.keys():
+            timepoint_eigenvectors = []
+            for unit_eigenvector in data[t]:
+                all_eigenvectors.append(unit_eigenvector)
+                timepoint_eigenvectors.append(unit_eigenvector)
+            timepoint_eigenvectors = np.array(timepoint_eigenvectors)
+            timepoint_std = np.std(np.array(timepoint_eigenvectors), axis=0)
+            z.append(timepoint_std[0])
+            x.append(timepoint_std[1])
+            y.append(timepoint_std[2])
+    print(np.std(np.array(all_eigenvectors), axis=0))
+    print(np.mean(all_eigenvectors, axis=0))
+
+    plt.plot(z, "-r", label="z")
+    plt.plot(x, "-g", label="x")
+    plt.plot(y, "-b", label="y")
+    plt.title("std dev of ellipsoid major axis orientation")
+    plt.xlabel("time point")
+    plt.ylabel("std dev")
+    plt.legend()
+    plt.savefig("major_axis_orientations.png")
+    plt.clf()
