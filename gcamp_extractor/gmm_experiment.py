@@ -18,6 +18,7 @@ def do_fitting(e):
     """
     num_components = {'peaks': [], 'gauss': []}
     radii_lengths = {}
+    major_axis_orientations = {}
     for i in range(e.t):
         im1 = e.im.get_t(t=i)
         im1_unfiltered = copy.deepcopy(im1)
@@ -26,6 +27,7 @@ def do_fitting(e):
 
         gauss_peaks = []
         radii_lengths[i] = []
+        major_axis_orientations[i] = []
         brightest_quantile = np.array(im1 > np.quantile(im1, 0.99))
         brightest_pixels = brightest_quantile * im1
         # structure = np.tile(generate_binary_structure(2,2), (3, 1, 1))
@@ -69,12 +71,17 @@ def do_fitting(e):
                         gauss = i_gauss
                 gauss_peaks.append(gauss.means_)
                 radii_lengths[i] += get_radii_lengths(gauss)
+                major_axis_orientations[i] += get_major_axis_orientations(gauss)
         
         if not e.suppress_output:
             print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(e.t), sep='', end='', flush=True)
 
     f = open("radii_lengths.json","w")
     f.write(json.dumps(radii_lengths))
+    f.close()
+
+    f = open("major_axis_orientations.json","w")
+    f.write(json.dumps(major_axis_orientations))
     f.close()
     
 # implemented following guidance at https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
@@ -86,6 +93,14 @@ def get_radii_lengths(gmm):
         eigenvalues, eigenvectors = np.linalg.eig(component)
         radii_lengths.append((2 * np.sqrt(s * eigenvalues)).tolist())
     return radii_lengths
+    
+def get_major_axis_orientations(gmm):
+    orientations = []
+    covariances = gmm.covariances_
+    for component in covariances:
+        eigenvalues, eigenvectors = np.linalg.eig(component)
+        orientations.append(eigenvectors[:, np.argmax(eigenvalues)].tolist())
+    return orientations
 
 def visualize_radii_lengths(input_file):
     rounded_major_axis_lengths = []
@@ -118,3 +133,6 @@ def visualize_radii_lengths(input_file):
     rounded_major_to_secondary_axis_ratio_counts = {value: rounded_major_to_secondary_axis_ratios.count(value) for value in sorted(set(rounded_major_to_secondary_axis_ratios))}
     for k, v in rounded_major_to_secondary_axis_ratio_counts.items():
         print(k, v)
+
+def visualize_major_axis_orientations(input_file):
+    pass
