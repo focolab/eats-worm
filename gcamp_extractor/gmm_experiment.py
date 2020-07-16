@@ -68,7 +68,7 @@ def do_fitting(e):
                         bic = i_gauss.bic(X)
                         gauss = i_gauss
                 gauss_peaks.append(gauss.means_)
-                radii_lengths[i].append(get_radii_lengths(gauss).tolist())
+                radii_lengths[i] += get_radii_lengths(gauss)
         
         if not e.suppress_output:
             print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(e.t), sep='', end='', flush=True)
@@ -79,12 +79,13 @@ def do_fitting(e):
     
 # implemented following guidance at https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
 def get_radii_lengths(gmm):
+    radii_lengths = []
     s = 7.815 # 95% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
     covariances = gmm.covariances_
     for component in covariances:
         eigenvalues, eigenvectors = np.linalg.eig(component)
-        radii_lengths = 2 * np.sqrt(s * eigenvalues)
-        return radii_lengths
+        radii_lengths.append((2 * np.sqrt(s * eigenvalues)).tolist())
+    return radii_lengths
 
 def visualize_radii_lengths(input_file):
     rounded_major_axis_lengths = []
@@ -96,7 +97,7 @@ def visualize_radii_lengths(input_file):
                 sorted_radii_lengths = sorted(component, reverse=True)
                 rounded_major_axis_lengths.append(round(sorted_radii_lengths[0]))
                 rounded_major_to_secondary_axis_ratios.append(round(sorted_radii_lengths[0]/sorted_radii_lengths[1]))
-                
+
     plt.hist(rounded_major_axis_lengths, bins=len(set(rounded_major_axis_lengths)))
     plt.xlim(0, max(rounded_major_axis_lengths))
     plt.title("major axis length across all components of all volumes")
