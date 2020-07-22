@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 import pickle
 import os
+import pdb
 
 class MultiFileTiff():
     """
@@ -65,7 +66,7 @@ class MultiFileTiff():
                 self.root = self.root + '/'
 
             ## Find all tiff files in root folder
-            self.filenames = glob.glob(self.root + '*.tif')
+            self.filenames = glob.glob(self.root+'*.tif')+glob.glob(self.root+'*.tiff')
 
             ## If they don't exist, find all tiff files in subdirectory
             if len(self.filenames) == 0:
@@ -445,16 +446,24 @@ class MultiFileTiff():
             files = [self.filenames[i][:-8] for i in range(len(self.filenames))]
         elif self.filenames[0][-4:] == '.tif':
             files = [self.filenames[i][:-4] for i in range(len(self.filenames))]
+        elif self.filenames[0][-5:] == '.tiff':
+            files = [self.filenames[i][:-5] for i in range(len(self.filenames))]
 
-        ndx = []
-        for i in range(len(files)):
-            for j in range(1,10):
-                if files[i][-j].isdigit():
-                    pass
-                else:
-                    ndx.append(int(files[i][-j+1:]))
-                    break
-        self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
+        try:
+            ndx = []
+            for i in range(len(files)):
+                for j in range(1,10):
+                    if files[i][-j].isdigit():
+                        pass
+                    else:
+                        ndx.append(int(files[i][-j+1:]))
+                        break
+            self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
+        except:
+            # for files that do not adhere to the naming convention
+            print('WARNING: unable to sort files, but proceeding anyways')
+            return
+
 
     def save(self, *args, **kwargs):
         path = self.root + 'extractor-objects/mft.obj'
