@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 ## Example use case of gcamp extractor package
 
+import time
+from gcamp_extractor import *
 
-#from gcamp_extractor import *
-
-import sys
-sys.path.append('/Users/stevenban/Documents/gcamp-extractor/gcamp-extractor')\
+# import sys
+# sys.path.append('/Users/stevenban/Documents/gcamp-extractor/gcamp-extractor')\
 
 
 import numpy as np
-from Extractor import *
-from Threads import *
-from Curator import *
+from gcamp_extractor.Extractor import *
+from gcamp_extractor.Threads import *
+from gcamp_extractor.Curator import *
 
 from gcamp_extractor import *
 
 arguments = {
-    'root':'/Users/stevenban/Documents/Data/20190917/binned',
+    'root':'/home/jack/Downloads/recording1_truncated',
     'numz':20,
     'frames':[0,1,2,3,4,5,6,7,8,9,10,11],
     'offset':0,
@@ -33,11 +33,13 @@ arguments = {
     'save_timeseries':True,
     'suppress_output':False,
     'regen':False,
+    '3d': True
 }
 
+start_time = time.process_time()
 e = Extractor(**arguments)
 e.calc_blob_threads()
 e.quantify()
+print(time.process_time() - start_time, "seconds")
 c = Curator(e)
-
 
