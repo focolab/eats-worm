@@ -91,7 +91,8 @@ def get_radii_lengths(gmm):
     covariances = gmm.covariances_
     for component in covariances:
         eigenvalues, eigenvectors = np.linalg.eig(component)
-        radii_lengths.append((2 * np.sqrt(s * eigenvalues)).tolist())
+        if not np.iscomplex(eigenvalues).any():
+            radii_lengths.append((2 * np.sqrt(s * eigenvalues)).tolist())
     return radii_lengths
     
 def get_major_axis_orientations(gmm):
@@ -99,7 +100,8 @@ def get_major_axis_orientations(gmm):
     covariances = gmm.covariances_
     for component in covariances:
         eigenvalues, eigenvectors = np.linalg.eig(component)
-        orientations.append(eigenvectors[:, np.argmax(eigenvalues)].tolist())
+        if not np.iscomplex(eigenvalues).any():
+            orientations.append(eigenvectors[:, np.argmax(eigenvalues)].tolist())
     return orientations
 
 def visualize_radii_lengths(input_file):
@@ -155,7 +157,7 @@ def visualize_major_axis_orientations(input_file):
     plt.plot(z, "-r", label="z")
     plt.plot(x, "-g", label="x")
     plt.plot(y, "-b", label="y")
-    plt.title("std dev of ellipsoid major axis orientation")
+    plt.title("std dev of ellipsoid major axis eigenvector components")
     plt.xlabel("time point")
     plt.ylabel("std dev")
     plt.legend()
