@@ -25,6 +25,14 @@ def do_fitting(e, volumes_to_output):
         im1 = medFilter2d(im1)
         im1 = gaussian3d(im1,e.gaussian)
 
+        drawn_t = [None for _ in range(e.numz)]
+        for z in range(im1_unfiltered.shape[0]):
+            if drawn_t[z] is None:
+                img = np.array(im1_unfiltered[z])
+                img = cv2.normalize(img, img, 65535, 0, cv2.NORM_MINMAX)
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+                drawn_t[z] = img
+
         gauss_peaks = []
         brightest_quantile = np.array(im1 > np.quantile(im1, 0.99))
         brightest_pixels = brightest_quantile * im1
@@ -41,8 +49,9 @@ def do_fitting(e, volumes_to_output):
               [False,  False, False]]],
             dtype=bool)
         brightest_regions, num_bright_regions = label(brightest_quantile, structure=structure)
-        drawn_t = [None for _ in range(e.numz)]
 
+        colors = [tuple(np.random.randint(256, size=3)) for region in range(3 * num_bright_regions)]
+        points = []
         for bright_region_label in range(1, num_bright_regions + 1):
             region_locations = np.where(brightest_regions == bright_region_label)
 
@@ -69,20 +78,15 @@ def do_fitting(e, volumes_to_output):
                         gauss = i_gauss
                 gauss_peaks.append(gauss.means_)
 
-                colors = [tuple(np.random.randint(256, size=3)) for region in range(3 * num_bright_regions)]
                 for z in range(im1_unfiltered.shape[0]):
-                    if drawn_t[z] is None:
-                        img = np.array(im1_unfiltered[z])
-                        img = cv2.normalize(img, img, 65535, 0, cv2.NORM_MINMAX)
-                        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-                        drawn_t[z] = img
                     img = drawn_t[z]
-                    X_z = X[np.where(X[:, 0] == z)]
-                    if X_z.shape[0] > 0:
-                        predictions = gauss.predict(X_z)
-                        for x, pred in zip(X_z, predictions):
+                    if X.shape[0] > 0:
+                        predictions = gauss.predict(X)
+                        for x, pred in zip(X, predictions):
                             color = colors[2 * bright_region_label + pred]
-                            img[x[1], x[2]] = np.array([65535 // 255 * color[0], 65535 // 255 * color[1], 65535 // 255 * color[2]])
+                            color_channels = [65535 // 255 * channel for channel in color]
+                            point = [i, x[0], x[1], x[2]]
+                            points.append(point)
                     # filtered, unfiltered = np.array(im1[z]), np.array(im1_unfiltered[z])
                     # filtered = cv2.normalize(filtered, filtered, 65535, 0, cv2.NORM_MINMAX)
                     # unfiltered = cv2.normalize(unfiltered, unfiltered, 65535, 0, cv2.NORM_MINMAX)
@@ -93,9 +97,11 @@ def do_fitting(e, volumes_to_output):
             print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(e.t), sep='', end='', flush=True)
     
     with napari.gui_qt():
-        drawn = np.array(drawn)
         viewer = napari.Viewer()
+        drawn = np.array(drawn)
         viewer.add_image(drawn, scale=[1, 5, 1, 1])
+        points = np.array(points)
+        viewer.add_points(points)
 
     # old plotting code. won't produce anything right now, but leaving here to adapt in near future because I hate looking up plotting syntax
     #
