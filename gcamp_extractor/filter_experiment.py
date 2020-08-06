@@ -51,11 +51,11 @@ def do_experiment(e):
         filters.append(all_filters)
     with napari.gui_qt():
       viewer = napari.Viewer()
-      time_points = np.array(time_points)
+      time_points = da.array(time_points)
       filters = da.stack(filters)
       viewer.add_image(time_points, name='timepoints', blending='additive')
       # viewer.add_image(all_gaussians, name='gaussians', colormap='red', blending='additive')
       # viewer.add_image(all_medians, name='medians', colormap='green', blending='additive')
       # viewer.add_image(all_thresholds, name='thresholds', colormap='blue', blending='additive')
-      viewer.add_image(filters, name='filters', colormap='blue', blending='additive', opacity=.5)
+      viewer.add_image(filters.transpose(1, 2, 0, 3, 4, 5), name='filters', colormap='blue', blending='additive', opacity=.5)
       print(time_points.shape, filters.shape)
