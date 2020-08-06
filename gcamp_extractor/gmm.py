@@ -67,7 +67,8 @@ def do_fitting(e, volumes_to_output):
             bic = float('inf')
             gauss = None
             # X is the coordinates of the set of pixels assigned to the bright region
-            X = np.transpose(np.vstack((region_locations[0], region_locations[1], region_locations[2])))
+            region_pixel_values = im1_unfiltered[region_locations[0], region_locations[1], region_locations[2]]
+            X = np.transpose(np.vstack((region_locations[0], region_locations[1], region_locations[2], region_pixel_values)))
             if X.shape[0] > 1:
                 for num_components in range(1, 3):
                     i_gauss = mixture.GaussianMixture(num_components)
