@@ -19,19 +19,13 @@ def do_fitting(e, volumes_to_output):
     """
     num_components = {'peaks': [], 'gauss': []}
     drawn = []
+    points = []
     for i in range(e.t):
         im1 = e.im.get_t(t=i)
         im1_unfiltered = copy.deepcopy(im1)
         im1 = medFilter2d(im1)
         im1 = gaussian3d(im1,e.gaussian)
-
-        drawn_t = []
-        for z in range(e.numz):
-            img = np.array(im1_unfiltered[z])
-            img = cv2.normalize(img, img, 65535, 0, cv2.NORM_MINMAX)
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-            drawn_t.append(img)
-        drawn.append(np.array(drawn_t))
+        drawn.append(im1_unfiltered)
 
         gauss_peaks = []
         brightest_quantile = np.array(im1 > np.quantile(im1, 0.99))
@@ -50,7 +44,6 @@ def do_fitting(e, volumes_to_output):
             dtype=bool)
         brightest_regions, num_bright_regions = label(brightest_quantile, structure=structure)
 
-        points = []
         for bright_region_label in range(1, num_bright_regions + 1):
             region_locations = np.where(brightest_regions == bright_region_label)
 
@@ -94,11 +87,12 @@ def do_fitting(e, volumes_to_output):
     
     with napari.gui_qt():
         viewer = napari.Viewer()
+        colors = [tuple(np.random.random(size=3)) for roi in range(len(points))]
+        for i in range(len(points)):
+            roi = np.array(points[i])
+            viewer.add_points(roi, opacity=0.25, size=1, face_color=[colors[i]], symbol='square')
         drawn = np.array(drawn)
-        viewer.add_image(drawn, scale=[1, 5, 1, 1], rgb=True, blending='additive')
-        colors = [tuple(np.random.randint(256, size=3)) for roi in range(len(points))]
-        for roi in range(len(points)):
-            viewer.add_points(points[roi], scale=[1, 5, 1, 1], blending='additive', n_dimensional=True, face_color=[65535 // 255 * channel for channel in colors[roi]])
+        viewer.add_image(drawn, scale=[1, 5, 1, 1], blending='additive')
 
     
     # old plotting code. won't produce anything right now, but leaving here to adapt in near future because I hate looking up plotting syntax
