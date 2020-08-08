@@ -18,6 +18,7 @@ def do_fitting(e, volumes_to_output):
        of the associated gmm and save resulting image
     """
     num_components = {'peaks': [], 'gauss': []}
+    unfiltered = []
     drawn = []
     points = []
     for i in range(e.t):
@@ -25,7 +26,8 @@ def do_fitting(e, volumes_to_output):
         im1_unfiltered = copy.deepcopy(im1)
         im1 = medFilter2d(im1)
         im1 = gaussian3d(im1,e.gaussian)
-        drawn.append(im1_unfiltered)
+        unfiltered.append(im1_unfiltered)
+        drawn.append(np.zeros(im1_unfiltered.shape + (3,)))
 
         gauss_peaks = []
         brightest_quantile = np.array(im1 > np.quantile(im1, 0.99))
@@ -88,11 +90,15 @@ def do_fitting(e, volumes_to_output):
     with napari.gui_qt():
         viewer = napari.Viewer()
         colors = [tuple(np.random.random(size=3)) for roi in range(len(points))]
+        drawn = np.array(drawn)
         for i in range(len(points)):
             roi = np.array(points[i])
-            viewer.add_points(roi, opacity=0.25, size=1, face_color=[colors[i]], symbol='square')
-        drawn = np.array(drawn)
-        viewer.add_image(drawn, scale=[1, 5, 1, 1], blending='additive')
+            roi_t = roi.T
+            drawn[roi_t[0], roi_t[1], roi_t[2], roi_t[3], :] += colors[i]
+            # viewer.add_points(roi, opacity=0.25, size=1, face_color=[colors[i]], symbol='square')
+        viewer.add_image(drawn, scale=[1, 5, 1, 1], opacity=0.25, blending='additive')
+        unfiltered = np.array(unfiltered)
+        viewer.add_image(unfiltered, scale=[1, 5, 1, 1], blending='additive')
 
     
     # old plotting code. won't produce anything right now, but leaving here to adapt in near future because I hate looking up plotting syntax
