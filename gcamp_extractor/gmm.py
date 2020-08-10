@@ -21,12 +21,14 @@ def do_fitting(e, volumes_to_output):
     unfiltered = []
     drawn = []
     points = []
+    filtered = []
     for i in range(e.t):
         im1 = e.im.get_t(t=i)
         im1_unfiltered = copy.deepcopy(im1)
         im1 = medFilter2d(im1)
         im1 = gaussian3d(im1,e.gaussian)
         unfiltered.append(im1_unfiltered)
+        filtered.append(im1)
         drawn.append(np.zeros(im1_unfiltered.shape + (3,)))
 
         gauss_peaks = []
@@ -65,12 +67,18 @@ def do_fitting(e, volumes_to_output):
             region_pixel_values = im1_unfiltered[region_locations[0], region_locations[1], region_locations[2]]
             X = np.transpose(np.vstack((region_locations[0], region_locations[1], region_locations[2], region_pixel_values)))
             if X.shape[0] > 1:
-                for num_components in range(1, 3):
+                iters_since_best_bic = 0
+                num_components = 1
+                while iters_since_best_bic < 2 and X.shape[0] >= num_components:
                     i_gauss = mixture.GaussianMixture(num_components)
                     i_gauss.fit(X)
                     if i_gauss.bic(X) < bic:
                         bic = i_gauss.bic(X)
                         gauss = i_gauss
+                        iters_since_best_bic = 0
+                    else:
+                         iters_since_best_bic += 1
+                    num_components += 1
                 gauss_peaks.append(gauss.means_)
 
                 if X.shape[0] > 0:
@@ -96,7 +104,9 @@ def do_fitting(e, volumes_to_output):
             roi_t = roi.T
             drawn[roi_t[0], roi_t[1], roi_t[2], roi_t[3], :] += colors[i]
             # viewer.add_points(roi, opacity=0.25, size=1, face_color=[colors[i]], symbol='square')
-        viewer.add_image(drawn, scale=[1, 5, 1, 1], opacity=0.25, blending='additive')
+        viewer.add_image(drawn, scale=[1, 5, 1, 1], opacity=0.65, blending='additive')
+        filtered = np.array(filtered)
+        viewer.add_image(filtered, scale=[1, 5, 1, 1], blending='additive')
         unfiltered = np.array(unfiltered)
         viewer.add_image(unfiltered, scale=[1, 5, 1, 1], blending='additive')
 
