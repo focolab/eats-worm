@@ -5,9 +5,64 @@ import copy
 import os
 from .segfunctions import *
 from sklearn import mixture
+from skimage import draw
 import json
 import matplotlib.pyplot as plt
 from scipy.ndimage import label, generate_binary_structure
+import sys
+np.set_printoptions(threshold=sys.maxsize)
+
+def get_radii_lengths(gmm_covariance):
+    s = 7.815 # 95% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
+    eigenvalues, eigenvectors = np.linalg.eig(gmm_covariance)
+    if not np.iscomplex(eigenvalues).any():
+        return (2 * np.sqrt(s * eigenvalues)).tolist()
+    else:
+        return None
+    
+def get_major_axis_orientation(gmm_covariance):
+    eigenvalues, eigenvectors = np.linalg.eig(gmm_covariance)
+    if not np.iscomplex(eigenvalues).any():
+        return eigenvectors[:, np.argmax(eigenvalues)].tolist()
+    else:
+        return None
+
+# from https://stackoverflow.com/questions/7819498/plotting-ellipsoid-with-matplotlib
+def draw_ellipsoid(shape, gmm_covariance, gmm_mean):
+    zxy_cov = gmm_covariance[:3, :3]
+    center = gmm_mean[:3].astype(int)
+    image = np.zeros(shape)
+    indices = np.indices(shape).transpose(1,2,3,0)
+    s = 7.815 # 95% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
+    eigenvalues, eigenvectors = np.linalg.eig(zxy_cov)
+    if not np.iscomplex(eigenvalues).any():
+
+        # use xyz equation from https://math.stackexchange.com/questions/1403126/what-is-the-general-equation-equation-for-rotated-ellipsoid
+        radii = np.sqrt(s * eigenvalues)
+        numerator = np.power(indices - center, 2)
+        left_side = numerator / np.power(radii, 2)
+        ellipsoid = np.where( np.sum(left_side, axis=-1) <= 1. )
+
+        # use matrix equation from https://math.stackexchange.com/questions/1403126/what-is-the-general-equation-equation-for-rotated-ellipsoid
+        # x_minus_v = indices - center
+        # rotated = np.zeros(x_minus_v.shape)
+        # for i in range(indices.shape[0]):
+        #     for j in range(indices.shape[1]):
+        #         for k in range(indices.shape[2]):
+        #             rotated[i, j, k] = np.dot(zxy_cov, x_minus_v[i,j,k])
+        # dots = np.zeros(rotated.shape[:-1])
+        # for i in range(rotated.shape[0]):
+        #     for j in range(rotated.shape[1]):
+        #         for k in range(rotated.shape[2]):
+        #             dots[i, j, k] = np.dot(x_minus_v[i,j,k].T, rotated[i,j,k])
+        # ellipsoid = np.where( dots <= s )
+
+        image[ellipsoid] = 1
+
+        return image
+    else:
+        return None
+
 
 def do_fitting(e, volumes_to_output):
     """
@@ -22,6 +77,7 @@ def do_fitting(e, volumes_to_output):
     drawn = []
     points = []
     filtered = []
+    ellipsoids = []
     for i in range(e.t):
         im1 = e.im.get_t(t=i)
         im1_unfiltered = copy.deepcopy(im1)
@@ -30,6 +86,7 @@ def do_fitting(e, volumes_to_output):
         unfiltered.append(im1_unfiltered)
         filtered.append(im1)
         drawn.append(np.zeros(im1_unfiltered.shape + (3,)))
+        # ellipsoids.append(np.zeros(im1_unfiltered.shape + (3,)))
 
         gauss_peaks = []
         brightest_quantile = np.array(im1 > np.quantile(im1, 0.99))
@@ -87,6 +144,10 @@ def do_fitting(e, volumes_to_output):
                     for x, pred in zip(X, predictions):
                         roi_points[pred].append([i, x[0], x[1], x[2]])
                     points.extend(roi_points)
+                    for covariance, mean in zip(gauss.covariances_, gauss.means_):
+                        ellipsoid = draw_ellipsoid(im1.shape, covariance, mean)
+                        if ellipsoid is not None:
+                            ellipsoids.append(ellipsoid)
                 # filtered, unfiltered = np.array(im1[z]), np.array(im1_unfiltered[z])
                 # filtered = cv2.normalize(filtered, filtered, 65535, 0, cv2.NORM_MINMAX)
                 # unfiltered = cv2.normalize(unfiltered, unfiltered, 65535, 0, cv2.NORM_MINMAX)
@@ -109,6 +170,8 @@ def do_fitting(e, volumes_to_output):
         viewer.add_image(filtered, scale=[1, 5, 1, 1], blending='additive')
         unfiltered = np.array(unfiltered)
         viewer.add_image(unfiltered, scale=[1, 5, 1, 1], blending='additive')
+        ellipsoids = np.array(ellipsoids)
+        viewer.add_image(ellipsoids, scale=[1, 5, 1, 1], blending='additive')
 
     
     # old plotting code. won't produce anything right now, but leaving here to adapt in near future because I hate looking up plotting syntax
