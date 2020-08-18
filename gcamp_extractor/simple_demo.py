@@ -31,12 +31,12 @@ with napari.gui_qt():
 
         center = gmm.means_[0].astype(int)
         covariance = gmm.covariances_[0]
-        s = 7.815 # 95% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
+        s = 6.251 # 90% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
 
         A = covariance
         # calculate eigenvectors and eigenvalues
         values, vectors = np.linalg.eig(A)
-        # multiply values by sqrt s
+        # matrix equation expects reciprocals of squares of radial lengths
         values = 1. / values
         # create matrix from eigenvectors
         Q = vectors
