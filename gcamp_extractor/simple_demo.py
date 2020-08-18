@@ -75,4 +75,5 @@ with napari.gui_qt():
             if gmm_ellipsoid[z, x, y] > 0 and gmm_ellipsoid[z, x, y] <= s:
                 inside += 1
         print("percent covered: ", 100 * inside / len(X))
+        print("precision: ", inside / np.count_nonzero(gmm_ellipsoid) )
         viewer.add_image( (gmm_ellipsoid > 0).astype(int) * (gmm_ellipsoid <= s).astype(int), name="gmm ellipsoid", blending='additive', colormap="cyan")
