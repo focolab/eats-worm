@@ -51,9 +51,6 @@ with napari.gui_qt():
         eigenvalues, eigenvectors = np.linalg.eig(covariance)
 
         radii = np.sqrt(1. / eigenvalues)
-        print("eigenvalues: ", eigenvalues)
-        print("eigenvectors: ", eigenvectors)
-        print("radii: ", radii)
 
         # use matrix equation from https://math.stackexchange.com/questions/1403126/what-is-the-general-equation-equation-for-rotated-ellipsoid
         radial_length_upper_bound = np.max(radii).astype(int) + 10
@@ -79,14 +76,3 @@ with napari.gui_qt():
                 inside += 1
         print("percent covered: ", 100 * inside / len(X))
         viewer.add_image( (gmm_ellipsoid > 0).astype(int) * (gmm_ellipsoid <= s).astype(int), name="gmm ellipsoid", blending='additive', colormap="cyan")
-
-        # region_of_interest = gmm_ellipsoid[center[0] - radial_length_upper_bound: center[0] + radial_length_upper_bound + 1, center[1] - radial_length_upper_bound: center[1] + radial_length_upper_bound + 1, center[2] - radial_length_upper_bound: center[2] + radial_length_upper_bound + 1]
-        # print(np.where(region_of_interest <= 60))
-        # print(region_of_interest <= s ** 2)
-        # print(np.min(neuron_pixels), np.max(neuron_pixels))
-        # print(np.min(panneuronal_channel), np.max(panneuronal_channel))
-        # raise(Exception)
-
-        c_1 = center + 1
-        print(np.dot( c_1.T, np.dot(covariance, c_1 - center) ) )
-        # print(np.dot( c_1.T, np.dot(covariance, c_1 - center) ) / np.product(eigenvalues) )
