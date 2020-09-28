@@ -122,30 +122,33 @@ def do_fitting(e, volumes_to_output):
             gauss = None
             # X is the coordinates of the set of pixels assigned to the bright region
             region_pixel_values = im1_unfiltered[region_locations[0], region_locations[1], region_locations[2]]
-            X = np.transpose(np.vstack((region_locations[0], region_locations[1], region_locations[2], region_pixel_values)))
+            # X = np.transpose(np.vstack((region_locations[0], region_locations[1], region_locations[2], region_pixel_values)))
+            X = np.transpose(np.vstack((region_locations[0], region_locations[1], region_locations[2])))
             if X.shape[0] > 1:
                 iters_since_best_bic = 0
                 num_components = 1
-                while iters_since_best_bic < 2 and X.shape[0] >= num_components:
-                    i_gauss = mixture.GaussianMixture(num_components)
-                    i_gauss.fit(X)
-                    if i_gauss.bic(X) < bic:
-                        bic = i_gauss.bic(X)
-                        gauss = i_gauss
-                        iters_since_best_bic = 0
-                    else:
-                         iters_since_best_bic += 1
-                    num_components += 1
+                # while iters_since_best_bic < 2 and X.shape[0] >= num_components:
+                    # i_gauss = mixture.GaussianMixture(num_components)
+                cov_prior = np.array([[1.,  0., 0.], [0., 6.25, 0.], [0., 0., 4.25]])
+                gauss = mixture.BayesianGaussianMixture(n_components=min(X.shape[0], 10), covariance_type='tied', covariance_prior=cov_prior, max_iter=250)
+                gauss.fit(X)
+                    # if i_gauss.bic(X) < bic:
+                    #     bic = i_gauss.bic(X)
+                    #     gauss = i_gauss
+                    #     iters_since_best_bic = 0
+                    # else:
+                    #      iters_since_best_bic += 1
+                    # num_components += 1
                 gauss_peaks.append(gauss.means_)
 
                 if X.shape[0] > 0:
                     predictions = gauss.predict(X)
-                    roi_points = [[] for component in range(len(set(predictions)))]
+                    roi_points = [[] for component in range(len(gauss.means_))]
                     for x, pred in zip(X, predictions):
                         roi_points[pred].append([i, x[0], x[1], x[2]])
                     points.extend(roi_points)
-                    for covariance, mean in zip(gauss.covariances_, gauss.means_):
-                        ellipsoid = draw_ellipsoid(im1.shape, covariance, mean)
+                    for mean in gauss.means_:
+                        ellipsoid = draw_ellipsoid(im1.shape, gauss.covariances_, mean)
                         if ellipsoid is not None:
                             ellipsoids.append(ellipsoid)
                 # filtered, unfiltered = np.array(im1[z]), np.array(im1_unfiltered[z])
@@ -163,15 +166,17 @@ def do_fitting(e, volumes_to_output):
         for i in range(len(points)):
             roi = np.array(points[i])
             roi_t = roi.T
-            drawn[roi_t[0], roi_t[1], roi_t[2], roi_t[3], :] += colors[i]
+            print(roi_t.shape)
+            if roi_t.shape[0] == 4:
+                drawn[roi_t[0], roi_t[1], roi_t[2], roi_t[3], :] += colors[i]
             # viewer.add_points(roi, opacity=0.25, size=1, face_color=[colors[i]], symbol='square')
         viewer.add_image(drawn, scale=[1, 5, 1, 1], opacity=0.65, blending='additive')
         filtered = np.array(filtered)
         viewer.add_image(filtered, scale=[1, 5, 1, 1], blending='additive')
         unfiltered = np.array(unfiltered)
-        viewer.add_image(unfiltered, scale=[1, 5, 1, 1], blending='additive')
+        viewer.add_image(unfiltered, scale=[1, 5, 1, 1], blending='additive', visible=False)
         ellipsoids = np.array(ellipsoids)
-        viewer.add_image(ellipsoids, scale=[1, 5, 1, 1], blending='additive')
+        viewer.add_image(ellipsoids, scale=[1, 5, 1, 1], blending='additive', visible=False)
 
     
     # old plotting code. won't produce anything right now, but leaving here to adapt in near future because I hate looking up plotting syntax
