@@ -48,7 +48,7 @@ def do_experiment(e):
         time_points.append(im1_unfiltered)
       
     time_points = dask.array.array(time_points)
-    all_filters = [filter_and_threshold(im, gaussian_params, med_filter_size, quantile) for im in time_points for gaussian_param in gaussian_params for med_filter_size in med_filter_sizes for quantile in quantiles]
+    all_filters = [filter_and_threshold(im, gaussian_param, med_filter_size, quantile) for im in time_points for gaussian_param in gaussian_params for med_filter_size in med_filter_sizes for quantile in quantiles]
     dask_arrays = [dask.array.from_delayed(filtered_image, shape=im1.shape, dtype=im1.dtype) for filtered_image in all_filters]
     with napari.gui_qt():
       viewer = napari.Viewer()
