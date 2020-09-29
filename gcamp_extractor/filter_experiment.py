@@ -55,4 +55,8 @@ def do_experiment(e):
       filters = dask.array.stack(dask_arrays)
       viewer.add_image(time_points, name='timepoints', blending='additive')
       viewer.add_image(filters, name='filters', colormap='blue', blending='additive', opacity=.5)
-      print(time_points.shape, filters.shape)
+    selected = viewer.dims.point
+    selected_gaussian_params = gaussian_params[selected[1]]
+    selected_median_filter_size = med_filter_sizes[selected[2]]
+    selected_quantile = quantiles[selected[3]]
+    print("Selected parameters:\nGaussian: {}\nMedian Filter: {}\nThreshold:{}".format(selected_gaussian_params, selected_median_filter_size, selected_quantile))
