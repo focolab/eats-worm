@@ -29,37 +29,51 @@ def get_major_axis_orientation(gmm_covariance):
 
 # from https://stackoverflow.com/questions/7819498/plotting-ellipsoid-with-matplotlib
 def draw_ellipsoid(shape, gmm_covariance, gmm_mean):
-    zxy_cov = gmm_covariance[:3, :3]
-    center = gmm_mean[:3].astype(int)
-    image = np.zeros(shape)
+    zxy_cov = gmm_covariance
+    center = gmm_mean.astype(int)
     indices = np.indices(shape).transpose(1,2,3,0)
-    s = 7.815 # 95% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
-    eigenvalues, eigenvectors = np.linalg.eig(zxy_cov)
+    
+    covariance = gmm_covariance
+    s = 6.251 # 90% chi-square prob from https://people.richland.edu/james/lecture/m170/tbl-chi.html
+
+    A = covariance
+    # calculate eigenvectors and eigenvalues
+    values, vectors = np.linalg.eig(A)
+    # matrix equation expects reciprocals of squares of radial lengths
+    values = 1. / values
+    # create matrix from eigenvectors
+    Q = vectors
+    # create inverse of eigenvectors matrix
+    R = np.linalg.inv(Q)
+    # create diagonal matrix from eigenvalues
+    L = np.diag(values)
+    # reconstruct the original matrix
+    A = Q.dot(L).dot(R)
+    covariance = A
+
+    eigenvalues, eigenvectors = np.linalg.eig(covariance)
+
     if not np.iscomplex(eigenvalues).any():
 
-        # use xyz equation from https://math.stackexchange.com/questions/1403126/what-is-the-general-equation-equation-for-rotated-ellipsoid
-        radii = np.sqrt(s * eigenvalues)
-        numerator = np.power(indices - center, 2)
-        left_side = numerator / np.power(radii, 2)
-        ellipsoid = np.where( np.sum(left_side, axis=-1) <= 1. )
+        radii = np.sqrt(1. / eigenvalues)
 
         # use matrix equation from https://math.stackexchange.com/questions/1403126/what-is-the-general-equation-equation-for-rotated-ellipsoid
-        # x_minus_v = indices - center
-        # rotated = np.zeros(x_minus_v.shape)
-        # for i in range(indices.shape[0]):
-        #     for j in range(indices.shape[1]):
-        #         for k in range(indices.shape[2]):
-        #             rotated[i, j, k] = np.dot(zxy_cov, x_minus_v[i,j,k])
-        # dots = np.zeros(rotated.shape[:-1])
-        # for i in range(rotated.shape[0]):
-        #     for j in range(rotated.shape[1]):
-        #         for k in range(rotated.shape[2]):
-        #             dots[i, j, k] = np.dot(x_minus_v[i,j,k].T, rotated[i,j,k])
-        # ellipsoid = np.where( dots <= s )
+        radial_length_upper_bound = np.max(radii).astype(int) + 10
+        x_minus_v = indices - center
+        rotated = np.zeros(x_minus_v.shape)
+        for i in range(max(0, center[0] - radial_length_upper_bound), min(indices.shape[0], center[0] + radial_length_upper_bound + 1)):
+            for j in range(max(0, center[1] - radial_length_upper_bound), min(indices.shape[1], center[1] + radial_length_upper_bound + 1)):
+                for k in range(max(0, center[2] - radial_length_upper_bound), min(indices.shape[2], center[2] + radial_length_upper_bound + 1)):
+                    rotated[i, j, k] = np.dot(covariance, np.array([i, j, k]) - center)
+        gmm_ellipsoid = np.zeros(shape)
+        for i in range(max(0, center[0] - radial_length_upper_bound), min(indices.shape[0], center[0] + radial_length_upper_bound + 1)):
+            for j in range(max(0, center[1] - radial_length_upper_bound), min(indices.shape[1], center[1] + radial_length_upper_bound + 1)):
+                for k in range(max(0, center[2] - radial_length_upper_bound), min(indices.shape[2], center[2] + radial_length_upper_bound + 1)):
+                    gmm_ellipsoid[i, j, k] = np.dot( (np.array([i, j, k]) - center).T, rotated[i,j,k])
+        
+        gmm_ellipsoid_pixels = (gmm_ellipsoid > 0).astype(int) * (gmm_ellipsoid <= s).astype(int)
 
-        image[ellipsoid] = 1
-
-        return image
+        return gmm_ellipsoid_pixels
     else:
         return None
 
@@ -155,6 +169,7 @@ def do_fitting(e, volumes_to_output):
                 # filtered = cv2.normalize(filtered, filtered, 65535, 0, cv2.NORM_MINMAX)
                 # unfiltered = cv2.normalize(unfiltered, unfiltered, 65535, 0, cv2.NORM_MINMAX)
 
+            print('\r' + 'Finished region {} of {} in frame {} of {} '.format(bright_region_label, num_bright_regions, i, e.t))
         
         if not e.suppress_output:
             print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(e.t), sep='', end='', flush=True)
@@ -166,7 +181,6 @@ def do_fitting(e, volumes_to_output):
         for i in range(len(points)):
             roi = np.array(points[i])
             roi_t = roi.T
-            print(roi_t.shape)
             if roi_t.shape[0] == 4:
                 drawn[roi_t[0], roi_t[1], roi_t[2], roi_t[3], :] += colors[i]
             # viewer.add_points(roi, opacity=0.25, size=1, face_color=[colors[i]], symbol='square')
@@ -176,7 +190,7 @@ def do_fitting(e, volumes_to_output):
         unfiltered = np.array(unfiltered)
         viewer.add_image(unfiltered, scale=[1, 5, 1, 1], blending='additive', visible=False)
         ellipsoids = np.array(ellipsoids)
-        viewer.add_image(ellipsoids, scale=[1, 5, 1, 1], blending='additive', visible=False)
+        viewer.add_image(ellipsoids, scale=[1, 5, 1, 1], blending='additive', visible=False, colormap='cyan')
 
     
     # old plotting code. won't produce anything right now, but leaving here to adapt in near future because I hate looking up plotting syntax
