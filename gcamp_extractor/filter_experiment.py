@@ -23,13 +23,13 @@ gaussian_params = [(width_x_width_y_values[gauss_arg], width_z_values[gauss_arg]
 quantiles = np.arange(0.875, 1., 0.005)
 
 def threshold(image, quantile):
-    return image > np.quantile(image, quantile)
+    return image > np.quantile(copy.deepcopy(image), quantile)
 
 def gaussian_filter(image, params):
-  return gaussian3d(image, params)
+  return gaussian3d(copy.deepcopy(image), params)
 
 def median_filtered(image, size):
-  return medFilter2d(image, size)
+  return medFilter2d(copy.deepcopy(image), size)
 
 @dask.delayed
 def filter_and_threshold(image, gaussian_params, median_filter_size, quantile):
