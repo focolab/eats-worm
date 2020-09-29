@@ -52,7 +52,7 @@ def do_experiment(e):
     dask_arrays = [dask.array.from_delayed(filtered_image, shape=im1.shape, dtype=im1.dtype) for filtered_image in all_filters]
     with napari.gui_qt():
       viewer = napari.Viewer()
-      filters = dask.array.stack(dask_arrays)
+      filters = dask.array.stack(dask_arrays).reshape((len(quantiles), len(med_filter_sizes), len(gaussian_params)) + im1.shape)
       viewer.add_image(time_points, name='timepoints', blending='additive')
       viewer.add_image(filters, name='filters', colormap='blue', blending='additive', opacity=.5)
     selected = viewer.dims.point
