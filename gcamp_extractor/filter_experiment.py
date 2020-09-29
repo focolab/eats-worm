@@ -52,11 +52,12 @@ def do_experiment(e):
     dask_arrays = [dask.array.from_delayed(filtered_image, shape=im1.shape, dtype=im1.dtype) for filtered_image in all_filters]
     with napari.gui_qt():
       viewer = napari.Viewer()
-      filters = dask.array.stack(dask_arrays).reshape((len(quantiles), len(med_filter_sizes), len(gaussian_params)) + im1.shape)
+      filters = dask.array.stack(dask_arrays).reshape((len(gaussian_params), len(med_filter_sizes), len(quantiles)) + im1.shape)
       viewer.add_image(time_points, name='timepoints', blending='additive')
       viewer.add_image(filters, name='filters', colormap='blue', blending='additive', opacity=.5)
+      viewer.dims.axis_labels=["gauss. filt. params", "med. filt. size", "threshold", "z", "y", "x"]
     selected = viewer.dims.point
-    selected_gaussian_params = gaussian_params[selected[1]]
-    selected_median_filter_size = med_filter_sizes[selected[2]]
-    selected_quantile = quantiles[selected[3]]
+    selected_gaussian_params = gaussian_params[selected[3]]
+    selected_median_filter_size = med_filter_sizes[selected[1]]
+    selected_quantile = quantiles[selected[2]]
     print("Selected parameters:\nGaussian: {}\nMedian Filter: {}\nThreshold:{}".format(selected_gaussian_params, selected_median_filter_size, selected_quantile))
