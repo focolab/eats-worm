@@ -7,7 +7,7 @@
 
 2. Start your virtual environment, and run the command
 ```bash
-pip install git+https://github.com/focolab/gcamp-extractor#egg=gcamp_extractor
+pip install git+https://github.com/focolab/gcamp-extractor
 ```
 And that's basically it!
 
