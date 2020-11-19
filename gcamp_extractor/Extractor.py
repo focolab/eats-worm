@@ -1,5 +1,4 @@
 import numpy as np
-#from pycpd import deformable_registration 
 import pdb
 import time
 import scipy.spatial
@@ -30,6 +29,7 @@ default_arguments = {
     'reg_peak_dist':10,
     'anisotropy':(7,1,1),
     'blob_merge_dist_thresh':6.8,
+    'remove_blobs_dist':20,
     'mip_movie':True,
     'marker_movie':True,
     'infill':True,
@@ -103,10 +103,10 @@ def load_extractor(path):
         folders.append(path)
         
         
-    paramsf = folders[0]+'params.json'
-    mftf = folders[0]+'mft.obj'
-    threadf = folders[0]+'threads.obj'
-    timef = folders[0]+'timeseries.txt'
+    paramsf = folders[0]+'/params.json'
+    mftf = folders[0]+'/mft.obj'
+    threadf = folders[0]+'/threads.obj'
+    timef = folders[0]+'/timeseries.txt'
 
     with open(paramsf) as f:
         params = json.load(f)
@@ -208,6 +208,8 @@ class Extractor:
         except:self.anisotropy = (6,1,1)
         try:self.blob_merge_dist_thresh= kwargs['blob_merge_dist_thresh']
         except:self.blob_merge_dist_thresh = 6
+        try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
+        except:self.remove_blobs_dist = 20
         try:self.mip_movie= kwargs['mip_movie']
         except:self.mip_movie = True
         try:self.marker_movie= kwargs['marker_movie']
@@ -309,7 +311,7 @@ class Extractor:
              #       return True
 
         print('Removing bad threads')
-        #self.remove_bad_threads()
+        self.remove_bad_threads()
         destroy = []
         _a = len(self.spool.threads)
         for i in range(_a):
@@ -359,6 +361,7 @@ class Extractor:
         self.timeseries = np.zeros((self.t,len(self.spool.threads)))
         for i in range(self.t):
             self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))])
+            
             if not self.suppress_output:
                 print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
 
@@ -418,14 +421,17 @@ class Extractor:
         print('\n')
 
     def remove_bad_threads(self):
-        d = np.zeros((len(self.spool.threads)))
+        d = np.zeros(len(self.spool.threads))
+        zd = np.zeros(len(self.spool.threads))
         orig = len(self.spool.threads)
         for i in range(len(self.spool.threads)):
             dvec = np.diff(self.spool.threads[i].positions, axis = 0)
-            d[i] = np.abs(self.spool.dvec - dvec).max()
+            d[i] = np.abs(dvec).max()
+            zd[i] = np.abs(dvec[0:self.t,0]).max()
 
-        ans = d > self.blob_merge_dist_thresh
-
+        ans = d > self.remove_blobs_dist
+        ans = ans + (zd > self.remove_blobs_dist/2.5)
+    
         throw_ndx = np.where(ans)[0]
         throw_ndx = list(throw_ndx)
 
@@ -436,15 +442,15 @@ class Extractor:
         print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
 
 
-
     def _merge_within_z(self):
         # sort threads by z
         tbyz = self._threads_by_z()
         # calculate distance matrix list
-        dmatlist = self._calc_dist_mat_list(e, self._threads_by_z())
+        dmatlist = self._calc_dist_mat_list(self._threads_by_z())
 
         for i in range(len(dmatlist)):
-            sort_mat,b,c = compute_serial_matrix(dmatlist[i])
+            if len(dmatlist[i]) > 0:
+                sort_mat,b,c = self._compute_serial_matrix(dmatlist[i])
             
     def _calc_dist_mat(self, indices):
         """
@@ -485,7 +491,7 @@ class Extractor:
 
         # iterate over z planes
         for i in range(len(indices)):
-            dmat = self._calc_dist_mat(e, indices[i])
+            dmat = self._calc_dist_mat(indices[i])
             dmatlist.append(dmat)
         return dmatlist
 
@@ -504,7 +510,7 @@ class Extractor:
 
 
         # iterate over threads, append index to threads_by_z
-        for i in range(len(e.spool.threads)):
+        for i in range(len(self.spool.threads)):
             z = int(self.spool.threads[i].positions[0,0])
             ndx = np.where(np.array(self.frames) == z)[0][0]
 
