@@ -65,7 +65,7 @@ class MultiFileTiff():
                 self.root = self.root + '/'
 
             ## Find all tiff files in root folder
-            self.filenames = glob.glob(self.root + '*.tif')
+            self.filenames = glob.glob(self.root + '*.tif') + glob.glob(self.root + '*.tiff')
 
             ## If they don't exist, find all tiff files in subdirectory
             if len(self.filenames) == 0:
@@ -76,7 +76,8 @@ class MultiFileTiff():
         if len(self.filenames) == 0:
             print('Not the root to a directory')
             return 0 
-        self.sort_filenames()
+        if len(self.filenames) > 1:
+            self.sort_filenames()
         
         ## Create TiffFile objects for each file in directory
         self.tf = []
@@ -204,7 +205,7 @@ class MultiFileTiff():
             if os.path.isdir(fullPath):
                 allFiles = allFiles + self.list_files_tiff(fullPath)
             else:
-            	if fullPath[-4:]=='.tif':
+            	if fullPath[-4:]=='.tif' or fullPath[-5:]=='.tiff':
                 	allFiles.append(fullPath)
 
         return allFiles
@@ -443,8 +444,12 @@ class MultiFileTiff():
 
         if self.filenames[0][-8:] == '.ome.tif':    
             files = [self.filenames[i][:-8] for i in range(len(self.filenames))]
+        elif self.filenames[0][-9:] == '.ome.tiff':    
+            files = [self.filenames[i][:-9] for i in range(len(self.filenames))]
         elif self.filenames[0][-4:] == '.tif':
             files = [self.filenames[i][:-4] for i in range(len(self.filenames))]
+        elif self.filenames[0][-5:] == '.tiff':
+            files = [self.filenames[i][:-5] for i in range(len(self.filenames))]
 
         ndx = []
         for i in range(len(files)):
