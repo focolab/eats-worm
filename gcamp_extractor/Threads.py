@@ -1,5 +1,4 @@
 import numpy as np
-#from pycpd import deformable_registration 
 import pdb
 import time
 import scipy.spatial
@@ -17,7 +16,6 @@ def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
 
     diff = scipy.spatial.distance.cdist(peaks,peaks,metric='euclidean')
     complete = False
-
     while not complete:
         try:
             x,y = np.where(diff == np.min(diff[diff!=0]))
@@ -82,6 +80,7 @@ class Spool:
             # update numpy array containing predictions of positions for the next incoming timepoint
             self.predictions = copy.copy(self.positions)
             self.t = 1
+
         # if threads already exist
         else:
             # match points based on a max-threshold euclidean distance based matching
@@ -199,13 +198,13 @@ class Spool:
 
 
         if self.predict:
-            for i in range(len(self.threads)):
-                self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t]
+            for i in range(len(self.threads)-1):
+                self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t-1]
                 
                 if len(self.threads[i].t) > 1:
-                    self.predictions[i] = self.threads[i].get_position_t(self.threads[i].t[-1])+ self.dvec[self.t]
+                    self.predictions[i] = self.threads[i].get_position_t(self.threads[i].t[-1])+ self.dvec[self.t-1]
                 else:
-                    self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t]
+                    self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t-1]
         else:
             for i in range(len(self.threads)):
                 self.predictions[i] = self.threads[i].get_position_mostrecent()
@@ -261,16 +260,14 @@ class Thread:
         - t:             list of time points that the current blob was found at, i.e. position[i] was found at time point t[i]
 
     Methods:
-        - get_position_mostrecent():     returns most recent position
-        - update_position(position, t):    updates list of positions and time point; default t is most recent t + 1
-        - get_positions_t(t):             returns position at time point specified, and if blob wasn't found at that time, then returns the position at the most recent time before time point specified
+        - get_position_mostrecent():    returns most recent position
+        - update_position(position, t): updates list of positions and time point; default t is most recent t + 1
+        - get_positions_t(t):           returns position at time point specified, and if blob wasn't found at that time, then returns the position at the most recent time before time point specified
 
     Most recent edit: 
     10/23/2019
     """
     def __init__(self, position = [], t = 0, **kwargs):
-        
-
         maxt = kwargs.get('maxt')
         self.positions = np.zeros((maxt,3))
         self.found = np.zeros((maxt))
