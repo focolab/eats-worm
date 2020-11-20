@@ -69,9 +69,8 @@ def gaussian2d(im, *args):
                 width_y = args[0][1]
                 sigma_x = args[0][2]
                 sigma_y = args[0][3]
-
         for i in range(im.shape[0]):
-            im[i] = cv2.GaussianBlur(im[i], (width_x,width_y), sigma_x, sigma_y)
+            im[i] = cv2.GaussianBlur(im[i], (width_x,width_y), sigma_x, sigmaY=sigma_y)
     else:
         for i in range(im.shape[0]):
             im[i] = cv2.GaussianBlur(im[i], (19,19), 6)
@@ -117,6 +116,8 @@ def gaussian3d(im, *args):
                 sigma_y = args[0][3]
                 sigma_z = args[0][5]
     s = im.shape
+    print(width_x, width_y, width_z, sigma_x, sigma_y, sigma_z)
+    print(s)
 
 
     im = im.reshape(-1, im.shape[-2], im.shape[-1])

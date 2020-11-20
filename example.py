@@ -4,6 +4,7 @@
 
 import numpy as np
 from gcamp_extractor.Extractor import *
+from gcamp_extractor.FilterSweeper import *
 from gcamp_extractor.Threads import *
 from gcamp_extractor.Curator import *
 from gcamp_extractor import *
@@ -29,8 +30,9 @@ arguments = {
 }
 
 e = Extractor(**arguments)
-e.calc_blob_threads()
-e.quantify()
-c = Curator(e)
+do_experiment(e)
+# e.calc_blob_threads()
+# e.quantify()
+# c = Curator(e)
 
 
