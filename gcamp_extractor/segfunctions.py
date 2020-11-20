@@ -116,8 +116,6 @@ def gaussian3d(im, *args):
                 sigma_y = args[0][3]
                 sigma_z = args[0][5]
     s = im.shape
-    print(width_x, width_y, width_z, sigma_x, sigma_y, sigma_z)
-    print(s)
 
 
     im = im.reshape(-1, im.shape[-2], im.shape[-1])
