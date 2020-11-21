@@ -30,7 +30,8 @@ arguments = {
 }
 
 e = Extractor(**arguments)
-do_experiment(e)
+sweeper = FilterSweeper.FilterSweeper(e)
+sweeper.sweep_parameters()
 # e.calc_blob_threads()
 # e.quantify()
 # c = Curator(e)

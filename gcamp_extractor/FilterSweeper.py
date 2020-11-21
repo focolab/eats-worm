@@ -4,58 +4,119 @@ from magicgui._qt.widgets import QDoubleSlider
 from qtpy.QtWidgets import QSlider
 import napari
 from napari.layers import Image
-from PyQt5.QtCore import Qt
 from .segfunctions import *
 import skimage.data
 import skimage.filters
 
-######   THIS SECTION ONLY REQUIRED FOR NAPARI <= 0.2.12   ######
 
-def do_experiment(e, timepoints=1):
-    with napari.gui_qt():
-        # create a viewer and add some images
-        stacks = []
-        for i in range(timepoints):
-            im1 = e.im.get_t(t=i)
-            im1_unfiltered = copy.deepcopy(im1)
-            stacks.append(im1_unfiltered)
-        viewer = napari.Viewer()
-        viewer.add_image(np.array(stacks), name="worm", blending='additive', interpolation='bicubic')
+class FilterSweeper:
+    """
+    Provides a GUI for parameter selection for our filtering and thresholding flow and tracks selected parameter values.
+    
+    Arguments
+    ---------
+    e: Extractor
+        extractor object containing the video/image stack stack for which you want select parameters
 
-        # turn the gaussian blur function into a magicgui
-        # - `auto_call` tells magicgui to call the function whenever a parameter changes
-        # - we use `widget_type` to override the default "float" widget on sigma
-        # - we provide some Qt-specific parameters
-        # - we contstrain the possible choices for `mode`
-        @magicgui(
-            auto_call=True,
-            threshold={"widget_type": QDoubleSlider, "minimum": 0.5, "maximum": 1},
-            median_size={"widget_type": QSlider, "minimum": 0, "maximum": 2},
-            width_x={"widget_type": QSlider, "minimum": 0, "maximum": 24},
-            width_y={"widget_type": QSlider, "minimum": 0, "maximum": 24},
-            width_z={"widget_type": QSlider, "minimum": 0, "maximum": 24},
-            sigma_x={"widget_type": QDoubleSlider, "maximum": 6},
-            sigma_y={"widget_type": QDoubleSlider, "maximum": 6},
-            sigma_z={"widget_type": QDoubleSlider, "maximum": 6},
-        )
-        def filter_and_threshold(layer: Image, threshold: float = 0.9, median_size: int = 0, width_x: int = 1, width_y: int = 1, width_z: int = 1, sigma_x: float = 1., sigma_y: float = 1., sigma_z: float = 1.) -> Image:
-            """Apply a gaussian blur to ``layer``."""
-            if layer:
-                # todo: the order used here does not match the documentation in sefgunctions. change either order or documentation in segfunctions
-                filtered_and_thresholded = []
-                for stack in stacks:
-                    blurred = gaussian3d(copy.deepcopy(stack), (2 * width_x + 1, 2 * width_y + 1, sigma_x, sigma_y, 2 * width_z + 1, sigma_z))
-                    filtered = medFilter2d(blurred, [1,3,5][median_size])
-                    thresholded = filtered > np.quantile(layer.data, threshold)
-                    filtered_and_thresholded.append(thresholded)
-                return np.array(filtered_and_thresholded)
+    Attributes
+    ---------
+    gaussian: tuple
+        selected gaussian filter parameters
+    median: int
+        selected median filter parameters
+    quantile: float
+        selected threshold
+    """
+    def __init__(self, e):
+        self.e = e
+        try:
+            if len(e.gaussian) == 4:
+                self.width_x_val = self.width_y_val = e.gaussian[0]
+                self.width_z_val =e.gaussian[2]
+                self.sigma_x = self.sigma_y = e.gaussian[1]
+                self.sigma_z = e.gaussian[3]
+            elif len(e.gaussian) == 6: 
+                self.width_x_val = e.gaussian[0]
+                self.width_y_val = e.gaussian[1]
+                self.width_z_val = e.gaussian[4]
+                self.sigma_x = e.gaussian[2]
+                self.sigma_y = e.gaussian[3]
+                self.sigma_z = e.gaussian[5]
+        except:
+            self.width_x_val = 1
+            self.width_y_val = 1
+            self.width_z_val = 1
+            self.sigma_x = e.gaussian[2]
+            self.sigma_y = e.gaussian[3]
+            self.sigma_z = e.gaussian[5]
+        try:
+            self.quantile = e.quantile
+        except:
+            self.quantile = 0.99
+        self.median_sizes = [1, 3, 5]
+        try:
+            self.median_index = self.median_sizes.index(e.median)
+        except:
+            self.median_index = 1
 
-        # instantiate the widget
-        gui = filter_and_threshold.Gui()
-        # add the gui to the viewer as a dock widget
-        viewer.window.add_dock_widget(gui)
-        # if a layer gets added or removed, refresh the dropdown choices
-        viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
-        viewer.layers["filter_and_threshold result"].colormap = "cyan"
-        viewer.layers["filter_and_threshold result"].blending = "additive"
-        viewer.layers["filter_and_threshold result"].interpolation = "bicubic"
+
+    # adapted from example at https://magicgui.readthedocs.io/en/latest/examples/napari_parameter_sweep/
+    def sweep_parameters(self, timepoints=1):
+        """
+        use napari and magicgui to do a parameter sweep for our filtering and thresholding flow. upon napari window close, return dict of selected parameters.
+
+        Parameters
+        ----------
+        timepoints : int
+            specifies number of timepoints for which each parameter combination will be evaluated. by default, only the first timepoint is used.
+            timepoint 0 is always the first timepoint of the recording.
+        """
+        with napari.gui_qt():
+            stacks = []
+            for i in range(timepoints):
+                im1 = self.e.im.get_t(t=i)
+                im1_unfiltered = copy.deepcopy(im1)
+                stacks.append(im1_unfiltered)
+            viewer = napari.Viewer()
+            viewer.add_image(np.array(stacks), name="worm", blending='additive', interpolation='bicubic')
+
+            @magicgui(
+                auto_call=True,
+                quantile={"widget_type": QDoubleSlider, "minimum": 0.5, "maximum": 1},
+                median_index={"widget_type": QSlider, "minimum": 0, "maximum": 2},
+                width_x={"widget_type": QSlider, "minimum": 0, "maximum": 24},
+                width_y={"widget_type": QSlider, "minimum": 0, "maximum": 24},
+                width_z={"widget_type": QSlider, "minimum": 0, "maximum": 24},
+                sigma_x={"widget_type": QDoubleSlider, "maximum": 6},
+                sigma_y={"widget_type": QDoubleSlider, "maximum": 6},
+                sigma_z={"widget_type": QDoubleSlider, "maximum": 6},
+            )
+            def filter_and_threshold(layer: Image, quantile: float = self.quantile, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> Image:
+                """Apply a gaussian blur to ``layer``."""
+                if layer:
+                    # todo: the order used here does not match the documentation in sefgunctions. change either order or documentation in segfunctions
+                    filtered_and_thresholded = []
+                    self.quantile = quantile
+                    self.median_index = median_index
+                    self.width_x_val = 2 * width_x + 1
+                    self.width_y_val = 2 * width_y + 1
+                    self.width_z_val = 2 * width_z + 1
+                    self.sigma_x = sigma_x
+                    self.sigma_y = sigma_y
+                    self.sigma_z = sigma_z
+                    for stack in stacks:
+                        blurred = gaussian3d(copy.deepcopy(stack), (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z))
+                        filtered = medFilter2d(blurred, self.median_sizes[self.median_index])
+                        thresholded = filtered > np.quantile(layer.data, self.quantile)
+                        filtered_and_thresholded.append(thresholded)
+                    return np.array(filtered_and_thresholded)
+
+            gui = filter_and_threshold.Gui()
+            viewer.window.add_dock_widget(gui)
+            viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
+            viewer.layers["filter_and_threshold result"].colormap = "cyan"
+            viewer.layers["filter_and_threshold result"].blending = "additive"
+            viewer.layers["filter_and_threshold result"].interpolation = "bicubic"
+
+        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile}
+        print("final parameters from sweep: ", final_params)
