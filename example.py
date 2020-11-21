@@ -30,10 +30,14 @@ arguments = {
 }
 
 e = Extractor(**arguments)
-sweeper = FilterSweeper(e)
-sweeper.sweep_parameters()
-# e.calc_blob_threads()
-# e.quantify()
-# c = Curator(e)
+
+# uncomment these lines to enable filter/threshold parameter sweep
+# sweeper = FilterSweeper(e)
+# sweeper.sweep_parameters()
+# e.gaussian, e.median, e.quantile = sweeper.gaussian, sweeper.median, sweeper.quantile
+
+e.calc_blob_threads()
+e.quantify()
+c = Curator(e)
 
 

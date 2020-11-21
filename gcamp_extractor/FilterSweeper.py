@@ -119,4 +119,5 @@ class FilterSweeper:
             viewer.layers["filter_and_threshold result"].interpolation = "bicubic"
 
         final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile}
+        self.gaussian, self.median = final_params["gaussian"], final_params["median"]
         print("final parameters from sweep: ", final_params)
