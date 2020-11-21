@@ -30,7 +30,7 @@ arguments = {
 }
 
 e = Extractor(**arguments)
-sweeper = FilterSweeper.FilterSweeper(e)
+sweeper = FilterSweeper(e)
 sweeper.sweep_parameters()
 # e.calc_blob_threads()
 # e.quantify()
