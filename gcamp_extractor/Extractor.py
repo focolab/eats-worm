@@ -149,6 +149,8 @@ class Extractor:
         boolean for whether to process in 2d or 3d. If 3d is true, gaussian filtering and peak finding will be performed in 3d. otherwise, it will apply to each z slice independently.
     gaussian:list or tuple
         list or tuple of the width and standard deviation of the gaussian filtering step. note that the gaussian filter must have odd width. 
+    median:int
+        size for median filter. note that unless using image with dtype uint8, filter sizes are limited to 1, 3, and 5. 
     quantile:float
         float between 0 and 1 inclusive for the thresholding step, where all pixels below the quantile specified will be thresholded to 0.
     reg_peak_dist:self.float
@@ -200,6 +202,8 @@ class Extractor:
 
         try:self.gaussian= kwargs['gaussian']
         except:self.gaussian = (25,4,3,1)
+        try:self.median= kwargs['median']
+        except:self.median = 3
         try:self.quantile= kwargs['quantile']
         except:self.quantile = 0.99
         try:self.reg_peak_dist= kwargs['reg_peak_dist']

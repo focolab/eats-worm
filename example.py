@@ -4,6 +4,7 @@
 
 import numpy as np
 from gcamp_extractor.Extractor import *
+from gcamp_extractor.FilterSweeper import *
 from gcamp_extractor.Threads import *
 from gcamp_extractor.Curator import *
 from gcamp_extractor import *
@@ -29,6 +30,12 @@ arguments = {
 }
 
 e = Extractor(**arguments)
+
+# uncomment these lines to enable filter/threshold parameter sweep
+# sweeper = FilterSweeper(e)
+# sweeper.sweep_parameters()
+# e.gaussian, e.median, e.quantile = sweeper.gaussian, sweeper.median, sweeper.quantile
+
 e.calc_blob_threads()
 e.quantify()
 c = Curator(e)

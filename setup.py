@@ -21,7 +21,10 @@ setuptools.setup(
           'opencv-python>=4.1.0.25',
           'matplotlib>=2.1.0',
           'imreg_dft',
-          'fastcluster'
+          'fastcluster',
+          'napari[all]',
+          'magicgui',
+          'scikit-image'
       ], 
     dependency_links=['https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft'],
     python_requires='>=3.6',
