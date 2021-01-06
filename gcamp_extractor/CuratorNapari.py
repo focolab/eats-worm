@@ -264,13 +264,13 @@ class Curator:
             min_r_slider.setTickPosition(int(self.min))
             min_r_slider.setValue(int(self.min))
             min_r_slider.setOrientation(Qt.Horizontal)
-            min_r_slider.valueChanged.connect(lambda:self.update_mm("min", max_r_slider.getValue()))
+            min_r_slider.valueChanged.connect(lambda:self.update_mm("min", min_r_slider.value()))
             max_r_slider = QSlider()
             max_r_slider.setMaximum(int(np.max(self.im)*4))
             max_r_slider.setTickPosition(int(self.max))
             max_r_slider.setValue(int(self.max))
             max_r_slider.setOrientation(Qt.Horizontal)
-            max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.getValue()))
+            max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.value()))
             self.viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
 
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
