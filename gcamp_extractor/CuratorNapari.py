@@ -354,8 +354,10 @@ class Curator:
         self.static_canvas_3.draw()
 
     def update_timeseries(self):
-        self.timeplot.set_ydata((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-        plt.draw()
+        self.timeax.clear()
+        self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
+        self.static_canvas_3.draw()
+
     def update_t(self, val):
         # Update index for t
         self.t = val
