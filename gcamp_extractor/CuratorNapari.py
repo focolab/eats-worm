@@ -312,14 +312,28 @@ class Curator:
 
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
             points_button_group[0].setChecked(True)
+            for button in points_button_group:
+                button.toggled.connect(lambda:self.update_pointstate(button.text()))
             viewer.window.add_dock_widget(points_button_group, area='right')
             mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP')]
             mip_button_group[0].setChecked(True)
+            for button in mip_button_group:
+                button.toggled.connect(lambda:self.update_mipstate(button.text()))
             viewer.window.add_dock_widget(mip_button_group, area='right')
             keep_button_group = [QRadioButton('Keep'), QRadioButton('Trash')]
+            if str(self.ind) in self.curate:
+                keep_status = self.curate[str(self.ind)]
+                if 'keep' == keep_status:
+                    keep_button_group[0].setChecked(True)
+                elif 'trash' == keep_status:
+                    keep_button_group[1].setChecked(True)
+            for button in keep_button_group:
+                button.toggled.connect(lambda:self.keep(button.text()))
             viewer.window.add_dock_widget(keep_button_group, area='right')
             show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
             show_button_group[0].setChecked(True)
+            for button in show_button_group:
+                button.toggled.connect(lambda:self.show(button.text()))
             viewer.window.add_dock_widget(show_button_group, area='right')
 
         plt.show()
@@ -400,20 +414,19 @@ class Curator:
         with open(self.path, 'w') as fp:
             json.dump(self.curate, fp)
 
-    def keep(self, event):
-        status = self.keep_button.get_status()
-        if np.sum(status) != 1:
-            for i in range(len(status)):
-                if status[i] != False:
-                    self.keep_button.set_active(i)
-
+    def keep(self, label):
+        d = {
+            'Keep':0,
+            'Trash':1
+        }
+        status = d[label]
+        if status == 0:
+            self.curate[str(self.ind)]='keep'
+        elif status == 1:
+            self.curate[str(self.ind)]='trash'
         else:
-            if status[0]:
-                self.curate[str(self.ind)]='keep'
-            elif status[1]:
-                self.curate[str(self.ind)]='trash'
-            else:
-                pass
+            pass
+
     def update_buttons(self):
 
         curr = self.keep_button.get_status()
