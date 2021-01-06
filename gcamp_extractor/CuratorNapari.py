@@ -296,18 +296,28 @@ class Curator:
             viewer.window.add_dock_widget(static_canvas_2, area='bottom', name='matplotlib figure')
             viewer.window.add_dock_widget(static_canvas_3, area='bottom', name='matplotlib figure')
 
-            viewer.window.add_dock_widget([QPushButton('Previous'), QPushButton('Next')])
+            
+
+            ### Axis for buttons for next/previous time series
+            #where the buttons are, and their locations
+            bprev = QPushButton('Previous')
+            bprev.clicked.connect(lambda:self.prev())
+            bnext = QPushButton('Next')
+            bnext.clicked.connect(lambda:self.next())
+            viewer.window.add_dock_widget([bprev, bnext])
 
             min_r_slider = QSlider()
             min_r_slider.setMaximum(int(np.max(self.im)))
             min_r_slider.setTickPosition(int(self.min))
             min_r_slider.setValue(int(self.min))
-            min_r_slider.setOrientation(Qt.Horizontal) 
+            min_r_slider.setOrientation(Qt.Horizontal)
+            min_r_slider.valueChanged.connect(lambda:self.update_mm("min", max_r_slider.getValue()))
             max_r_slider = QSlider()
             max_r_slider.setMaximum(int(np.max(self.im)*4))
             max_r_slider.setTickPosition(int(self.max))
             max_r_slider.setValue(int(self.max))
-            max_r_slider.setOrientation(Qt.Horizontal) 
+            max_r_slider.setOrientation(Qt.Horizontal)
+            max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.getValue()))
             viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
 
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
