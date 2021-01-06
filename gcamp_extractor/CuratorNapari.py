@@ -201,7 +201,6 @@ class Curator:
             self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
             
             # plotting for multiple points
-            
             if self.pointstate==0:
                 pass
             elif self.pointstate==1:
@@ -223,25 +222,6 @@ class Curator:
             self.tr = plt.axes([0.2, 0.15, 0.3, 0.03], facecolor='lightgoldenrodyellow')
             self.s_tr = Slider(self.tr, 'Timepoint', 0, self.tmax-1, valinit=0, valstep = 1)
             self.s_tr.on_changed(self.update_t)
-
-            ### Axis for setting min/max range
-            self.minr = plt.axes([0.2, 0.2, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-            self.sminr = Slider(self.minr, 'R Min', 0, np.max(self.im), valinit=self.min, valstep = 1)
-            self.maxr = plt.axes([0.2, 0.25, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-            self.smaxr = Slider(self.maxr, 'R Max', 0, np.max(self.im)*4, valinit=self.max, valstep = 1)
-            self.sminr.on_changed(self.update_mm)
-            self.smaxr.on_changed(self.update_mm)
-
-
-            ### Axis for buttons for next/previous time series
-            #where the buttons are, and their locations 
-            self.axprev = plt.axes([0.62, 0.20, 0.1, 0.075])
-            self.axnext = plt.axes([0.75, 0.20, 0.1, 0.075])
-            self.bnext = Button(self.axnext, 'Next')
-            self.bnext.on_clicked(self.next)
-            self.bprev = Button(self.axprev, 'Previous')
-            self.bprev.on_clicked(self.prev)
-
 
             #### Axis for button for display
             self.pointsax = plt.axes([0.75, 0.10, 0.1, 0.075])
@@ -284,6 +264,7 @@ class Curator:
             bnext.clicked.connect(lambda:self.next())
             viewer.window.add_dock_widget([bprev, bnext])
 
+            ### Axis for setting min/max range
             min_r_slider = QSlider()
             min_r_slider.setMaximum(int(np.max(self.im)))
             min_r_slider.setTickPosition(int(self.min))
@@ -374,10 +355,11 @@ class Curator:
         self.update_im()
         self.update_figures()
 
-    def update_mm(self,val):
-        self.min = self.sminr.val
-        self.max = self.smaxr.val
-        #self.update_im()
+    def update_mm(self, button, val):
+        if 'min' == button:
+            self.min = val
+        elif 'max' == button:
+            self.max = val
         self.update_figures()
 
     def next(self,event):
