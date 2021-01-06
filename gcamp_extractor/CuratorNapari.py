@@ -189,13 +189,15 @@ class Curator:
             ## Figure to display
             self.fig = plt.figure()
 
-            ## grid object for complicated subplot handing
-            self.grid = plt.GridSpec(4, 2, wspace=0.1, hspace=0.2)
+            static_canvas_1 = FigureCanvas(Figure())
+            self.ax1 = static_canvas_1.figure.subplots()
+            static_canvas_2 = FigureCanvas(Figure())
+            self.ax2 = static_canvas_2.figure.subplots()
+            static_canvas_3 = FigureCanvas(Figure())
+            self.timeax = static_canvas_3.figure.subplots()
 
 
             ### First subplot: whole image with red dot over ROI
-            self.ax1 = plt.subplot(self.grid[:3,0])
-            plt.subplots_adjust(bottom=0.4)
             self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
             
             # plotting for multiple points
@@ -207,26 +209,15 @@ class Curator:
             elif self.pointstate==2:
                 self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
             self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-            plt.axis('off')
 
             ### Second subplot: some window around the ROI
-            plt.subplot(self.grid[:3,1])
-            plt.subplots_adjust(bottom=0.4)
-
             self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
 
-            self.img2 = plt.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
-            self.point2 = plt.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
-
-            self.title = self.fig.suptitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-            plt.axis("off")
-
+            self.img2 = self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
+            self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
 
             ### Third subplot: plotting the timeseries
-            self.timeax = plt.subplot(self.grid[3,:])
-            plt.subplots_adjust(bottom=0.4)
             self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-            plt.axis("off")
 
             ### Axis for scrolling through t
             self.tr = plt.axes([0.2, 0.15, 0.3, 0.03], facecolor='lightgoldenrodyellow')
@@ -281,23 +272,10 @@ class Curator:
             viewer = napari.Viewer(ndisplay=3)
             viewer.add_image(self.tf.get_t(self.t), name='volume')
             viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi')
-            static_canvas_1 = FigureCanvas(Figure())
-            axes_1 = static_canvas_1.figure.subplots()
-            axes_1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-            axes_1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-            static_canvas_2 = FigureCanvas(Figure())
-            axes_2 = static_canvas_2.figure.subplots()
-            axes_2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
-            axes_2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
-            static_canvas_3 = FigureCanvas(Figure())
-            axes_3 = static_canvas_3.figure.subplots()
-            axes_3.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
             viewer.window.add_dock_widget(static_canvas_1, area='bottom', name='img1')
             viewer.window.add_dock_widget(static_canvas_2, area='bottom', name='img2')
             viewer.window.add_dock_widget([QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0]))), static_canvas_3], area='bottom', name='timeplot')
-
             
-
             ### Axis for buttons for next/previous time series
             #where the buttons are, and their locations
             bprev = QPushButton('Previous')
@@ -345,8 +323,6 @@ class Curator:
             for button in show_button_group:
                 button.toggled.connect(lambda:self.show(button.text()))
             viewer.window.add_dock_widget(show_button_group, area='right')
-
-        plt.show()
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
