@@ -275,8 +275,9 @@ class Curator:
 
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
             points_button_group[0].setChecked(True)
-            for button in points_button_group:
-                button.toggled.connect(lambda:self.update_pointstate(button.text()))
+            points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
+            points_button_group[1].toggled.connect(lambda:self.update_pointstate(points_button_group[1].text()))
+            points_button_group[2].toggled.connect(lambda:self.update_pointstate(points_button_group[2].text()))
             self.viewer.window.add_dock_widget(points_button_group, area='right')
 
             #### Axis for whether to display MIP on left
@@ -292,13 +293,15 @@ class Curator:
                     keep_button_group[0].setChecked(True)
                 elif 'trash' == keep_status:
                     keep_button_group[1].setChecked(True)
-            for button in keep_button_group:
-                button.toggled.connect(lambda:self.keep(button.text()))
+            keep_button_group[0].toggled.connect(lambda:self.keep(keep_button_group[0].text()))
+            keep_button_group[1].toggled.connect(lambda:self.keep(keep_button_group[1].text()))
             self.viewer.window.add_dock_widget(keep_button_group, area='right')
             show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
             show_button_group[0].setChecked(True)
-            for button in show_button_group:
-                button.toggled.connect(lambda:self.show(button.text()))
+            show_button_group[0].toggled.connect(lambda:self.show(show_button_group[0].text()))
+            show_button_group[1].toggled.connect(lambda:self.show(show_button_group[1].text()))
+            show_button_group[2].toggled.connect(lambda:self.show(show_button_group[2].text()))
+            show_button_group[3].toggled.connect(lambda:self.show(show_button_group[3].text()))
             self.viewer.window.add_dock_widget(show_button_group, area='right')
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
