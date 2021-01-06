@@ -10,7 +10,7 @@ import atexit
 
 from magicgui import magicgui
 from magicgui._qt.widgets import QDoubleSlider
-from qtpy.QtWidgets import QSlider
+from qtpy.QtWidgets import QSlider, QButtonGroup, QRadioButton
 import napari
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
@@ -295,6 +295,19 @@ class Curator:
             viewer.window.add_dock_widget(static_canvas_2, area='bottom', name='matplotlib figure')
             viewer.window.add_dock_widget(static_canvas_3, area='bottom', name='matplotlib figure')
  
+
+            points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
+            points_button_group[0].setChecked(True)
+            viewer.window.add_dock_widget(points_button_group, area='right')
+            mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP')]
+            mip_button_group[0].setChecked(True)
+            viewer.window.add_dock_widget(mip_button_group, area='right')
+            keep_button_group = [QRadioButton('Keep'), QRadioButton('Trash')]
+            viewer.window.add_dock_widget(keep_button_group, area='right')
+            show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
+            show_button_group[0].setChecked(True)
+            viewer.window.add_dock_widget(show_button_group, area='right')
+
         plt.show()
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
