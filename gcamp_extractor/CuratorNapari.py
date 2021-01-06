@@ -279,8 +279,8 @@ class Curator:
         
             ### new
             viewer = napari.Viewer(ndisplay=3)
-            viewer.add_image(self.tf.get_t(self.t))
-            viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red')
+            viewer.add_image(self.tf.get_t(self.t), name='volume')
+            viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi')
             static_canvas_1 = FigureCanvas(Figure())
             axes_1 = static_canvas_1.figure.subplots()
             axes_1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
@@ -292,9 +292,9 @@ class Curator:
             static_canvas_3 = FigureCanvas(Figure())
             axes_3 = static_canvas_3.figure.subplots()
             axes_3.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-            viewer.window.add_dock_widget(static_canvas_1, area='bottom', name='matplotlib figure')
-            viewer.window.add_dock_widget(static_canvas_2, area='bottom', name='matplotlib figure')
-            viewer.window.add_dock_widget(static_canvas_3, area='bottom', name='matplotlib figure')
+            viewer.window.add_dock_widget(static_canvas_1, area='bottom', name='img1')
+            viewer.window.add_dock_widget(static_canvas_2, area='bottom', name='img2')
+            viewer.window.add_dock_widget([QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0]))), static_canvas_3], area='bottom', name='timeplot')
 
             
 
