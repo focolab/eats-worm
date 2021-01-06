@@ -185,99 +185,99 @@ class Curator:
         atexit.register(self.log_curate)
 
     def restart(self):
-        ## Figure to display
-        self.fig = plt.figure()
-
-        ## grid object for complicated subplot handing
-        self.grid = plt.GridSpec(4, 2, wspace=0.1, hspace=0.2)
-
-
-        ### First subplot: whole image with red dot over ROI
-        self.ax1 = plt.subplot(self.grid[:3,0])
-        plt.subplots_adjust(bottom=0.4)
-        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-        
-        # plotting for multiple points
-        
-        if self.pointstate==0:
-            pass
-        elif self.pointstate==1:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-        elif self.pointstate==2:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        plt.axis('off')
-
-        ### Second subplot: some window around the ROI
-        plt.subplot(self.grid[:3,1])
-        plt.subplots_adjust(bottom=0.4)
-
-        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-
-        self.img2 = plt.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
-        self.point2 = plt.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
-
-        self.title = self.fig.suptitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-        plt.axis("off")
-
-
-        ### Third subplot: plotting the timeseries
-        self.timeax = plt.subplot(self.grid[3,:])
-        plt.subplots_adjust(bottom=0.4)
-        self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-        plt.axis("off")
-
-        ### Axis for scrolling through t
-        self.tr = plt.axes([0.2, 0.15, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-        self.s_tr = Slider(self.tr, 'Timepoint', 0, self.tmax-1, valinit=0, valstep = 1)
-        self.s_tr.on_changed(self.update_t)
-
-        ### Axis for setting min/max range
-        self.minr = plt.axes([0.2, 0.2, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-        self.sminr = Slider(self.minr, 'R Min', 0, np.max(self.im), valinit=self.min, valstep = 1)
-        self.maxr = plt.axes([0.2, 0.25, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-        self.smaxr = Slider(self.maxr, 'R Max', 0, np.max(self.im)*4, valinit=self.max, valstep = 1)
-        self.sminr.on_changed(self.update_mm)
-        self.smaxr.on_changed(self.update_mm)
-
-
-        ### Axis for buttons for next/previous time series
-        #where the buttons are, and their locations 
-        self.axprev = plt.axes([0.62, 0.20, 0.1, 0.075])
-        self.axnext = plt.axes([0.75, 0.20, 0.1, 0.075])
-        self.bnext = Button(self.axnext, 'Next')
-        self.bnext.on_clicked(self.next)
-        self.bprev = Button(self.axprev, 'Previous')
-        self.bprev.on_clicked(self.prev)
-
-
-        #### Axis for button for display
-        self.pointsax = plt.axes([0.75, 0.10, 0.1, 0.075])
-        self.pointsbutton = RadioButtons(self.pointsax, ('Single','Same Z','All'))
-        self.pointsbutton.set_active(self.pointstate)
-        self.pointsbutton.on_clicked(self.update_pointstate)
-
-        #### Axis for whether to display MIP on left
-        self.mipax = plt.axes([0.62, 0.10, 0.1, 0.075])
-        self.mipbutton = RadioButtons(self.mipax, ('Single Z','MIP'))
-        self.mipbutton.set_active(self.showmip)
-        self.mipbutton.on_clicked(self.update_mipstate)
-
-
-        ### Axis for button to keep
-        self.keepax = plt.axes([0.87, 0.20, 0.075, 0.075])
-        self.keep_button = CheckButtons(self.keepax, ['Keep','Trash'], [False,False])
-        self.keep_button.on_clicked(self.keep)
-
-
-        ### Axis to determine which ones to show
-        self.showax = plt.axes([0.87, 0.10, 0.075, 0.075])
-        self.showbutton = RadioButtons(self.showax, ('All','Unlabelled','Kept','Trashed'))
-        self.showbutton.set_active(self.show_settings)
-        self.showbutton.on_clicked(self.show)
-    
-        ### new
         with napari.gui_qt():
+            ## Figure to display
+            self.fig = plt.figure()
+
+            ## grid object for complicated subplot handing
+            self.grid = plt.GridSpec(4, 2, wspace=0.1, hspace=0.2)
+
+
+            ### First subplot: whole image with red dot over ROI
+            self.ax1 = plt.subplot(self.grid[:3,0])
+            plt.subplots_adjust(bottom=0.4)
+            self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+            
+            # plotting for multiple points
+            
+            if self.pointstate==0:
+                pass
+            elif self.pointstate==1:
+                self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            elif self.pointstate==2:
+                self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+            plt.axis('off')
+
+            ### Second subplot: some window around the ROI
+            plt.subplot(self.grid[:3,1])
+            plt.subplots_adjust(bottom=0.4)
+
+            self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+
+            self.img2 = plt.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
+            self.point2 = plt.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
+
+            self.title = self.fig.suptitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+            plt.axis("off")
+
+
+            ### Third subplot: plotting the timeseries
+            self.timeax = plt.subplot(self.grid[3,:])
+            plt.subplots_adjust(bottom=0.4)
+            self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
+            plt.axis("off")
+
+            ### Axis for scrolling through t
+            self.tr = plt.axes([0.2, 0.15, 0.3, 0.03], facecolor='lightgoldenrodyellow')
+            self.s_tr = Slider(self.tr, 'Timepoint', 0, self.tmax-1, valinit=0, valstep = 1)
+            self.s_tr.on_changed(self.update_t)
+
+            ### Axis for setting min/max range
+            self.minr = plt.axes([0.2, 0.2, 0.3, 0.03], facecolor='lightgoldenrodyellow')
+            self.sminr = Slider(self.minr, 'R Min', 0, np.max(self.im), valinit=self.min, valstep = 1)
+            self.maxr = plt.axes([0.2, 0.25, 0.3, 0.03], facecolor='lightgoldenrodyellow')
+            self.smaxr = Slider(self.maxr, 'R Max', 0, np.max(self.im)*4, valinit=self.max, valstep = 1)
+            self.sminr.on_changed(self.update_mm)
+            self.smaxr.on_changed(self.update_mm)
+
+
+            ### Axis for buttons for next/previous time series
+            #where the buttons are, and their locations 
+            self.axprev = plt.axes([0.62, 0.20, 0.1, 0.075])
+            self.axnext = plt.axes([0.75, 0.20, 0.1, 0.075])
+            self.bnext = Button(self.axnext, 'Next')
+            self.bnext.on_clicked(self.next)
+            self.bprev = Button(self.axprev, 'Previous')
+            self.bprev.on_clicked(self.prev)
+
+
+            #### Axis for button for display
+            self.pointsax = plt.axes([0.75, 0.10, 0.1, 0.075])
+            self.pointsbutton = RadioButtons(self.pointsax, ('Single','Same Z','All'))
+            self.pointsbutton.set_active(self.pointstate)
+            self.pointsbutton.on_clicked(self.update_pointstate)
+
+            #### Axis for whether to display MIP on left
+            self.mipax = plt.axes([0.62, 0.10, 0.1, 0.075])
+            self.mipbutton = RadioButtons(self.mipax, ('Single Z','MIP'))
+            self.mipbutton.set_active(self.showmip)
+            self.mipbutton.on_clicked(self.update_mipstate)
+
+
+            ### Axis for button to keep
+            self.keepax = plt.axes([0.87, 0.20, 0.075, 0.075])
+            self.keep_button = CheckButtons(self.keepax, ['Keep','Trash'], [False,False])
+            self.keep_button.on_clicked(self.keep)
+
+
+            ### Axis to determine which ones to show
+            self.showax = plt.axes([0.87, 0.10, 0.075, 0.075])
+            self.showbutton = RadioButtons(self.showax, ('All','Unlabelled','Kept','Trashed'))
+            self.showbutton.set_active(self.show_settings)
+            self.showbutton.on_clicked(self.show)
+        
+            ### new
             viewer = napari.Viewer(ndisplay=3)
             viewer.add_image(self.tf.get_t(self.t))
             viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red')
