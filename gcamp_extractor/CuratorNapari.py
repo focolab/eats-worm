@@ -10,7 +10,8 @@ import atexit
 
 from magicgui import magicgui
 from magicgui._qt.widgets import QDoubleSlider
-from qtpy.QtWidgets import QSlider, QButtonGroup, QRadioButton
+from qtpy.QtWidgets import QSlider, QButtonGroup, QLabel, QPushButton, QRadioButton
+from qtpy.QtCore import Qt
 import napari
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
@@ -294,7 +295,20 @@ class Curator:
             viewer.window.add_dock_widget(static_canvas_1, area='bottom', name='matplotlib figure')
             viewer.window.add_dock_widget(static_canvas_2, area='bottom', name='matplotlib figure')
             viewer.window.add_dock_widget(static_canvas_3, area='bottom', name='matplotlib figure')
- 
+
+            viewer.window.add_dock_widget([QPushButton('Previous'), QPushButton('Next')])
+
+            min_r_slider = QSlider()
+            min_r_slider.setMaximum(int(np.max(self.im)))
+            min_r_slider.setTickPosition(int(self.min))
+            min_r_slider.setValue(int(self.min))
+            min_r_slider.setOrientation(Qt.Horizontal) 
+            max_r_slider = QSlider()
+            max_r_slider.setMaximum(int(np.max(self.im)*4))
+            max_r_slider.setTickPosition(int(self.max))
+            max_r_slider.setValue(int(self.max))
+            max_r_slider.setOrientation(Qt.Horizontal) 
+            viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
 
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
             points_button_group[0].setChecked(True)
