@@ -322,6 +322,9 @@ class Curator:
         return (self.subim - self.min)/(self.max - self.min)
     
     def update_figures(self):
+        self.viewer.layers['volume'].data = self.tf.get_t(self.t)
+        self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
+
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.ax1.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
