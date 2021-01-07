@@ -268,6 +268,14 @@ class Curator:
             max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.value()))
             self.viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
 
+            ### Axis for scrolling through t
+            t_slider = QSlider()
+            t_slider.setMaximum(int(self.tmax-1))
+            t_slider.setValue(int(self.t))
+            t_slider.setOrientation(Qt.Horizontal)
+            t_slider.valueChanged.connect(lambda:self.update_t(t_slider.value()))
+            self.viewer.window.add_dock_widget([QLabel('Time Point'), t_slider], area='right')
+
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
             points_button_group[0].setChecked(True)
             points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
