@@ -186,9 +186,7 @@ class Curator:
 
     def restart(self):
         with napari.gui_qt():
-            ## Figure to display
-            self.fig = plt.figure()
-
+            ## Figures to display
             self.static_canvas_1 = FigureCanvas(Figure())
             self.ax1 = self.static_canvas_1.figure.subplots()
             self.static_canvas_2 = FigureCanvas(Figure())
@@ -217,29 +215,6 @@ class Curator:
 
             ### Third subplot: plotting the timeseries
             self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-
-            ### Axis for scrolling through t
-            self.tr = plt.axes([0.2, 0.15, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-            self.s_tr = Slider(self.tr, 'Timepoint', 0, self.tmax-1, valinit=0, valstep = 1)
-            self.s_tr.on_changed(self.update_t)
-
-            #### Axis for button for display
-            self.pointsax = plt.axes([0.75, 0.10, 0.1, 0.075])
-            self.pointsbutton = RadioButtons(self.pointsax, ('Single','Same Z','All'))
-            self.pointsbutton.set_active(self.pointstate)
-            self.pointsbutton.on_clicked(self.update_pointstate)
-
-            ### Axis for button to keep
-            self.keepax = plt.axes([0.87, 0.20, 0.075, 0.075])
-            self.keep_button = CheckButtons(self.keepax, ['Keep','Trash'], [False,False])
-            self.keep_button.on_clicked(self.keep)
-
-
-            ### Axis to determine which ones to show
-            self.showax = plt.axes([0.87, 0.10, 0.075, 0.075])
-            self.showbutton = RadioButtons(self.showax, ('All','Unlabelled','Kept','Trashed'))
-            self.showbutton.set_active(self.show_settings)
-            self.showbutton.on_clicked(self.show)
         
             ### new
             self.viewer = napari.Viewer(ndisplay=3)
@@ -276,6 +251,7 @@ class Curator:
             t_slider.valueChanged.connect(lambda:self.update_t(t_slider.value()))
             self.viewer.window.add_dock_widget([QLabel('Time Point'), t_slider], area='right')
 
+            #### Axis for button for display
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
             points_button_group[0].setChecked(True)
             points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
@@ -289,16 +265,17 @@ class Curator:
             mip_button_group[0].toggled.connect(lambda:self.update_mipstate(mip_button_group[0].text()))
             mip_button_group[1].toggled.connect(lambda:self.update_mipstate(mip_button_group[1].text()))
             self.viewer.window.add_dock_widget(mip_button_group, area='right')
-            keep_button_group = [QRadioButton('Keep'), QRadioButton('Trash')]
-            if str(self.ind) in self.curate:
-                keep_status = self.curate[str(self.ind)]
-                if 'keep' == keep_status:
-                    keep_button_group[0].setChecked(True)
-                elif 'trash' == keep_status:
-                    keep_button_group[1].setChecked(True)
-            keep_button_group[0].toggled.connect(lambda:self.keep(keep_button_group[0].text()))
-            keep_button_group[1].toggled.connect(lambda:self.keep(keep_button_group[1].text()))
-            self.viewer.window.add_dock_widget(keep_button_group, area='right')
+
+            ### Axis for button to keep
+            self.keep_button_group = QButtonGroup()
+            self.keep_button = QRadioButton('Keep')
+            self.trash_button = QRadioButton('Trash')
+            self.keep_button_group.addButton(self.keep_button)
+            self.keep_button_group.addButton(self.trash_button)
+            self.keep_button_group.buttonToggled.connect(lambda:self.keep(self.keep_button_group.checkedButton().text()))
+            self.viewer.window.add_dock_widget(self.keep_button_group.buttons(), area='right')
+
+            ### Axis to determine which ones to show
             show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
             show_button_group[0].setChecked(True)
             show_button_group[0].toggled.connect(lambda:self.show(show_button_group[0].text()))
@@ -423,21 +400,15 @@ class Curator:
             pass
 
     def update_buttons(self):
-
-        curr = self.keep_button.get_status()
-        future = [False for i in range(len(curr))]
-        if self.curate.get(str(self.ind))=='seen':
-            pass
-        elif self.curate.get(str(self.ind))=='keep':
-            future[0] = True
+        if self.curate.get(str(self.ind))=='keep':
+            self.keep_button.setChecked(True)
         elif self.curate.get(str(self.ind))=='trash':
-            future[1] = True
+            self.trash_button.setChecked(True)
         else:
-            pass
-
-        for i in range(len(curr)):
-            if curr[i] != future[i]:
-                self.keep_button.set_active(i)
+            self.keep_button_group.setExclusive(False)
+            self.keep_button.setChecked(False)
+            self.trash_button.setChecked(False)
+            self.keep_button_group.setExclusive(True)
 
     def show(self,label):
         d = {
@@ -522,7 +493,6 @@ class Curator:
     def update_point1(self):
         self.ax1.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-        plt.axis('off')
         if self.pointstate==0:
             self.point1 = None
         elif self.pointstate==1:
@@ -530,7 +500,7 @@ class Curator:
         elif self.pointstate==2:
             self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
         self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        plt.axis('off')
+        self.static_canvas_1.draw()
 
     def update_mipstate(self, label):
         d = {
