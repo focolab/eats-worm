@@ -7,11 +7,11 @@ from .multifiletiff import *
 import json
 import atexit
 
-
 from magicgui import magicgui
 from magicgui._qt.widgets import QDoubleSlider
-from qtpy.QtWidgets import QSlider, QButtonGroup, QLabel, QPushButton, QRadioButton
-from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QSlider, QButtonGroup, QLabel, QListWidget, QListWidgetItem, QPushButton, QRadioButton
+from qtpy.QtCore import Qt, QSize
+from qtpy.QtGui import QPixmap, QImage, QIcon
 import napari
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
@@ -290,7 +290,13 @@ class Curator:
             bprev.clicked.connect(lambda:self.prev())
             bnext = QPushButton('Next')
             bnext.clicked.connect(lambda:self.next())
-            self.viewer.window.add_dock_widget([bprev, bnext])
+            self.viewer.window.add_dock_widget([bprev, bnext], area='right')
+
+            self.trace_list = QListWidget()
+            self.trace_list.setViewMode(QListWidget.IconMode)
+            self.trace_list.setIconSize(QSize(96, 96))
+            self.update_trace_icons()
+            self.viewer.window.add_dock_widget(self.trace_list)
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
@@ -490,6 +496,7 @@ class Curator:
         self.pointstate = d[label]
         self.update_point1()
         self.update_figures()
+
     def update_point1(self):
         self.ax1.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
@@ -512,6 +519,17 @@ class Curator:
         self.update_im()
         self.update_figures()
 
-
-
+    def update_trace_icons(self):
+        static_trace_canvas = FigureCanvas(Figure())
+        trace_ax = static_trace_canvas.figure.subplots()
+        for ind in range(self.tmax):
+            trace_ax.clear()
+            timeplot = trace_ax.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])))
+            static_trace_canvas.draw()
+            np_img = np.asarray(static_trace_canvas.buffer_rgba())[:,:,:3]
+            h,w,d = np_img.shape
+            q_img = QImage(np_img.tobytes(), h, w, QImage.Format_RGBA8888)
+            icon = QIcon(QPixmap.fromImage(q_img))
+            item = QListWidgetItem(icon, str(ind))
+            self.trace_list.addItem(item)
 
