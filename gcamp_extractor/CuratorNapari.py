@@ -375,14 +375,14 @@ class Curator:
             self.max = val
         self.update_figures()
 
-    def next(self,event):
+    def next(self):
         self.set_index_next()
         self.update_im()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
         self.update_curate()
-    def prev(self,event):
+    def prev(self):
         self.set_index_prev()
         self.update_im()
         self.update_figures()
