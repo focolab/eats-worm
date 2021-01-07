@@ -295,6 +295,7 @@ class Curator:
             self.trace_list = QListWidget()
             self.trace_list.setViewMode(QListWidget.IconMode)
             self.trace_list.setIconSize(QSize(96, 96))
+            self.trace_list.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_list.currentItem().text())))
             self.update_trace_icons()
             self.viewer.window.add_dock_widget(self.trace_list)
     
@@ -452,6 +453,7 @@ class Curator:
                 self.ind -= 1
                 counter += 1
             self.ind = self.ind % self.numneurons
+
     def set_index_next(self):
         if self.show_settings == 0:
             self.ind += 1
@@ -480,6 +482,8 @@ class Curator:
                 counter += 1
             self.ind = self.ind % self.numneurons
 
+    def set_index(self, index):
+        self.ind = index % self.numneurons
 
     def update_curate(self):
         if self.curate.get(str(self.ind)) in ['keep','seen','trash']:
@@ -533,3 +537,10 @@ class Curator:
             item = QListWidgetItem(icon, str(ind))
             self.trace_list.addItem(item)
 
+    def go_to_trace(self, index):
+        self.set_index(index)
+        self.update_im()
+        self.update_figures()
+        self.update_timeseries()
+        self.update_buttons()
+        self.update_curate()
