@@ -166,7 +166,7 @@ class Curator:
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
         self.pointstate = 0
         self.show_settings = 0
-        self.showmip = 0 
+        self.showmip = 0
 
         ## index for which time point to display
         self.t = 0
@@ -218,8 +218,9 @@ class Curator:
         
             ### new
             self.viewer = napari.Viewer(ndisplay=3)
-            self.viewer.add_image(self.tf.get_t(self.t), name='volume')
-            self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi')
+            scale = [5, 1, 1]
+            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=scale)
+            self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=scale)
             self.viewer.window.add_dock_widget(self.static_canvas_1, area='bottom', name='img1')
             self.viewer.window.add_dock_widget(self.static_canvas_2, area='bottom', name='img2')
             self.viewer.window.add_dock_widget(self.static_canvas_3, area='bottom', name='timeplot')
@@ -249,7 +250,7 @@ class Curator:
             t_slider.setValue(int(self.t))
             t_slider.setOrientation(Qt.Horizontal)
             t_slider.valueChanged.connect(lambda:self.update_t(t_slider.value()))
-            self.viewer.window.add_dock_widget([QLabel('Time Point'), t_slider], area='right')
+            self.viewer.window.add_dock_widget([QLabel('Timepoint'), t_slider], area='right')
 
             #### Axis for button for display
             points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
