@@ -247,16 +247,11 @@ class Curator:
             self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi')
             self.viewer.window.add_dock_widget(self.static_canvas_1, area='bottom', name='img1')
             self.viewer.window.add_dock_widget(self.static_canvas_2, area='bottom', name='img2')
-            self.timeplot_widget = [QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0]))), self.static_canvas_3]
-            self.viewer.window.add_dock_widget(self.timeplot_widget, area='bottom', name='timeplot')
-            
-            ### Axis for buttons for next/previous time series
-            #where the buttons are, and their locations
-            bprev = QPushButton('Previous')
-            bprev.clicked.connect(lambda:self.prev())
-            bnext = QPushButton('Next')
-            bnext.clicked.connect(lambda:self.next())
-            self.viewer.window.add_dock_widget([bprev, bnext])
+            self.viewer.window.add_dock_widget(self.static_canvas_3, area='bottom', name='timeplot')
+
+            ### Series label
+            self.series_label = QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+            self.viewer.window.add_dock_widget(self.series_label, area='right')
 
             ### Axis for setting min/max range
             min_r_slider = QSlider()
@@ -303,6 +298,14 @@ class Curator:
             show_button_group[2].toggled.connect(lambda:self.show(show_button_group[2].text()))
             show_button_group[3].toggled.connect(lambda:self.show(show_button_group[3].text()))
             self.viewer.window.add_dock_widget(show_button_group, area='right')
+
+            ### Axis for buttons for next/previous time series
+            #where the buttons are, and their locations
+            bprev = QPushButton('Previous')
+            bprev.clicked.connect(lambda:self.prev())
+            bnext = QPushButton('Next')
+            bnext.clicked.connect(lambda:self.next())
+            self.viewer.window.add_dock_widget([bprev, bnext])
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
@@ -356,7 +359,7 @@ class Curator:
         self.point2.set_offsets([self.window/2+self.offset[0], self.window/2+self.offset[1]])
         
         self.static_canvas_2.draw()
-        self.timeplot_widget[0].setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+        self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         self.static_canvas_3.draw()
 
     def update_timeseries(self):
