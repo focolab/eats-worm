@@ -273,7 +273,7 @@ class Curator:
             self.trash_button = QRadioButton('Trash')
             self.keep_button_group.addButton(self.keep_button)
             self.keep_button_group.addButton(self.trash_button)
-            self.keep_button_group.buttonToggled.connect(lambda:self.keep(self.keep_button_group.checkedButton().text()))
+            self.keep_button_group.buttonClicked.connect(lambda:self.keep(self.keep_button_group.checkedButton().text()))
             self.viewer.window.add_dock_widget(self.keep_button_group.buttons(), area='right')
 
             ### Axis to determine which ones to show
