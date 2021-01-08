@@ -9,9 +9,9 @@ import atexit
 
 from magicgui import magicgui
 from magicgui._qt.widgets import QDoubleSlider
-from qtpy.QtWidgets import QSlider, QButtonGroup, QLabel, QListWidget, QListWidgetItem, QPushButton, QRadioButton
-from qtpy.QtCore import Qt, QSize
-from qtpy.QtGui import QPixmap, QImage, QIcon
+from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton
+from qtpy.QtCore import Qt, QPoint, QSize
+from qtpy.QtGui import QPixmap, QCursor, QImage, QIcon
 import napari
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
@@ -273,7 +273,7 @@ class Curator:
             self.trash_button = QRadioButton('Trash')
             self.keep_button_group.addButton(self.keep_button)
             self.keep_button_group.addButton(self.trash_button)
-            self.keep_button_group.buttonClicked.connect(lambda:self.keep(self.keep_button_group.checkedButton().text()))
+            self.keep_button_group.buttonClicked.connect(lambda:self.keep_current(self.keep_button_group.checkedButton().text()))
             self.viewer.window.add_dock_widget(self.keep_button_group.buttons(), area='right')
 
             ### Axis to determine which ones to show
@@ -293,12 +293,24 @@ class Curator:
             bnext.clicked.connect(lambda:self.next())
             self.viewer.window.add_dock_widget([bprev, bnext], area='right')
 
-            self.trace_list = QListWidget()
-            self.trace_list.setViewMode(QListWidget.IconMode)
-            self.trace_list.setIconSize(QSize(96, 96))
-            self.trace_list.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_list.currentItem().text())))
+            ### Grid showing all extracted timeseries
+            self.trace_grid = QListWidget()
+            self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
+            self.trace_grid.setViewMode(QListWidget.IconMode)
+            self.trace_grid.setIconSize(QSize(96, 96))
+            self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
+            self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.trace_grid_context_menu = QMenu(self.trace_grid)
+            keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
+            self.trace_grid_context_menu.addAction(keep_all_action)
+            trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
+            self.trace_grid_context_menu.addAction(trash_all_action)
+            self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
             self.update_trace_icons()
-            self.viewer.window.add_dock_widget(self.trace_list)
+            self.viewer.window.add_dock_widget(self.trace_grid)
+
+            ### Update buttons in case of previous curation
+            self.update_buttons()
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
@@ -394,7 +406,7 @@ class Curator:
         with open(self.path, 'w') as fp:
             json.dump(self.curate, fp)
 
-    def keep(self, label):
+    def keep_current(self, label):
         d = {
             'Keep':0,
             'Trash':1
@@ -406,6 +418,19 @@ class Curator:
             self.curate[str(self.ind)]='trash'
         else:
             pass
+
+    def keep_all_selected(self, label):
+        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        for index in selected_trace_indices:
+            self.curate[str(index)]='keep'
+        self.update_buttons()
+
+
+    def trash_all_selected(self, label):
+        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        for index in selected_trace_indices:
+            self.curate[str(index)]='trash'
+        self.update_buttons()
 
     def update_buttons(self):
         if self.curate.get(str(self.ind))=='keep':
@@ -536,7 +561,7 @@ class Curator:
             q_img = QImage(np_img.tobytes(), w, h, QImage.Format_RGBA8888)
             icon = QIcon(QPixmap.fromImage(q_img))
             item = QListWidgetItem(icon, str(ind))
-            self.trace_list.addItem(item)
+            self.trace_grid.addItem(item)
 
     def go_to_trace(self, index):
         self.set_index(index)
@@ -545,3 +570,6 @@ class Curator:
         self.update_timeseries()
         self.update_buttons()
         self.update_curate()
+
+    def show_trace_grid_context_menu(self):
+        self.trace_grid_context_menu.exec_(QCursor.pos())
