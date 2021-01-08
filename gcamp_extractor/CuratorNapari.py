@@ -531,9 +531,9 @@ class Curator:
             trace_ax.clear()
             timeplot = trace_ax.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])))
             static_trace_canvas.draw()
-            np_img = np.asarray(static_trace_canvas.buffer_rgba())[:,:,:3]
+            np_img = np.asarray(static_trace_canvas.buffer_rgba())
             h,w,d = np_img.shape
-            q_img = QImage(np_img.tobytes(), h, w, QImage.Format_RGBA8888)
+            q_img = QImage(np_img.tobytes(), w, h, QImage.Format_RGBA8888)
             icon = QIcon(QPixmap.fromImage(q_img))
             item = QListWidgetItem(icon, str(ind))
             self.trace_list.addItem(item)
