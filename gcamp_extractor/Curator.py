@@ -7,6 +7,15 @@ from .multifiletiff import *
 import json
 import atexit
 
+from magicgui import magicgui
+from magicgui._qt.widgets import QDoubleSlider
+from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton
+from qtpy.QtCore import Qt, QPoint, QSize
+from qtpy.QtGui import QPixmap, QCursor, QImage, QIcon
+import napari
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.figure import Figure
+
 def subaxis(im, position, window = 100):
     """
     returns window around specified center of image, along with an an offset that gives how much the image was offset (and thus yields the center of the image)
@@ -157,9 +166,7 @@ class Curator:
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
         self.pointstate = 0
         self.show_settings = 0
-        self.showmip = 0 
-        ## index for which thread
-        #self.ind = 0
+        self.showmip = 0
 
         ## index for which time point to display
         self.t = 0
@@ -178,118 +185,138 @@ class Curator:
         atexit.register(self.log_curate)
 
     def restart(self):
-        ## Figure to display
-        self.fig = plt.figure()
+        with napari.gui_qt():
+            ## Figures to display
+            self.static_canvas_1 = FigureCanvas(Figure())
+            self.ax1 = self.static_canvas_1.figure.subplots()
+            self.static_canvas_2 = FigureCanvas(Figure())
+            self.ax2 = self.static_canvas_2.figure.subplots()
+            self.static_canvas_3 = FigureCanvas(Figure())
+            self.timeax = self.static_canvas_3.figure.subplots()
 
-        ## Size of window around ROI in sub image
-        #self.window = window
 
-        ## grid object for complicated subplot handing
-        self.grid = plt.GridSpec(4, 2, wspace=0.1, hspace=0.2)
+            ### First subplot: whole image with red dot over ROI
+            self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+            
+            # plotting for multiple points
+            if self.pointstate==0:
+                pass
+            elif self.pointstate==1:
+                self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            elif self.pointstate==2:
+                self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
 
+            ### Second subplot: some window around the ROI
+            self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
 
-        ### First subplot: whole image with red dot over ROI
-        self.ax1 = plt.subplot(self.grid[:3,0])
-        plt.subplots_adjust(bottom=0.4)
-        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+            self.img2 = self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
+            self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
+
+            ### Third subplot: plotting the timeseries
+            self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
         
-        # plotting for multiple points
-        
-        if self.pointstate==0:
-            pass
-            #self.point1 = plt.scatter()
-            #self.point1 = plt.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-        elif self.pointstate==1:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        elif self.pointstate==2:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        plt.axis('off')
+            ### new
+            self.viewer = napari.Viewer(ndisplay=3)
+            scale = [5, 1, 1]
+            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=scale)
+            self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=scale)
+            self.viewer.window.add_dock_widget(self.static_canvas_1, area='bottom', name='img1')
+            self.viewer.window.add_dock_widget(self.static_canvas_2, area='bottom', name='img2')
+            self.viewer.window.add_dock_widget(self.static_canvas_3, area='bottom', name='timeplot')
 
-        # plotting for single point
-        #
-        #plt.axis("off")
-        #
+            ### Series label
+            self.series_label = QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+            self.viewer.window.add_dock_widget(self.series_label, area='right')
 
-        ### Second subplot: some window around the ROI
-        plt.subplot(self.grid[:3,1])
-        plt.subplots_adjust(bottom=0.4)
+            ### Axis for setting min/max range
+            min_r_slider = QSlider()
+            min_r_slider.setMaximum(int(np.max(self.im)))
+            min_r_slider.setTickPosition(int(self.min))
+            min_r_slider.setValue(int(self.min))
+            min_r_slider.setOrientation(Qt.Horizontal)
+            min_r_slider.valueChanged.connect(lambda:self.update_mm("min", min_r_slider.value()))
+            max_r_slider = QSlider()
+            max_r_slider.setMaximum(int(np.max(self.im)*4))
+            max_r_slider.setTickPosition(int(self.max))
+            max_r_slider.setValue(int(self.max))
+            max_r_slider.setOrientation(Qt.Horizontal)
+            max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.value()))
+            self.viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
 
-        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+            ### Axis for scrolling through t
+            t_slider = QSlider()
+            t_slider.setMaximum(int(self.tmax-1))
+            t_slider.setValue(int(self.t))
+            t_slider.setOrientation(Qt.Horizontal)
+            t_slider.valueChanged.connect(lambda:self.update_t(t_slider.value()))
+            self.viewer.window.add_dock_widget([QLabel('Timepoint'), t_slider], area='right')
 
-        self.img2 = plt.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
-        self.point2 = plt.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
+            #### Axis for button for display
+            points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
+            points_button_group[0].setChecked(True)
+            points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
+            points_button_group[1].toggled.connect(lambda:self.update_pointstate(points_button_group[1].text()))
+            points_button_group[2].toggled.connect(lambda:self.update_pointstate(points_button_group[2].text()))
+            self.viewer.window.add_dock_widget(points_button_group, area='right')
 
-        self.title = self.fig.suptitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-        plt.axis("off")
+            #### Axis for whether to display MIP on left
+            mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP')]
+            mip_button_group[0].setChecked(True)
+            mip_button_group[0].toggled.connect(lambda:self.update_mipstate(mip_button_group[0].text()))
+            mip_button_group[1].toggled.connect(lambda:self.update_mipstate(mip_button_group[1].text()))
+            self.viewer.window.add_dock_widget(mip_button_group, area='right')
 
+            ### Axis for button to keep
+            self.keep_button_group = QButtonGroup()
+            self.keep_button = QRadioButton('Keep')
+            self.trash_button = QRadioButton('Trash')
+            self.keep_button_group.addButton(self.keep_button)
+            self.keep_button_group.addButton(self.trash_button)
+            self.keep_button_group.buttonClicked.connect(lambda:self.keep_current(self.keep_button_group.checkedButton().text()))
+            self.viewer.window.add_dock_widget(self.keep_button_group.buttons(), area='right')
 
-        ### Third subplot: plotting the timeseries
-        self.timeax = plt.subplot(self.grid[3,:])
-        plt.subplots_adjust(bottom=0.4)
-        self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-        plt.axis("off")
+            ### Axis to determine which ones to show
+            show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
+            show_button_group[0].setChecked(True)
+            show_button_group[0].toggled.connect(lambda:self.show(show_button_group[0].text()))
+            show_button_group[1].toggled.connect(lambda:self.show(show_button_group[1].text()))
+            show_button_group[2].toggled.connect(lambda:self.show(show_button_group[2].text()))
+            show_button_group[3].toggled.connect(lambda:self.show(show_button_group[3].text()))
+            self.viewer.window.add_dock_widget(show_button_group, area='right')
 
-        ### Axis for scrolling through t
-        self.tr = plt.axes([0.2, 0.15, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-        self.s_tr = Slider(self.tr, 'Timepoint', 0, self.tmax-1, valinit=0, valstep = 1)
-        self.s_tr.on_changed(self.update_t)
+            ### Axis for buttons for next/previous time series
+            #where the buttons are, and their locations
+            bprev = QPushButton('Previous')
+            bprev.clicked.connect(lambda:self.prev())
+            bnext = QPushButton('Next')
+            bnext.clicked.connect(lambda:self.next())
+            self.viewer.window.add_dock_widget([bprev, bnext], area='right')
 
-        ### Axis for setting min/max range
-        self.minr = plt.axes([0.2, 0.2, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-        self.sminr = Slider(self.minr, 'R Min', 0, np.max(self.im), valinit=self.min, valstep = 1)
-        self.maxr = plt.axes([0.2, 0.25, 0.3, 0.03], facecolor='lightgoldenrodyellow')
-        self.smaxr = Slider(self.maxr, 'R Max', 0, np.max(self.im)*4, valinit=self.max, valstep = 1)
-        self.sminr.on_changed(self.update_mm)
-        self.smaxr.on_changed(self.update_mm)
+            ### Grid showing all extracted timeseries
+            self.trace_grid = QListWidget()
+            self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
+            self.trace_grid.setViewMode(QListWidget.IconMode)
+            self.trace_grid.setIconSize(QSize(96, 96))
+            self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
+            self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.trace_grid_context_menu = QMenu(self.trace_grid)
+            keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
+            self.trace_grid_context_menu.addAction(keep_all_action)
+            trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
+            self.trace_grid_context_menu.addAction(trash_all_action)
+            self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
+            self.set_trace_icons()
+            self.viewer.window.add_dock_widget(self.trace_grid)
 
-
-        ### Axis for buttons for next/previous time series
-        #where the buttons are, and their locations 
-        self.axprev = plt.axes([0.62, 0.20, 0.1, 0.075])
-        self.axnext = plt.axes([0.75, 0.20, 0.1, 0.075])
-        self.bnext = Button(self.axnext, 'Next')
-        self.bnext.on_clicked(self.next)
-        self.bprev = Button(self.axprev, 'Previous')
-        self.bprev.on_clicked(self.prev)
-
-
-        #### Axis for button for display
-        self.pointsax = plt.axes([0.75, 0.10, 0.1, 0.075])
-        self.pointsbutton = RadioButtons(self.pointsax, ('Single','Same Z','All'))
-        self.pointsbutton.set_active(self.pointstate)
-        self.pointsbutton.on_clicked(self.update_pointstate)
-
-        #### Axis for whether to display MIP on left
-        self.mipax = plt.axes([0.62, 0.10, 0.1, 0.075])
-        self.mipbutton = RadioButtons(self.mipax, ('Single Z','MIP'))
-        self.mipbutton.set_active(self.showmip)
-        self.mipbutton.on_clicked(self.update_mipstate)
-
-
-        ### Axis for button to keep
-        self.keepax = plt.axes([0.87, 0.20, 0.075, 0.075])
-        self.keep_button = CheckButtons(self.keepax, ['Keep','Trash'], [False,False])
-        self.keep_button.on_clicked(self.keep)
-
-
-        ### Axis to determine which ones to show
-        self.showax = plt.axes([0.87, 0.10, 0.075, 0.075])
-        self.showbutton = RadioButtons(self.showax, ('All','Unlabelled','Kept','Trashed'))
-        self.showbutton.set_active(self.show_settings)
-        self.showbutton.on_clicked(self.show)
+            ### Update buttons in case of previous curation
+            self.update_buttons()
     
-        plt.show()
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
         self.log_curate()
 
     def update_im(self):
-        #print(self.t)
-        #print(self.ind)
-        #print(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
         if self.showmip:
             self.im = np.max(self.tf.get_t(self.t),axis = 0)
         else:
@@ -303,33 +330,48 @@ class Curator:
         return (self.subim - self.min)/(self.max - self.min)
     
     def update_figures(self):
+        self.viewer.layers['volume'].data = self.tf.get_t(self.t)
+        self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
+
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-        self.img1.set_data(self.get_im_display())
+        self.ax1.clear()
+        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+
+        # plotting for multiple points
+        if self.pointstate==0:
+            pass
+        elif self.pointstate==1:
+            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+        elif self.pointstate==2:
+            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         
-
-        
-
-
         if self.pointstate==0:
             pass
         elif self.pointstate==1:
             self.point1.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
-            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         elif self.pointstate == 2:
             self.point1.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
         self.thispoint.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
-        plt.axis('off')
-        #plotting for single point
-        #
 
-        self.img2.set_data(self.get_subim_display())
+        self.static_canvas_1.draw()
+
+        #plotting for single point
+        self.ax2.clear()
+        self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
+
+        self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
         self.point2.set_offsets([self.window/2+self.offset[0], self.window/2+self.offset[1]])
-        self.title.set_text('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-        plt.draw()
+        
+        self.static_canvas_2.draw()
+        self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+        self.static_canvas_3.draw()
 
     def update_timeseries(self):
-        self.timeplot.set_ydata((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-        plt.draw()
+        self.timeax.clear()
+        self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
+        self.static_canvas_3.draw()
+
     def update_t(self, val):
         # Update index for t
         self.t = val
@@ -337,63 +379,74 @@ class Curator:
         self.update_im()
         self.update_figures()
 
-    def update_mm(self,val):
-        self.min = self.sminr.val
-        self.max = self.smaxr.val
-        #self.update_im()
+    def update_mm(self, button, val):
+        if 'min' == button:
+            self.min = val
+        elif 'max' == button:
+            self.max = val
         self.update_figures()
 
-    def next(self,event):
+    def next(self):
         self.set_index_next()
         self.update_im()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
         self.update_curate()
-    def prev(self,event):
+        self.update_trace_icons()
+
+    def prev(self):
         self.set_index_prev()
         self.update_im()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
         self.update_curate()
+        self.update_trace_icons()
 
     def log_curate(self):
         self.curate['last'] = self.ind
         with open(self.path, 'w') as fp:
             json.dump(self.curate, fp)
 
-    def keep(self, event):
-        status = self.keep_button.get_status()
-        if np.sum(status) != 1:
-            for i in range(len(status)):
-                if status[i] != False:
-                    self.keep_button.set_active(i)
-
+    def keep_current(self, label):
+        d = {
+            'Keep':0,
+            'Trash':1
+        }
+        status = d[label]
+        if status == 0:
+            self.curate[str(self.ind)]='keep'
+        elif status == 1:
+            self.curate[str(self.ind)]='trash'
         else:
-            if status[0]:
-                self.curate[str(self.ind)]='keep'
-            elif status[1]:
-                self.curate[str(self.ind)]='trash'
-            else:
-                pass
+            pass
+
+    def keep_all_selected(self, label):
+        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        for index in selected_trace_indices:
+            self.curate[str(index)]='keep'
+        self.update_buttons()
+        self.update_trace_icons()
+
+
+    def trash_all_selected(self, label):
+        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        for index in selected_trace_indices:
+            self.curate[str(index)]='trash'
+        self.update_buttons()
+        self.update_trace_icons()
+
     def update_buttons(self):
-
-        curr = self.keep_button.get_status()
-        #print(curr)
-        future = [False for i in range(len(curr))]
-        if self.curate.get(str(self.ind))=='seen':
-            pass
-        elif self.curate.get(str(self.ind))=='keep':
-            future[0] = True
+        if self.curate.get(str(self.ind))=='keep':
+            self.keep_button.setChecked(True)
         elif self.curate.get(str(self.ind))=='trash':
-            future[1] = True
+            self.trash_button.setChecked(True)
         else:
-            pass
-
-        for i in range(len(curr)):
-            if curr[i] != future[i]:
-                self.keep_button.set_active(i)
+            self.keep_button_group.setExclusive(False)
+            self.keep_button.setChecked(False)
+            self.trash_button.setChecked(False)
+            self.keep_button_group.setExclusive(True)
 
     def show(self,label):
         d = {
@@ -402,8 +455,8 @@ class Curator:
             'Kept':2,
             'Trashed':3
         }
-        #print(label)
         self.show_settings = d[label]
+        self.update_trace_icons()
 
     def set_index_prev(self):
         if self.show_settings == 0:
@@ -432,6 +485,7 @@ class Curator:
                 self.ind -= 1
                 counter += 1
             self.ind = self.ind % self.numneurons
+
     def set_index_next(self):
         if self.show_settings == 0:
             self.ind += 1
@@ -460,6 +514,8 @@ class Curator:
                 counter += 1
             self.ind = self.ind % self.numneurons
 
+    def set_index(self, index):
+        self.ind = index % self.numneurons
 
     def update_curate(self):
         if self.curate.get(str(self.ind)) in ['keep','seen','trash']:
@@ -473,37 +529,67 @@ class Curator:
             'Same Z':1,
             'All':2,
         }
-        #print(label)
         self.pointstate = d[label]
         self.update_point1()
         self.update_figures()
+
     def update_point1(self):
         self.ax1.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-        plt.axis('off')
         if self.pointstate==0:
             self.point1 = None
         elif self.pointstate==1:
             self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         elif self.pointstate==2:
             self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            #self.thispoint = plt.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        plt.axis('off')
-        #plt.show()
+        self.static_canvas_1.draw()
 
     def update_mipstate(self, label):
         d = {
             'Single Z':0,
             'MIP':1,
         }
-        #print(label)
         self.showmip = d[label]
 
         self.update_im()
         self.update_figures()
 
+    def set_trace_icons(self):
+        static_trace_canvas = FigureCanvas(Figure())
+        trace_ax = static_trace_canvas.figure.subplots()
+        for ind in range(self.tmax):
+            trace_ax.clear()
+            timeplot = trace_ax.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])))
+            static_trace_canvas.draw()
+            np_img = np.asarray(static_trace_canvas.buffer_rgba())
+            h,w,d = np_img.shape
+            q_img = QImage(np_img.tobytes(), w, h, QImage.Format_RGBA8888)
+            icon = QIcon(QPixmap.fromImage(q_img))
+            item = QListWidgetItem(icon, str(ind))
+            self.trace_grid.addItem(item)
+    
+    def update_trace_icons(self):
+        for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
+            if self.show_settings == 0:
+                trace_icon.setHidden(False)
 
+            elif self.show_settings == 1:
+                trace_icon.setHidden(self.curate.get(trace_icon.text()) in ['keep','trash'])
 
+            elif self.show_settings == 2:
+                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'keep')
 
+            else:
+                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'trash')
+
+    def go_to_trace(self, index):
+        self.set_index(index)
+        self.update_im()
+        self.update_figures()
+        self.update_timeseries()
+        self.update_buttons()
+        self.update_curate()
+
+    def show_trace_grid_context_menu(self):
+        self.trace_grid_context_menu.exec_(QCursor.pos())
