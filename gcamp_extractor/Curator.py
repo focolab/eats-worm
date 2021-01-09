@@ -1,20 +1,16 @@
-from .Extractor import *
-from .Threads import *
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, Slider, CheckButtons, TextBox, RadioButtons
-from .multifiletiff import *
-import json
 import atexit
+import json
+import napari
+import numpy as np
 
-from magicgui import magicgui
-from magicgui._qt.widgets import QDoubleSlider
+from .Extractor import *
+from .multifiletiff import *
+from .Threads import *
+from matplotlib.backends.backend_qt5agg import FigureCanvas
+from matplotlib.figure import Figure
 from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QPixmap, QCursor, QImage, QIcon
-import napari
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.figure import Figure
 
 def subaxis(im, position, window = 100):
     """
