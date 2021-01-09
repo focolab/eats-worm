@@ -306,7 +306,7 @@ class Curator:
             trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
             self.trace_grid_context_menu.addAction(trash_all_action)
             self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
-            self.update_trace_icons()
+            self.set_trace_icons()
             self.viewer.window.add_dock_widget(self.trace_grid)
 
             ### Update buttons in case of previous curation
@@ -393,6 +393,8 @@ class Curator:
         self.update_timeseries()
         self.update_buttons()
         self.update_curate()
+        self.update_trace_icons()
+
     def prev(self):
         self.set_index_prev()
         self.update_im()
@@ -400,6 +402,7 @@ class Curator:
         self.update_timeseries()
         self.update_buttons()
         self.update_curate()
+        self.update_trace_icons()
 
     def log_curate(self):
         self.curate['last'] = self.ind
@@ -424,6 +427,7 @@ class Curator:
         for index in selected_trace_indices:
             self.curate[str(index)]='keep'
         self.update_buttons()
+        self.update_trace_icons()
 
 
     def trash_all_selected(self, label):
@@ -431,6 +435,7 @@ class Curator:
         for index in selected_trace_indices:
             self.curate[str(index)]='trash'
         self.update_buttons()
+        self.update_trace_icons()
 
     def update_buttons(self):
         if self.curate.get(str(self.ind))=='keep':
@@ -451,6 +456,7 @@ class Curator:
             'Trashed':3
         }
         self.show_settings = d[label]
+        self.update_trace_icons()
 
     def set_index_prev(self):
         if self.show_settings == 0:
@@ -549,7 +555,7 @@ class Curator:
         self.update_im()
         self.update_figures()
 
-    def update_trace_icons(self):
+    def set_trace_icons(self):
         static_trace_canvas = FigureCanvas(Figure())
         trace_ax = static_trace_canvas.figure.subplots()
         for ind in range(self.tmax):
@@ -562,6 +568,20 @@ class Curator:
             icon = QIcon(QPixmap.fromImage(q_img))
             item = QListWidgetItem(icon, str(ind))
             self.trace_grid.addItem(item)
+    
+    def update_trace_icons(self):
+        for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
+            if self.show_settings == 0:
+                trace_icon.setHidden(False)
+
+            elif self.show_settings == 1:
+                trace_icon.setHidden(self.curate.get(trace_icon.text()) in ['keep','trash'])
+
+            elif self.show_settings == 2:
+                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'keep')
+
+            else:
+                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'trash')
 
     def go_to_trace(self, index):
         self.set_index(index)
