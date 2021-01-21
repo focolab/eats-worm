@@ -201,9 +201,9 @@ class Curator:
 
 
             ### First subplot: whole image with red dot over ROI
-            self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-            self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
-            self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+            self.img1 = self.ax1.imshow(self.get_im_display(),cmap='viridis',vmin = 0, vmax = 1)
+            self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
+            self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
             
             # plotting for multiple points
             if self.pointstate==0:
@@ -226,10 +226,10 @@ class Curator:
             self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
             self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
 
-            self.img2 = self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
+            self.img2 = self.ax2.imshow(self.get_subim_display(),cmap='viridis',vmin = 0, vmax =1)
             self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
-            self.img2_plus_one = self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='gray',vmin = 0, vmax =1)
-            self.img2_minus_one = self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='gray',vmin = 0, vmax =1)
+            self.img2_plus_one = self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='viridis',vmin = 0, vmax =1)
+            self.img2_minus_one = self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='viridis',vmin = 0, vmax =1)
             self.ax2.set_title("Parent Z")
             self.ax2_plus_one.set_title("Z + 1")
             self.ax2_minus_one.set_title(" Z - 1")
@@ -393,9 +393,9 @@ class Curator:
         self.ax1.clear()
         self.ax1_plus_one.clear()
         self.ax1_minus_one.clear()
-        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
-        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
-        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='viridis',vmin = 0, vmax = 1)
+        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
+        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
 
         # plotting for multiple points
         if self.pointstate==0:
@@ -433,9 +433,9 @@ class Curator:
         self.ax2.clear()
         self.ax2_plus_one.clear()
         self.ax2_minus_one.clear()
-        self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
-        self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='gray',vmin = 0, vmax =1)
-        self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='gray',vmin = 0, vmax =1)
+        self.ax2.imshow(self.get_subim_display(),cmap='viridis',vmin = 0, vmax =1)
+        self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='viridis',vmin = 0, vmax =1)
+        self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='viridis',vmin = 0, vmax =1)
 
         self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
         self.point2.set_offsets([self.window/2+self.offset[0], self.window/2+self.offset[1]])
@@ -618,11 +618,11 @@ class Curator:
 
     def update_point1(self):
         self.ax1.clear()
-        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='viridis',vmin = 0, vmax = 1)
         self.ax1_plus_one.clear()
-        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
         self.ax1_minus_one.clear()
-        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
         if self.pointstate==0:
             self.point1 = None
         elif self.pointstate==1:
