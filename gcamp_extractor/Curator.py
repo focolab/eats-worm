@@ -145,6 +145,7 @@ class Curator:
         self.window = window
         ## num neurons
         self.numneurons = len(self.s.threads)
+        self.num_frames = len(e.frames)
 
         self.path = e.root + 'extractor-objects/curate.json'
         self.ind = 0
@@ -168,7 +169,7 @@ class Curator:
         self.t = 0
 
         ### First frame of the first thread
-        self.update_im()
+        self.update_ims()
 
         ## Display range 
         self.min = np.min(self.im)
@@ -184,7 +185,11 @@ class Curator:
         with napari.gui_qt():
             ## Figures to display
             self.static_canvas_1 = FigureCanvas(Figure())
+            self.static_canvas_1_plus_one = FigureCanvas(Figure())
+            self.static_canvas_1_minus_one = FigureCanvas(Figure())
             self.ax1 = self.static_canvas_1.figure.subplots()
+            self.ax1_plus_one = self.static_canvas_1_plus_one.figure.subplots()
+            self.ax1_minus_one = self.static_canvas_1_minus_one.figure.subplots()
             self.static_canvas_2 = FigureCanvas(Figure())
             self.ax2 = self.static_canvas_2.figure.subplots()
             self.static_canvas_3 = FigureCanvas(Figure())
@@ -193,14 +198,20 @@ class Curator:
 
             ### First subplot: whole image with red dot over ROI
             self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+            self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+            self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
             
             # plotting for multiple points
             if self.pointstate==0:
                 pass
             elif self.pointstate==1:
                 self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+                self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+                self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
             elif self.pointstate==2:
                 self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+                self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+                self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
             self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
 
             ### Second subplot: some window around the ROI
@@ -217,7 +228,9 @@ class Curator:
             scale = [5, 1, 1]
             self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=scale)
             self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=scale)
+            self.viewer.window.add_dock_widget(self.static_canvas_1_plus_one, area='bottom', name='img1 + 1')
             self.viewer.window.add_dock_widget(self.static_canvas_1, area='bottom', name='img1')
+            self.viewer.window.add_dock_widget(self.static_canvas_1_minus_one, area='bottom', name='img1 - 1')
             self.viewer.window.add_dock_widget(self.static_canvas_2, area='bottom', name='img2')
             self.viewer.window.add_dock_widget(self.static_canvas_3, area='bottom', name='timeplot')
 
@@ -312,15 +325,32 @@ class Curator:
     def __del__(self):
         self.log_curate()
 
-    def update_im(self):
+    def update_ims(self):
+        f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
         if self.showmip:
             self.im = np.max(self.tf.get_t(self.t),axis = 0)
         else:
-            self.im = self.tf.get_tbyf(self.t,int(self.s.threads[self.ind].get_position_t(self.t)[0]))
+            self.im = self.tf.get_tbyf(self.t, f)
+        if f == self.num_frames - 1:
+            self.im_plus_one = np.zeros(self.im.shape)
+        else:
+            self.im_plus_one = self.tf.get_tbyf(self.t, f + 1)
+        if f == 0:
+            self.im_minus_one = np.zeros(self.im.shape)
+        else:
+            self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
     
     def get_im_display(self):
 
         return (self.im - self.min)/(self.max - self.min)
+    
+    def get_im_plus_one_display(self):
+
+        return (self.im_plus_one - self.min)/(self.max - self.min)
+    
+    def get_im_minus_one_display(self):
+
+        return (self.im_minus_one - self.min)/(self.max - self.min)
     
     def get_subim_display(self):
         return (self.subim - self.min)/(self.max - self.min)
@@ -332,22 +362,32 @@ class Curator:
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.ax1.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
 
         # plotting for multiple points
         if self.pointstate==0:
             pass
         elif self.pointstate==1:
             self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
         elif self.pointstate==2:
             self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
         self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         
         if self.pointstate==0:
             pass
         elif self.pointstate==1:
             self.point1.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
+            self.point1_plus_one.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
+            self.point1_minus_one.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
         elif self.pointstate == 2:
             self.point1.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
+            self.point1_plus_one.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
+            self.point1_minus_one.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
         self.thispoint.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
 
         self.static_canvas_1.draw()
@@ -372,7 +412,7 @@ class Curator:
         # Update index for t
         self.t = val
         # update image for t
-        self.update_im()
+        self.update_ims()
         self.update_figures()
 
     def update_mm(self, button, val):
@@ -384,7 +424,7 @@ class Curator:
 
     def next(self):
         self.set_index_next()
-        self.update_im()
+        self.update_ims()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
@@ -393,7 +433,7 @@ class Curator:
 
     def prev(self):
         self.set_index_prev()
-        self.update_im()
+        self.update_ims()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
@@ -532,6 +572,10 @@ class Curator:
     def update_point1(self):
         self.ax1.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.ax1_plus_one.clear()
+        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
+        self.ax1.clear()
+        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
         if self.pointstate==0:
             self.point1 = None
         elif self.pointstate==1:
@@ -548,7 +592,7 @@ class Curator:
         }
         self.showmip = d[label]
 
-        self.update_im()
+        self.update_ims()
         self.update_figures()
 
     def set_trace_icons(self):
@@ -581,7 +625,7 @@ class Curator:
 
     def go_to_trace(self, index):
         self.set_index(index)
-        self.update_im()
+        self.update_ims()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
