@@ -251,6 +251,18 @@ class Curator:
             image_grid.addWidget(self.static_canvas_2, 1, 1)
             image_grid.addWidget(self.static_canvas_2_minus_one, 2, 1)
             image_grid.addWidget(self.static_canvas_3, 1, 2)
+            ortho_1 = np.max(self.tf.get_t(self.t), axis=1)
+            self.static_ortho_1_canvas = FigureCanvas(Figure())
+            self.ax_ortho_1 = self.static_ortho_1_canvas.figure.subplots()
+            self.ax_ortho_1.set_title("Ortho MIP ax 1")
+            self.ax_ortho_1.imshow(ortho_1)
+            image_grid.addWidget(self.static_ortho_1_canvas, 0, 2)
+            ortho_2 = np.max(self.tf.get_t(self.t), axis=2)
+            self.static_ortho_2_canvas = FigureCanvas(Figure())
+            self.ax_ortho_2 = self.static_ortho_2_canvas.figure.subplots()
+            self.ax_ortho_2.set_title("Ortho MIP ax 2")
+            self.ax_ortho_2.imshow(ortho_2)
+            image_grid.addWidget(self.static_ortho_2_canvas, 2, 2)
             self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
             ### Series label
@@ -445,6 +457,17 @@ class Curator:
 
         self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         self.static_canvas_3.draw()
+
+        self.ax_ortho_1.clear()
+        ortho_1 = np.max(self.tf.get_t(self.t), axis=1)
+        self.ax_ortho_1.set_title("Ortho MIP ax 1")
+        self.ax_ortho_1.imshow(ortho_1)
+        self.static_ortho_1_canvas.draw()
+        self.ax_ortho_2.clear()
+        ortho_2 = np.max(self.tf.get_t(self.t), axis=2)
+        self.ax_ortho_2.set_title("Ortho MIP ax 2")
+        self.ax_ortho_2.imshow(ortho_2)
+        self.static_ortho_2_canvas.draw()
 
     def update_timeseries(self):
         self.timeax.clear()
