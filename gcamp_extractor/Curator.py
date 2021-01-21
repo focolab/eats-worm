@@ -8,7 +8,7 @@ from .multifiletiff import *
 from .Threads import *
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
-from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton
+from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QPixmap, QCursor, QImage, QIcon
 
@@ -191,7 +191,11 @@ class Curator:
             self.ax1_plus_one = self.static_canvas_1_plus_one.figure.subplots()
             self.ax1_minus_one = self.static_canvas_1_minus_one.figure.subplots()
             self.static_canvas_2 = FigureCanvas(Figure())
+            self.static_canvas_2_plus_one = FigureCanvas(Figure())
+            self.static_canvas_2_minus_one = FigureCanvas(Figure())
             self.ax2 = self.static_canvas_2.figure.subplots()
+            self.ax2_plus_one = self.static_canvas_2_plus_one.figure.subplots()
+            self.ax2_minus_one = self.static_canvas_2_minus_one.figure.subplots()
             self.static_canvas_3 = FigureCanvas(Figure())
             self.timeax = self.static_canvas_3.figure.subplots()
 
@@ -213,12 +217,22 @@ class Curator:
                 self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
                 self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
             self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+            self.ax1.set_title("Parent Z")
+            self.ax1_plus_one.set_title("Z + 1")
+            self.ax1_minus_one.set_title(" Z - 1")
 
             ### Second subplot: some window around the ROI
             self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+            self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
+            self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
 
             self.img2 = self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
             self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
+            self.img2_plus_one = self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='gray',vmin = 0, vmax =1)
+            self.img2_minus_one = self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='gray',vmin = 0, vmax =1)
+            self.ax2.set_title("Parent Z")
+            self.ax2_plus_one.set_title("Z + 1")
+            self.ax2_minus_one.set_title(" Z - 1")
 
             ### Third subplot: plotting the timeseries
             self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
@@ -228,11 +242,18 @@ class Curator:
             scale = [5, 1, 1]
             self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=scale)
             self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=scale)
-            self.viewer.window.add_dock_widget(self.static_canvas_1_plus_one, area='bottom', name='img1 + 1')
-            self.viewer.window.add_dock_widget(self.static_canvas_1, area='bottom', name='img1')
-            self.viewer.window.add_dock_widget(self.static_canvas_1_minus_one, area='bottom', name='img1 - 1')
-            self.viewer.window.add_dock_widget(self.static_canvas_2, area='bottom', name='img2')
-            self.viewer.window.add_dock_widget(self.static_canvas_3, area='bottom', name='timeplot')
+
+            # image grid
+            image_grid_container = QWidget()
+            image_grid = QGridLayout(image_grid_container)
+            image_grid.addWidget(self.static_canvas_1_plus_one, 0, 0)
+            image_grid.addWidget(self.static_canvas_1, 1, 0)
+            image_grid.addWidget(self.static_canvas_1_minus_one, 2, 0)
+            image_grid.addWidget(self.static_canvas_2_plus_one, 0, 1)
+            image_grid.addWidget(self.static_canvas_2, 1, 1)
+            image_grid.addWidget(self.static_canvas_2_minus_one, 2, 1)
+            image_grid.addWidget(self.static_canvas_3, 1, 2)
+            self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
             ### Series label
             self.series_label = QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
@@ -355,12 +376,23 @@ class Curator:
     def get_subim_display(self):
         return (self.subim - self.min)/(self.max - self.min)
     
+    def get_subim_plus_one_display(self):
+        return (self.subim_plus_one - self.min)/(self.max - self.min)
+    
+    def get_subim_minus_one_display(self):
+        return (self.subim_minus_one - self.min)/(self.max - self.min)
+    
     def update_figures(self):
         self.viewer.layers['volume'].data = self.tf.get_t(self.t)
         self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
 
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+        self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
+        self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
+
         self.ax1.clear()
+        self.ax1_plus_one.clear()
+        self.ax1_minus_one.clear()
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
         self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
         self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
@@ -390,16 +422,31 @@ class Curator:
             self.point1_minus_one.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
         self.thispoint.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
 
+        self.ax1.set_title("Parent Z")
+        self.ax1_plus_one.set_title("Z + 1")
+        self.ax1_minus_one.set_title(" Z - 1")
         self.static_canvas_1.draw()
+        self.static_canvas_1_plus_one.draw()
+        self.static_canvas_1_minus_one.draw()
 
         #plotting for single point
         self.ax2.clear()
+        self.ax2_plus_one.clear()
+        self.ax2_minus_one.clear()
         self.ax2.imshow(self.get_subim_display(),cmap='gray',vmin = 0, vmax =1)
+        self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='gray',vmin = 0, vmax =1)
+        self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='gray',vmin = 0, vmax =1)
 
         self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
         self.point2.set_offsets([self.window/2+self.offset[0], self.window/2+self.offset[1]])
         
+        self.ax2.set_title("Parent Z")
+        self.ax2_plus_one.set_title("Z + 1")
+        self.ax2_minus_one.set_title(" Z - 1")
         self.static_canvas_2.draw()
+        self.static_canvas_2_plus_one.draw()
+        self.static_canvas_2_minus_one.draw()
+
         self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         self.static_canvas_3.draw()
 
@@ -574,16 +621,25 @@ class Curator:
         self.img1 = self.ax1.imshow(self.get_im_display(),cmap='gray',vmin = 0, vmax = 1)
         self.ax1_plus_one.clear()
         self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='gray',vmin = 0, vmax = 1)
-        self.ax1.clear()
+        self.ax1_minus_one.clear()
         self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='gray',vmin = 0, vmax = 1)
         if self.pointstate==0:
             self.point1 = None
         elif self.pointstate==1:
             self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
         elif self.pointstate==2:
             self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
+            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
         self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
+        self.ax1.set_title("Parent Z")
+        self.ax1_plus_one.set_title("Z + 1")
+        self.ax1_minus_one.set_title(" Z - 1")
         self.static_canvas_1.draw()
+        self.static_canvas_1_plus_one.draw()
+        self.static_canvas_1_minus_one.draw()
 
     def update_mipstate(self, label):
         d = {
