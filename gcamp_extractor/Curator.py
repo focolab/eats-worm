@@ -217,7 +217,7 @@ class Curator:
             self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
             self.ax1.set_title("Parent Z")
             self.ax1_plus_one.set_title("Z + 1")
-            self.ax1_minus_one.set_title(" Z - 1")
+            self.ax1_minus_one.set_title("Z - 1")
 
             ### Second subplot: some window around the ROI
             self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
@@ -230,10 +230,12 @@ class Curator:
             self.img2_minus_one = self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='viridis',vmin = 0, vmax =1)
             self.ax2.set_title("Parent Z")
             self.ax2_plus_one.set_title("Z + 1")
-            self.ax2_minus_one.set_title(" Z - 1")
+            self.ax2_minus_one.set_title("Z - 1")
 
             ### Third subplot: plotting the timeseries
             self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
+            self.timeax.axvline(x=self.t, c='r')
+            self.timeax.set_title('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         
             ### new
             self.viewer = napari.Viewer(ndisplay=3)
@@ -432,7 +434,7 @@ class Curator:
 
         self.ax1.set_title("Parent Z")
         self.ax1_plus_one.set_title("Z + 1")
-        self.ax1_minus_one.set_title(" Z - 1")
+        self.ax1_minus_one.set_title("Z - 1")
         self.static_canvas_1.draw()
         self.static_canvas_1_plus_one.draw()
         self.static_canvas_1_minus_one.draw()
@@ -450,7 +452,7 @@ class Curator:
         
         self.ax2.set_title("Parent Z")
         self.ax2_plus_one.set_title("Z + 1")
-        self.ax2_minus_one.set_title(" Z - 1")
+        self.ax2_minus_one.set_title("Z - 1")
         self.static_canvas_2.draw()
         self.static_canvas_2_plus_one.draw()
         self.static_canvas_2_minus_one.draw()
@@ -472,6 +474,8 @@ class Curator:
     def update_timeseries(self):
         self.timeax.clear()
         self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
+        self.timeax.axvline(x=self.t, color='r')
+        self.timeax.set_title('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
         self.static_canvas_3.draw()
 
     def update_t(self, val):
@@ -480,6 +484,7 @@ class Curator:
         # update image for t
         self.update_ims()
         self.update_figures()
+        self.update_timeseries()
 
     def update_mm(self, button, val):
         if 'min' == button:
@@ -655,7 +660,7 @@ class Curator:
         self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         self.ax1.set_title("Parent Z")
         self.ax1_plus_one.set_title("Z + 1")
-        self.ax1_minus_one.set_title(" Z - 1")
+        self.ax1_minus_one.set_title("Z - 1")
         self.static_canvas_1.draw()
         self.static_canvas_1_plus_one.draw()
         self.static_canvas_1_minus_one.draw()
