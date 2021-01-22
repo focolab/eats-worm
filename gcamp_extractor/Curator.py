@@ -197,59 +197,28 @@ class Curator:
             self.ax2_plus_one = self.static_canvas_2_plus_one.figure.subplots()
             self.ax2_minus_one = self.static_canvas_2_minus_one.figure.subplots()
             self.static_canvas_3 = FigureCanvas(Figure())
+            self.static_ortho_1_canvas = FigureCanvas(Figure())
+            self.static_ortho_2_canvas = FigureCanvas(Figure())
+            self.ax_ortho_1 = self.static_ortho_1_canvas.figure.subplots()
+            self.ax_ortho_2 = self.static_ortho_2_canvas.figure.subplots()
             self.timeax = self.static_canvas_3.figure.subplots()
 
-
-            ### First subplot: whole image with red dot over ROI
-            self.img1 = self.ax1.imshow(self.get_im_display(),cmap='viridis',vmin = 0, vmax = 1)
-            self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
-            self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
-            
-            # plotting for multiple points
-            if self.pointstate==0:
-                pass
-            elif self.pointstate==1:
-                self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-            elif self.pointstate==2:
-                self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-                self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-                self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-            self.ax1.set_title("Parent Z")
-            self.ax1_plus_one.set_title("Z + 1")
-            self.ax1_minus_one.set_title("Z - 1")
-
-            ### Second subplot: some window around the ROI
-            self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-            self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-            self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-
-            self.img2 = self.ax2.imshow(self.get_subim_display(),cmap='viridis',vmin = 0, vmax =1)
-            self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
-            self.img2_plus_one = self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='viridis',vmin = 0, vmax =1)
-            self.img2_minus_one = self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='viridis',vmin = 0, vmax =1)
-            self.ax2.set_title("Parent Z")
-            self.ax2_plus_one.set_title("Z + 1")
-            self.ax2_minus_one.set_title("Z - 1")
-
-            ### Third subplot: plotting the timeseries
-            self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-            self.timeax.axvline(x=self.t, c='r')
-            self.timeax.set_title('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-        
-            ### new
+            ### initialize napari viewer
             self.viewer = napari.Viewer(ndisplay=3)
             self.scale = [5, 1, 1]
             self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
-            if self.pointstate==0:
-                self.viewer.add_points(np.empty((0, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
-            elif self.pointstate==1:
-                self.viewer.add_points(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]), face_color='blue', name='other rois', size=1, scale=self.scale)
-            elif self.pointstate==2:
-                self.viewer.add_points(self.s.get_positions_t(self.t), face_color='blue', name='other rois', size=1, scale=self.scale)
-            self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=self.scale)
+            self.viewer.add_points(np.empty((0, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
+            self.viewer.add_points(np.empty((0, 3)), face_color='red', name='roi', size=1, scale=self.scale)
 
-            # image grid
+            ### Series label
+            self.series_label = QLabel()
+            self.viewer.window.add_dock_widget(self.series_label, area='right')
+
+            ### initialize figures
+            self.update_figures()
+            self.update_timeseries()
+
+            ### figure grid
             image_grid_container = QWidget()
             image_grid = QGridLayout(image_grid_container)
             image_grid.addWidget(self.static_canvas_1_plus_one, 0, 0)
@@ -259,23 +228,9 @@ class Curator:
             image_grid.addWidget(self.static_canvas_2, 1, 1)
             image_grid.addWidget(self.static_canvas_2_minus_one, 2, 1)
             image_grid.addWidget(self.static_canvas_3, 1, 2)
-            ortho_1 = np.max(self.tf.get_t(self.t), axis=1)
-            self.static_ortho_1_canvas = FigureCanvas(Figure())
-            self.ax_ortho_1 = self.static_ortho_1_canvas.figure.subplots()
-            self.ax_ortho_1.set_title("Ortho MIP ax 1")
-            self.ax_ortho_1.imshow(ortho_1)
             image_grid.addWidget(self.static_ortho_1_canvas, 0, 2)
-            ortho_2 = np.max(self.tf.get_t(self.t), axis=2)
-            self.static_ortho_2_canvas = FigureCanvas(Figure())
-            self.ax_ortho_2 = self.static_ortho_2_canvas.figure.subplots()
-            self.ax_ortho_2.set_title("Ortho MIP ax 2")
-            self.ax_ortho_2.imshow(ortho_2)
             image_grid.addWidget(self.static_ortho_2_canvas, 2, 2)
             self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
-
-            ### Series label
-            self.series_label = QLabel('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-            self.viewer.window.add_dock_widget(self.series_label, area='right')
 
             ### Axis for setting min/max range
             min_r_slider = QSlider()
@@ -334,7 +289,6 @@ class Curator:
             self.viewer.window.add_dock_widget(show_button_group, area='right')
 
             ### Axis for buttons for next/previous time series
-            #where the buttons are, and their locations
             bprev = QPushButton('Previous')
             bprev.clicked.connect(lambda:self.prev())
             bnext = QPushButton('Next')
