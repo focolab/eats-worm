@@ -242,7 +242,7 @@ class Curator:
             self.scale = [5, 1, 1]
             self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
             if self.pointstate==0:
-                self.viewer.add_points(np.empty((1, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
+                self.viewer.add_points(np.empty((0, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
             elif self.pointstate==1:
                 self.viewer.add_points(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]), face_color='blue', name='other rois', size=1, scale=self.scale)
             elif self.pointstate==2:
@@ -404,7 +404,7 @@ class Curator:
         self.viewer.layers['volume'].data = self.tf.get_t(self.t)
         self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
         if self.pointstate==0:
-            self.viewer.layers.data = np.empty((1, 3))
+            self.viewer.layers.data = np.empty((0, 3))
         elif self.pointstate==1:
             self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
         elif self.pointstate==2:
