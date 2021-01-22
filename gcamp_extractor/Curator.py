@@ -436,8 +436,6 @@ class Curator:
             pass
         elif self.pointstate==1:
             self.point1.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
-            self.point1_plus_one.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
-            self.point1_minus_one.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
         elif self.pointstate == 2:
             self.point1.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
             self.point1_plus_one.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
@@ -649,33 +647,7 @@ class Curator:
             'All':2,
         }
         self.pointstate = d[label]
-        self.update_point1()
         self.update_figures()
-
-    def update_point1(self):
-        self.ax1.clear()
-        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='viridis',vmin = 0, vmax = 1)
-        self.ax1_plus_one.clear()
-        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
-        self.ax1_minus_one.clear()
-        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
-        if self.pointstate==0:
-            self.point1 = None
-        elif self.pointstate==1:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
-        elif self.pointstate==2:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        self.ax1.set_title("Parent Z")
-        self.ax1_plus_one.set_title("Z + 1")
-        self.ax1_minus_one.set_title("Z - 1")
-        self.static_canvas_1.draw()
-        self.static_canvas_1_plus_one.draw()
-        self.static_canvas_1_minus_one.draw()
 
     def update_mipstate(self, label):
         d = {
