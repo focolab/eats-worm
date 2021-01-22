@@ -1,19 +1,16 @@
 import atexit
-import cv2
 import json
 import napari
 import numpy as np
-import pyqtgraph as pg
 
 from .Extractor import *
 from .multifiletiff import *
 from .Threads import *
-from matplotlib import cm
 from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
-from qtpy.QtGui import QCursor, QIcon, QImage, QPen, QPixmap
+from qtpy.QtGui import QPixmap, QCursor, QImage, QIcon
 
 def subaxis(im, position, window = 100):
     """
@@ -255,25 +252,7 @@ class Curator:
             # image grid
             image_grid_container = QWidget()
             image_grid = QGridLayout(image_grid_container)
-
-            plot_item = pg.PlotItem()
-            plot_item.setLabel('top', 'Z + 1')
-            imv = pg.ImageView(view=plot_item)
-            imv.setImage(self.get_im_display().T)
-            # Get the colormap
-            colormap = cm.get_cmap("viridis")
-            colormap._init()
-            lut = (colormap._lut * 255).view(np.ndarray)  # Convert matplotlib colormap from 0-1 to 0 -255 for Qt
-            # Apply the colormap
-            imv.getImageItem().setLookupTable(lut)
-            imv.ui.histogram.hide()
-            imv.ui.roiBtn.hide()
-            imv.ui.menuBtn.hide()
-            x, y = self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]
-            plot_item.plot([x], [y], symbolSize=5, symbol='o', symbolPen=QPen(Qt.red, .1))
-            imv.show()
-
-            image_grid.addWidget(imv, 0, 0)
+            image_grid.addWidget(self.static_canvas_1_plus_one, 0, 0)
             image_grid.addWidget(self.static_canvas_1, 1, 0)
             image_grid.addWidget(self.static_canvas_1_minus_one, 2, 0)
             image_grid.addWidget(self.static_canvas_2_plus_one, 0, 1)
