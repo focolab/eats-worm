@@ -239,9 +239,15 @@ class Curator:
         
             ### new
             self.viewer = napari.Viewer(ndisplay=3)
-            scale = [5, 1, 1]
-            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=scale)
-            self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=scale)
+            self.scale = [5, 1, 1]
+            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
+            if self.pointstate==0:
+                self.viewer.add_points(np.empty((1, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
+            elif self.pointstate==1:
+                self.viewer.add_points(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]), face_color='blue', name='other rois', size=1, scale=self.scale)
+            elif self.pointstate==2:
+                self.viewer.add_points(self.s.get_positions_t(self.t), face_color='blue', name='other rois', size=1, scale=self.scale)
+            self.viewer.add_points([self.s.threads[self.ind].get_position_t(self.t)], face_color='red', name='roi', size=1, scale=self.scale)
 
             # image grid
             image_grid_container = QWidget()
@@ -397,6 +403,12 @@ class Curator:
     def update_figures(self):
         self.viewer.layers['volume'].data = self.tf.get_t(self.t)
         self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
+        if self.pointstate==0:
+            self.viewer.layers.data = np.empty((1, 3))
+        elif self.pointstate==1:
+            self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
+        elif self.pointstate==2:
+            self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
 
         self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
