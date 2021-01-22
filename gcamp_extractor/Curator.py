@@ -380,20 +380,15 @@ class Curator:
             pass
         elif self.pointstate==1:
             self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            self.point1.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
         elif self.pointstate==2:
             self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
             self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
             self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-        
-        if self.pointstate==0:
-            pass
-        elif self.pointstate==1:
-            self.point1.set_offsets(np.array([self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1]]).T)
-        elif self.pointstate == 2:
             self.point1.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
             self.point1_plus_one.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
             self.point1_minus_one.set_offsets(np.array([self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1]]).T)
+        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
         self.thispoint.set_offsets([self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1]])
 
         self.ax1.set_title("Parent Z")
