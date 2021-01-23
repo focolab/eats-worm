@@ -214,6 +214,9 @@ class Curator:
             image_grid.addWidget(self.timeseries_view, 1, 2)
             image_grid.addWidget(self.ortho_1_view, 0, 2)
             image_grid.addWidget(self.ortho_2_view, 2, 2)
+            image_grid.setColumnStretch(0, 2)
+            image_grid.setColumnStretch(1, 1)
+            image_grid.setColumnStretch(2, 2)
             self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
             ### initialize figures
