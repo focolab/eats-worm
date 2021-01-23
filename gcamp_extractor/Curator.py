@@ -2,6 +2,7 @@ import atexit
 import json
 import napari
 import numpy as np
+import pyqtgraph as pg
 
 from .Extractor import *
 from .multifiletiff import *
@@ -10,7 +11,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
-from qtpy.QtGui import QPixmap, QCursor, QImage, QIcon
+from qtpy.QtGui import QCursor, QIcon, QImage, QPen, QPixmap
 
 def subaxis(im, position, window = 100):
     """
@@ -183,24 +184,8 @@ class Curator:
 
     def restart(self):
         with napari.gui_qt():
-            ## Figures to display
-            self.static_canvas_1 = FigureCanvas(Figure())
-            self.static_canvas_1_plus_one = FigureCanvas(Figure())
-            self.static_canvas_1_minus_one = FigureCanvas(Figure())
-            self.ax1 = self.static_canvas_1.figure.subplots()
-            self.ax1_plus_one = self.static_canvas_1_plus_one.figure.subplots()
-            self.ax1_minus_one = self.static_canvas_1_minus_one.figure.subplots()
-            self.static_canvas_2 = FigureCanvas(Figure())
-            self.static_canvas_2_plus_one = FigureCanvas(Figure())
-            self.static_canvas_2_minus_one = FigureCanvas(Figure())
-            self.ax2 = self.static_canvas_2.figure.subplots()
-            self.ax2_plus_one = self.static_canvas_2_plus_one.figure.subplots()
-            self.ax2_minus_one = self.static_canvas_2_minus_one.figure.subplots()
+            ### initialize matplotlib figs
             self.static_canvas_3 = FigureCanvas(Figure())
-            self.static_ortho_1_canvas = FigureCanvas(Figure())
-            self.static_ortho_2_canvas = FigureCanvas(Figure())
-            self.ax_ortho_1 = self.static_ortho_1_canvas.figure.subplots()
-            self.ax_ortho_2 = self.static_ortho_2_canvas.figure.subplots()
             self.timeax = self.static_canvas_3.figure.subplots()
 
             ### initialize napari viewer
@@ -210,27 +195,37 @@ class Curator:
             self.viewer.add_points(np.empty((0, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
             self.viewer.add_points(np.empty((0, 3)), face_color='red', name='roi', size=1, scale=self.scale)
 
+            ### initialize views for images
+            self.z_view = self.get_imageview(self.get_im_display(self.im), "Parent Z")
+            self.z_plus_one_view = self.get_imageview(self.get_im_display(self.im_plus_one), "Z + 1")
+            self.z_minus_one_view = self.get_imageview(self.get_im_display(self.im_minus_one), "Z - 1")
+            self.z_subim = self.get_imageview(self.get_im_display(self.subim), "Parent Z")
+            self.z_plus_one_subim = self.get_imageview(self.get_im_display(self.subim_plus_one), "Z + 1")
+            self.z_minus_one_subim = self.get_imageview(self.get_im_display(self.subim_minus_one), "Z - 1")
+            self.ortho_1_view = self.get_imageview(np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
+            self.ortho_2_view = self.get_imageview(np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
+
             ### Series label
             self.series_label = QLabel()
             self.viewer.window.add_dock_widget(self.series_label, area='right')
 
-            ### initialize figures
-            self.update_figures()
-            self.update_timeseries()
-
             ### figure grid
             image_grid_container = QWidget()
             image_grid = QGridLayout(image_grid_container)
-            image_grid.addWidget(self.static_canvas_1_plus_one, 0, 0)
-            image_grid.addWidget(self.static_canvas_1, 1, 0)
-            image_grid.addWidget(self.static_canvas_1_minus_one, 2, 0)
-            image_grid.addWidget(self.static_canvas_2_plus_one, 0, 1)
-            image_grid.addWidget(self.static_canvas_2, 1, 1)
-            image_grid.addWidget(self.static_canvas_2_minus_one, 2, 1)
+            image_grid.addWidget(self.z_plus_one_view, 0, 0)
+            image_grid.addWidget(self.z_view, 1, 0)
+            image_grid.addWidget(self.z_minus_one_view, 2, 0)
+            image_grid.addWidget(self.z_plus_one_subim, 0, 1)
+            image_grid.addWidget(self.z_subim, 1, 1)
+            image_grid.addWidget(self.z_minus_one_subim, 2, 1)
             image_grid.addWidget(self.static_canvas_3, 1, 2)
-            image_grid.addWidget(self.static_ortho_1_canvas, 0, 2)
-            image_grid.addWidget(self.static_ortho_2_canvas, 2, 2)
+            image_grid.addWidget(self.ortho_1_view, 0, 2)
+            image_grid.addWidget(self.ortho_2_view, 2, 2)
             self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
+
+            ### initialize figures
+            self.update_figures()
+            self.update_timeseries()
 
             ### Axis for setting min/max range
             min_r_slider = QSlider()
@@ -332,6 +327,9 @@ class Curator:
             self.im_minus_one = np.zeros(self.im.shape)
         else:
             self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
+        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+        self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
+        self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
     
     def get_im_display(self, im):
         return (im - self.min)/(self.max - self.min)
@@ -346,65 +344,32 @@ class Curator:
         elif self.pointstate==2:
             self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
 
-        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-        self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-        self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-
-        self.ax1.clear()
-        self.ax1_plus_one.clear()
-        self.ax1_minus_one.clear()
-        self.img1 = self.ax1.imshow(self.get_im_display(self.im),cmap='viridis',vmin = 0, vmax = 1)
-        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_display(self.im_plus_one),cmap='viridis',vmin = 0, vmax = 1)
-        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_display(self.im_minus_one),cmap='viridis',vmin = 0, vmax = 1)
+        self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
+        self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
+        self.update_imageview(self.z_minus_one_view, self.get_im_display(self.im_minus_one), "Z - 1")
 
         # plotting for multiple points
         if self.pointstate==0:
             pass
         elif self.pointstate==1:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1],c='b', s=10)
+            self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.red)
         elif self.pointstate==2:
-            self.point1 = self.ax1.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            self.point1_plus_one = self.ax1_plus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-            self.point1_minus_one = self.ax1_minus_one.scatter(self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1],c='b', s=10)
-        self.thispoint = self.ax1.scatter(self.s.threads[self.ind].get_position_t(self.t)[2], self.s.threads[self.ind].get_position_t(self.t)[1],c='r', s=10)
-
-        self.ax1.set_title("Parent Z")
-        self.ax1_plus_one.set_title("Z + 1")
-        self.ax1_minus_one.set_title("Z - 1")
-        self.static_canvas_1.draw()
-        self.static_canvas_1_plus_one.draw()
-        self.static_canvas_1_minus_one.draw()
+            self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+            self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+            self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+        self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
 
         #plotting for single point
-        self.ax2.clear()
-        self.ax2_plus_one.clear()
-        self.ax2_minus_one.clear()
-        self.ax2.imshow(self.get_im_display(self.subim),cmap='viridis',vmin = 0, vmax =1)
-        self.ax2_plus_one.imshow(self.get_im_display(self.subim_plus_one),cmap='viridis',vmin = 0, vmax =1)
-        self.ax2_minus_one.imshow(self.get_im_display(self.subim_minus_one),cmap='viridis',vmin = 0, vmax =1)
+        self.update_imageview(self.z_subim, self.get_im_display(self.subim), "Parent Z")
+        self.update_imageview(self.z_plus_one_subim, self.get_im_display(self.subim_plus_one), "Z + 1")
+        self.update_imageview(self.z_minus_one_subim, self.get_im_display(self.subim_minus_one), "Z - 1")
 
-        self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
-        
-        self.ax2.set_title("Parent Z")
-        self.ax2_plus_one.set_title("Z + 1")
-        self.ax2_minus_one.set_title("Z - 1")
-        self.static_canvas_2.draw()
-        self.static_canvas_2_plus_one.draw()
-        self.static_canvas_2_minus_one.draw()
+        self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
 
         self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-        self.static_canvas_3.draw()
 
-        self.ax_ortho_1.clear()
-        ortho_1 = np.max(self.tf.get_t(self.t), axis=1)
-        self.ax_ortho_1.set_title("Ortho MIP ax 1")
-        self.ax_ortho_1.imshow(ortho_1)
-        self.static_ortho_1_canvas.draw()
-        self.ax_ortho_2.clear()
-        ortho_2 = np.max(self.tf.get_t(self.t), axis=2)
-        self.ax_ortho_2.set_title("Ortho MIP ax 2")
-        self.ax_ortho_2.imshow(ortho_2)
-        self.static_ortho_2_canvas.draw()
+        self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
+        self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
 
     def update_timeseries(self):
         self.timeax.clear()
@@ -622,3 +587,26 @@ class Curator:
 
     def show_trace_grid_context_menu(self):
         self.trace_grid_context_menu.exec_(QCursor.pos())
+
+    def get_imageview(self, im, title):
+        plot_item = pg.PlotItem()
+        plot_item.setLabel('top', title)
+        image_view = pg.ImageView(view=plot_item)
+        image_view.setImage(im.T)
+        image_view.setPredefinedGradient('viridis')
+        image_view.ui.histogram.hide()
+        image_view.ui.roiBtn.hide()
+        image_view.ui.menuBtn.hide()
+        image_view.show()
+        return image_view
+
+    def update_imageview(self, image_view, im, title):
+        plot_item = image_view.getView()
+        for data_item in plot_item.listDataItems():
+            plot_item.removeItem(data_item)
+        plot_item.setLabel('top', title)
+        image_view.getImageItem().setImage(im.T)
+
+    def plot_on_imageview(self, image_view, x, y, color):
+        plot_item = image_view.getView()
+        plot_item.plot(x, y, symbolSize=10, symbol='o', symbolPen=QPen(color, .1))
