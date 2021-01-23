@@ -11,7 +11,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
-from qtpy.QtGui import QCursor, QIcon, QImage, QPen, QPixmap
+from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
 
 def subaxis(im, position, window = 100):
     """
@@ -110,11 +110,6 @@ def subaxis_MIP(im, z,x,y, window = 100):
 
     #print(offset)
     return im[ymin:ymax, xmin:xmax], offset
-
-
-
-
-
 
 class Curator:
     """
@@ -352,7 +347,7 @@ class Curator:
         if self.pointstate==0:
             pass
         elif self.pointstate==1:
-            self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.red)
+            self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.blue)
         elif self.pointstate==2:
             self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
             self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
@@ -609,4 +604,4 @@ class Curator:
 
     def plot_on_imageview(self, image_view, x, y, color):
         plot_item = image_view.getView()
-        plot_item.plot(x, y, symbolSize=10, symbol='o', symbolPen=QPen(color, .1))
+        plot_item.scatterPlot(x, y, symbolSize=10, pen=QPen(color, .1), brush=QBrush(color))
