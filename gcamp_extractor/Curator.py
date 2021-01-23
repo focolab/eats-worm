@@ -177,6 +177,9 @@ class Curator:
 
     def restart(self):
         with napari.gui_qt():
+            ### enable antialiasing in pyqtgraph
+            pg.setConfigOption('antialias', True)
+
             ### initialize napari viewer
             self.viewer = napari.Viewer(ndisplay=3)
             self.scale = [5, 1, 1]
