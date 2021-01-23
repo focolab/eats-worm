@@ -577,7 +577,7 @@ class Curator:
 
     def get_imageview(self, im, title):
         plot_item = pg.PlotItem()
-        plot_item.setLabel('top', title)
+        plot_item.setTitle(title)
         image_view = pg.ImageView(view=plot_item)
         image_view.setImage(im.T)
         image_view.setPredefinedGradient('viridis')
@@ -591,7 +591,7 @@ class Curator:
         plot_item = image_view.getView()
         for data_item in plot_item.listDataItems():
             plot_item.removeItem(data_item)
-        plot_item.setLabel('top', title)
+        plot_item.setTitle(title)
         image_view.getImageItem().setImage(im.T)
 
     def plot_on_imageview(self, image_view, x, y, color):
