@@ -333,26 +333,8 @@ class Curator:
         else:
             self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
     
-    def get_im_display(self):
-
-        return (self.im - self.min)/(self.max - self.min)
-    
-    def get_im_plus_one_display(self):
-
-        return (self.im_plus_one - self.min)/(self.max - self.min)
-    
-    def get_im_minus_one_display(self):
-
-        return (self.im_minus_one - self.min)/(self.max - self.min)
-    
-    def get_subim_display(self):
-        return (self.subim - self.min)/(self.max - self.min)
-    
-    def get_subim_plus_one_display(self):
-        return (self.subim_plus_one - self.min)/(self.max - self.min)
-    
-    def get_subim_minus_one_display(self):
-        return (self.subim_minus_one - self.min)/(self.max - self.min)
+    def get_im_display(self, im):
+        return (im - self.min)/(self.max - self.min)
     
     def update_figures(self):
         self.viewer.layers['volume'].data = self.tf.get_t(self.t)
@@ -371,9 +353,9 @@ class Curator:
         self.ax1.clear()
         self.ax1_plus_one.clear()
         self.ax1_minus_one.clear()
-        self.img1 = self.ax1.imshow(self.get_im_display(),cmap='viridis',vmin = 0, vmax = 1)
-        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_plus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
-        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_minus_one_display(),cmap='viridis',vmin = 0, vmax = 1)
+        self.img1 = self.ax1.imshow(self.get_im_display(self.im),cmap='viridis',vmin = 0, vmax = 1)
+        self.img1_plus_one = self.ax1_plus_one.imshow(self.get_im_display(self.im_plus_one),cmap='viridis',vmin = 0, vmax = 1)
+        self.img1_minus_one = self.ax1_minus_one.imshow(self.get_im_display(self.im_minus_one),cmap='viridis',vmin = 0, vmax = 1)
 
         # plotting for multiple points
         if self.pointstate==0:
@@ -397,9 +379,9 @@ class Curator:
         self.ax2.clear()
         self.ax2_plus_one.clear()
         self.ax2_minus_one.clear()
-        self.ax2.imshow(self.get_subim_display(),cmap='viridis',vmin = 0, vmax =1)
-        self.ax2_plus_one.imshow(self.get_subim_plus_one_display(),cmap='viridis',vmin = 0, vmax =1)
-        self.ax2_minus_one.imshow(self.get_subim_minus_one_display(),cmap='viridis',vmin = 0, vmax =1)
+        self.ax2.imshow(self.get_im_display(self.subim),cmap='viridis',vmin = 0, vmax =1)
+        self.ax2_plus_one.imshow(self.get_im_display(self.subim_plus_one),cmap='viridis',vmin = 0, vmax =1)
+        self.ax2_minus_one.imshow(self.get_im_display(self.subim_minus_one),cmap='viridis',vmin = 0, vmax =1)
 
         self.point2 = self.ax2.scatter(self.window/2+self.offset[0], self.window/2+self.offset[1],c='r', s=40)
         
