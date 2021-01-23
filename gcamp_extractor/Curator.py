@@ -199,6 +199,11 @@ class Curator:
             self.z_minus_one_subim = self.get_imageview(self.get_im_display(self.subim_minus_one), "Z - 1")
             self.ortho_1_view = self.get_imageview(np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
             self.ortho_2_view = self.get_imageview(np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
+            self.timeseries_view = pg.PlotWidget()
+            self.timeseries_view.setBackground('w')
+            self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
+            self.timeseries_view.addLine(x=self.t, pen='r')
+        # self.timeax.set_title('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
             ### Series label
             self.series_label = QLabel()
@@ -214,7 +219,7 @@ class Curator:
             image_grid.addWidget(self.z_subim, 1, 1)
             image_grid.addWidget(self.z_minus_one_subim, 2, 1)
             image_grid.addWidget(self.static_canvas_3, 1, 2)
-            image_grid.addWidget(self.ortho_1_view, 0, 2)
+            image_grid.addWidget(self.timeseries_view, 0, 2)
             image_grid.addWidget(self.ortho_2_view, 2, 2)
             self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
