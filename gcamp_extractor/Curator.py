@@ -7,8 +7,6 @@ import pyqtgraph as pg
 from .Extractor import *
 from .multifiletiff import *
 from .Threads import *
-from matplotlib.backends.backend_qt5agg import FigureCanvas
-from matplotlib.figure import Figure
 from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
@@ -179,10 +177,6 @@ class Curator:
 
     def restart(self):
         with napari.gui_qt():
-            ### initialize matplotlib figs
-            self.static_canvas_3 = FigureCanvas(Figure())
-            self.timeax = self.static_canvas_3.figure.subplots()
-
             ### initialize napari viewer
             self.viewer = napari.Viewer(ndisplay=3)
             self.scale = [5, 1, 1]
@@ -203,7 +197,6 @@ class Curator:
             self.timeseries_view.setBackground('w')
             self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
             self.timeseries_view.addLine(x=self.t, pen='r')
-        # self.timeax.set_title('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
             ### Series label
             self.series_label = QLabel()
@@ -218,8 +211,8 @@ class Curator:
             image_grid.addWidget(self.z_plus_one_subim, 0, 1)
             image_grid.addWidget(self.z_subim, 1, 1)
             image_grid.addWidget(self.z_minus_one_subim, 2, 1)
-            image_grid.addWidget(self.static_canvas_3, 1, 2)
-            image_grid.addWidget(self.timeseries_view, 0, 2)
+            image_grid.addWidget(self.timeseries_view, 1, 2)
+            image_grid.addWidget(self.ortho_1_view, 0, 2)
             image_grid.addWidget(self.ortho_2_view, 2, 2)
             self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
@@ -372,11 +365,10 @@ class Curator:
         self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
 
     def update_timeseries(self):
-        self.timeax.clear()
-        self.timeplot, = self.timeax.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])))
-        self.timeax.axvline(x=self.t, color='r')
-        self.timeax.set_title('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-        self.static_canvas_3.draw()
+        self.timeseries_view.clear()
+        self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
+        self.timeseries_view.addLine(x=self.t, pen='r')
+        self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])), color='#000')
 
     def update_t(self, val):
         # Update index for t
@@ -550,16 +542,11 @@ class Curator:
         self.update_figures()
 
     def set_trace_icons(self):
-        static_trace_canvas = FigureCanvas(Figure())
-        trace_ax = static_trace_canvas.figure.subplots()
         for ind in range(self.tmax):
-            trace_ax.clear()
-            timeplot = trace_ax.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])))
-            static_trace_canvas.draw()
-            np_img = np.asarray(static_trace_canvas.buffer_rgba())
-            h,w,d = np_img.shape
-            q_img = QImage(np_img.tobytes(), w, h, QImage.Format_RGBA8888)
-            icon = QIcon(QPixmap.fromImage(q_img))
+            timeseries_view = pg.PlotWidget()
+            timeseries_view.setBackground('w')
+            timeseries_view.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])), pen=pg.mkPen(color=(31, 119, 180), width=5))
+            icon = QIcon(timeseries_view.grab())
             item = QListWidgetItem(icon, str(ind))
             self.trace_grid.addItem(item)
     
