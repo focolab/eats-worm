@@ -188,14 +188,14 @@ class Curator:
             self.viewer.add_points(np.empty((0, 3)), face_color='red', name='roi', size=1, scale=self.scale)
 
             ### initialize views for images
-            self.z_view = self.get_imageview(self.get_im_display(self.im), "Parent Z")
-            self.z_plus_one_view = self.get_imageview(self.get_im_display(self.im_plus_one), "Z + 1")
-            self.z_minus_one_view = self.get_imageview(self.get_im_display(self.im_minus_one), "Z - 1")
-            self.z_subim = self.get_imageview(self.get_im_display(self.subim), "Parent Z")
-            self.z_plus_one_subim = self.get_imageview(self.get_im_display(self.subim_plus_one), "Z + 1")
-            self.z_minus_one_subim = self.get_imageview(self.get_im_display(self.subim_minus_one), "Z - 1")
-            self.ortho_1_view = self.get_imageview(np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
-            self.ortho_2_view = self.get_imageview(np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
+            self.z_view = self.get_imageview()
+            self.z_plus_one_view = self.get_imageview()
+            self.z_minus_one_view = self.get_imageview()
+            self.z_subim = self.get_imageview()
+            self.z_plus_one_subim = self.get_imageview()
+            self.z_minus_one_subim = self.get_imageview()
+            self.ortho_1_view = self.get_imageview()
+            self.ortho_2_view = self.get_imageview()
             self.timeseries_view = pg.PlotWidget()
             self.timeseries_view.setBackground('w')
             self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
@@ -581,11 +581,9 @@ class Curator:
     def show_trace_grid_context_menu(self):
         self.trace_grid_context_menu.exec_(QCursor.pos())
 
-    def get_imageview(self, im, title):
+    def get_imageview(self):
         plot_item = pg.PlotItem()
-        plot_item.setTitle(title)
         image_view = pg.ImageView(view=plot_item)
-        image_view.setImage(im.T)
         image_view.setPredefinedGradient('viridis')
         image_view.ui.histogram.hide()
         image_view.ui.roiBtn.hide()
