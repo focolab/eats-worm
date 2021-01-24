@@ -166,8 +166,8 @@ class Curator:
         self.update_ims()
 
         ## Display range 
-        self.min = np.min(self.im)
-        self.max = np.max(self.im) # just some arbitrary value
+        self.min = np.min(np.nonzero([self.im, self.im_plus_one, self.im_minus_one]))
+        self.max = np.max([self.im, self.im_plus_one, self.im_minus_one]) # just some arbitrary value
         
         ## maximum t
         self.tmax = e.t
@@ -326,7 +326,7 @@ class Curator:
             self.im_minus_one = np.zeros(self.im.shape)
         else:
             self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
-        self.subim,self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+        self.subim, self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
         self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
     
