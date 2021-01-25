@@ -184,8 +184,8 @@ class Curator:
             self.viewer = napari.Viewer(ndisplay=3)
             self.scale = [5, 1, 1]
             self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
-            self.viewer.add_points(np.empty((0, 3)), face_color='blue', name='other rois', size=1, scale=self.scale)
-            self.viewer.add_points(np.empty((0, 3)), face_color='red', name='roi', size=1, scale=self.scale)
+            self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
+            self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
 
             ### initialize views for images
             self.z_view = self.get_imageview()
