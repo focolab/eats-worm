@@ -23,6 +23,7 @@ setuptools.setup(
           'imreg_dft',
           'fastcluster',
           'napari[all]',
+          'pyqtgraph',
           'magicgui',
           'scikit-image'
       ], 
