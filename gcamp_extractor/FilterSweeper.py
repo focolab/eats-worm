@@ -1,7 +1,6 @@
 import copy
 from magicgui import magicgui
-from magicgui._qt.widgets import QDoubleSlider
-from qtpy.QtWidgets import QSlider
+from magicgui.widgets import FloatSlider, Slider
 import napari
 from napari.layers import Image
 from .segfunctions import *
@@ -82,14 +81,14 @@ class FilterSweeper:
 
             @magicgui(
                 auto_call=True,
-                quantile={"widget_type": QDoubleSlider, "minimum": 0.5, "maximum": 1},
-                median_index={"widget_type": QSlider, "minimum": 0, "maximum": 2},
-                width_x={"widget_type": QSlider, "minimum": 0, "maximum": 24},
-                width_y={"widget_type": QSlider, "minimum": 0, "maximum": 24},
-                width_z={"widget_type": QSlider, "minimum": 0, "maximum": 24},
-                sigma_x={"widget_type": QDoubleSlider, "maximum": 6},
-                sigma_y={"widget_type": QDoubleSlider, "maximum": 6},
-                sigma_z={"widget_type": QDoubleSlider, "maximum": 6},
+                quantile={"widget_type": FloatSlider, "min": 0.5, "max": 1},
+                median_index={"widget_type": Slider, "min": 0, "max": 2},
+                width_x={"widget_type": Slider, "min": 0, "max": 24},
+                width_y={"widget_type": Slider, "min": 0, "max": 24},
+                width_z={"widget_type": Slider, "min": 0, "max": 24},
+                sigma_x={"widget_type": FloatSlider, "max": 6},
+                sigma_y={"widget_type": FloatSlider, "max": 6},
+                sigma_z={"widget_type": FloatSlider, "max": 6},
             )
             def filter_and_threshold(layer: Image, quantile: float = self.quantile, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> Image:
                 """Apply a gaussian blur to ``layer``."""
