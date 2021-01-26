@@ -176,137 +176,137 @@ class Curator:
         atexit.register(self.log_curate)
 
     def restart(self):
-        with napari.gui_qt():
-            ### enable antialiasing in pyqtgraph
-            pg.setConfigOption('antialias', True)
+        ### enable antialiasing in pyqtgraph
+        pg.setConfigOption('antialias', True)
 
-            ### initialize napari viewer
-            self.viewer = napari.Viewer(ndisplay=3)
-            self.scale = [5, 1, 1]
-            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
-            self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
-            self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
+        ### initialize napari viewer
+        self.viewer = napari.Viewer(ndisplay=3)
+        self.scale = [5, 1, 1]
+        self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
+        self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
+        self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
 
-            ### initialize views for images
-            self.z_view = self.get_imageview()
-            self.z_plus_one_view = self.get_imageview()
-            self.z_minus_one_view = self.get_imageview()
-            self.z_subim = self.get_imageview()
-            self.z_plus_one_subim = self.get_imageview()
-            self.z_minus_one_subim = self.get_imageview()
-            self.ortho_1_view = self.get_imageview()
-            self.ortho_2_view = self.get_imageview()
-            self.timeseries_view = pg.PlotWidget()
-            self.timeseries_view.setBackground('w')
-            self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
-            self.timeseries_view.addLine(x=self.t, pen='r')
+        ### initialize views for images
+        self.z_view = self.get_imageview()
+        self.z_plus_one_view = self.get_imageview()
+        self.z_minus_one_view = self.get_imageview()
+        self.z_subim = self.get_imageview()
+        self.z_plus_one_subim = self.get_imageview()
+        self.z_minus_one_subim = self.get_imageview()
+        self.ortho_1_view = self.get_imageview()
+        self.ortho_2_view = self.get_imageview()
+        self.timeseries_view = pg.PlotWidget()
+        self.timeseries_view.setBackground('w')
+        self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
+        self.timeseries_view.addLine(x=self.t, pen='r')
 
-            ### Series label
-            self.series_label = QLabel()
-            self.viewer.window.add_dock_widget(self.series_label, area='right')
+        ### Series label
+        self.series_label = QLabel()
+        self.viewer.window.add_dock_widget(self.series_label, area='right')
 
-            ### figure grid
-            image_grid_container = QWidget()
-            image_grid = QGridLayout(image_grid_container)
-            image_grid.addWidget(self.z_plus_one_view, 0, 0)
-            image_grid.addWidget(self.z_view, 1, 0)
-            image_grid.addWidget(self.z_minus_one_view, 2, 0)
-            image_grid.addWidget(self.z_plus_one_subim, 0, 1)
-            image_grid.addWidget(self.z_subim, 1, 1)
-            image_grid.addWidget(self.z_minus_one_subim, 2, 1)
-            image_grid.addWidget(self.timeseries_view, 1, 2)
-            image_grid.addWidget(self.ortho_1_view, 0, 2)
-            image_grid.addWidget(self.ortho_2_view, 2, 2)
-            image_grid.setColumnStretch(0, 2)
-            image_grid.setColumnStretch(1, 1)
-            image_grid.setColumnStretch(2, 2)
-            self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
+        ### figure grid
+        image_grid_container = QWidget()
+        image_grid = QGridLayout(image_grid_container)
+        image_grid.addWidget(self.z_plus_one_view, 0, 0)
+        image_grid.addWidget(self.z_view, 1, 0)
+        image_grid.addWidget(self.z_minus_one_view, 2, 0)
+        image_grid.addWidget(self.z_plus_one_subim, 0, 1)
+        image_grid.addWidget(self.z_subim, 1, 1)
+        image_grid.addWidget(self.z_minus_one_subim, 2, 1)
+        image_grid.addWidget(self.timeseries_view, 1, 2)
+        image_grid.addWidget(self.ortho_1_view, 0, 2)
+        image_grid.addWidget(self.ortho_2_view, 2, 2)
+        image_grid.setColumnStretch(0, 2)
+        image_grid.setColumnStretch(1, 1)
+        image_grid.setColumnStretch(2, 2)
+        self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
-            ### initialize figures
-            self.update_figures()
-            self.update_timeseries()
+        ### initialize figures
+        self.update_figures()
+        self.update_timeseries()
 
-            ### Axis for setting min/max range
-            min_r_slider = QSlider()
-            min_r_slider.setMaximum(int(np.max(self.im)))
-            min_r_slider.setTickPosition(int(self.min))
-            min_r_slider.setValue(int(self.min))
-            min_r_slider.setOrientation(Qt.Horizontal)
-            min_r_slider.valueChanged.connect(lambda:self.update_mm("min", min_r_slider.value()))
-            max_r_slider = QSlider()
-            max_r_slider.setMaximum(int(np.max(self.im)*4))
-            max_r_slider.setTickPosition(int(self.max))
-            max_r_slider.setValue(int(self.max))
-            max_r_slider.setOrientation(Qt.Horizontal)
-            max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.value()))
-            self.viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
+        ### Axis for setting min/max range
+        min_r_slider = QSlider()
+        min_r_slider.setMaximum(int(np.max(self.im)))
+        min_r_slider.setTickPosition(int(self.min))
+        min_r_slider.setValue(int(self.min))
+        min_r_slider.setOrientation(Qt.Horizontal)
+        min_r_slider.valueChanged.connect(lambda:self.update_mm("min", min_r_slider.value()))
+        max_r_slider = QSlider()
+        max_r_slider.setMaximum(int(np.max(self.im)*4))
+        max_r_slider.setTickPosition(int(self.max))
+        max_r_slider.setValue(int(self.max))
+        max_r_slider.setOrientation(Qt.Horizontal)
+        max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.value()))
+        self.viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
 
-            ### Axis for scrolling through t
-            t_slider = QSlider()
-            t_slider.setMaximum(int(self.tmax-1))
-            t_slider.setValue(int(self.t))
-            t_slider.setOrientation(Qt.Horizontal)
-            t_slider.valueChanged.connect(lambda:self.update_t(t_slider.value()))
-            self.viewer.window.add_dock_widget([QLabel('Timepoint'), t_slider], area='right')
+        ### Axis for scrolling through t
+        t_slider = QSlider()
+        t_slider.setMaximum(int(self.tmax-1))
+        t_slider.setValue(int(self.t))
+        t_slider.setOrientation(Qt.Horizontal)
+        t_slider.valueChanged.connect(lambda:self.update_t(t_slider.value()))
+        self.viewer.window.add_dock_widget([QLabel('Timepoint'), t_slider], area='right')
 
-            #### Axis for button for display
-            points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
-            points_button_group[0].setChecked(True)
-            points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
-            points_button_group[1].toggled.connect(lambda:self.update_pointstate(points_button_group[1].text()))
-            points_button_group[2].toggled.connect(lambda:self.update_pointstate(points_button_group[2].text()))
-            self.viewer.window.add_dock_widget(points_button_group, area='right')
+        #### Axis for button for display
+        points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
+        points_button_group[0].setChecked(True)
+        points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
+        points_button_group[1].toggled.connect(lambda:self.update_pointstate(points_button_group[1].text()))
+        points_button_group[2].toggled.connect(lambda:self.update_pointstate(points_button_group[2].text()))
+        self.viewer.window.add_dock_widget(points_button_group, area='right')
 
-            #### Axis for whether to display MIP on left
-            mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP')]
-            mip_button_group[0].setChecked(True)
-            mip_button_group[0].toggled.connect(lambda:self.update_mipstate(mip_button_group[0].text()))
-            mip_button_group[1].toggled.connect(lambda:self.update_mipstate(mip_button_group[1].text()))
-            self.viewer.window.add_dock_widget(mip_button_group, area='right')
+        #### Axis for whether to display MIP on left
+        mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP')]
+        mip_button_group[0].setChecked(True)
+        mip_button_group[0].toggled.connect(lambda:self.update_mipstate(mip_button_group[0].text()))
+        mip_button_group[1].toggled.connect(lambda:self.update_mipstate(mip_button_group[1].text()))
+        self.viewer.window.add_dock_widget(mip_button_group, area='right')
 
-            ### Axis for button to keep
-            self.keep_button_group = QButtonGroup()
-            self.keep_button = QRadioButton('Keep')
-            self.trash_button = QRadioButton('Trash')
-            self.keep_button_group.addButton(self.keep_button)
-            self.keep_button_group.addButton(self.trash_button)
-            self.keep_button_group.buttonClicked.connect(lambda:self.keep_current(self.keep_button_group.checkedButton().text()))
-            self.viewer.window.add_dock_widget(self.keep_button_group.buttons(), area='right')
+        ### Axis for button to keep
+        self.keep_button_group = QButtonGroup()
+        self.keep_button = QRadioButton('Keep')
+        self.trash_button = QRadioButton('Trash')
+        self.keep_button_group.addButton(self.keep_button)
+        self.keep_button_group.addButton(self.trash_button)
+        self.keep_button_group.buttonClicked.connect(lambda:self.keep_current(self.keep_button_group.checkedButton().text()))
+        self.viewer.window.add_dock_widget(self.keep_button_group.buttons(), area='right')
 
-            ### Axis to determine which ones to show
-            show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
-            show_button_group[0].setChecked(True)
-            show_button_group[0].toggled.connect(lambda:self.show(show_button_group[0].text()))
-            show_button_group[1].toggled.connect(lambda:self.show(show_button_group[1].text()))
-            show_button_group[2].toggled.connect(lambda:self.show(show_button_group[2].text()))
-            show_button_group[3].toggled.connect(lambda:self.show(show_button_group[3].text()))
-            self.viewer.window.add_dock_widget(show_button_group, area='right')
+        ### Axis to determine which ones to show
+        show_button_group = [QRadioButton('All'), QRadioButton('Unlabelled'), QRadioButton('Kept'), QRadioButton('Trashed')]
+        show_button_group[0].setChecked(True)
+        show_button_group[0].toggled.connect(lambda:self.show(show_button_group[0].text()))
+        show_button_group[1].toggled.connect(lambda:self.show(show_button_group[1].text()))
+        show_button_group[2].toggled.connect(lambda:self.show(show_button_group[2].text()))
+        show_button_group[3].toggled.connect(lambda:self.show(show_button_group[3].text()))
+        self.viewer.window.add_dock_widget(show_button_group, area='right')
 
-            ### Axis for buttons for next/previous time series
-            bprev = QPushButton('Previous')
-            bprev.clicked.connect(lambda:self.prev())
-            bnext = QPushButton('Next')
-            bnext.clicked.connect(lambda:self.next())
-            self.viewer.window.add_dock_widget([bprev, bnext], area='right')
+        ### Axis for buttons for next/previous time series
+        bprev = QPushButton('Previous')
+        bprev.clicked.connect(lambda:self.prev())
+        bnext = QPushButton('Next')
+        bnext.clicked.connect(lambda:self.next())
+        self.viewer.window.add_dock_widget([bprev, bnext], area='right')
 
-            ### Grid showing all extracted timeseries
-            self.trace_grid = QListWidget()
-            self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
-            self.trace_grid.setViewMode(QListWidget.IconMode)
-            self.trace_grid.setIconSize(QSize(96, 96))
-            self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
-            self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
-            self.trace_grid_context_menu = QMenu(self.trace_grid)
-            keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
-            self.trace_grid_context_menu.addAction(keep_all_action)
-            trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
-            self.trace_grid_context_menu.addAction(trash_all_action)
-            self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
-            self.set_trace_icons()
-            self.viewer.window.add_dock_widget(self.trace_grid)
+        ### Grid showing all extracted timeseries
+        self.trace_grid = QListWidget()
+        self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.trace_grid.setViewMode(QListWidget.IconMode)
+        self.trace_grid.setIconSize(QSize(96, 96))
+        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
+        self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.trace_grid_context_menu = QMenu(self.trace_grid)
+        keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
+        self.trace_grid_context_menu.addAction(keep_all_action)
+        trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
+        self.trace_grid_context_menu.addAction(trash_all_action)
+        self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
+        self.set_trace_icons()
+        self.viewer.window.add_dock_widget(self.trace_grid)
 
-            ### Update buttons in case of previous curation
-            self.update_buttons()
+        ### Update buttons in case of previous curation
+        self.update_buttons()
+        napari.run()
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
