@@ -157,6 +157,7 @@ class Curator:
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
         self.pointstate = 0
         self.show_settings = 0
+        self.show_timepoint_settings = 0
         self.showmip = 0
 
         ## index for which time point to display
@@ -281,6 +282,13 @@ class Curator:
         show_button_group[3].toggled.connect(lambda:self.show(show_button_group[3].text()))
         self.viewer.window.add_dock_widget(show_button_group, area='right')
 
+        ### Axis to restrict to rois selected at current timepoint
+        time_button_group = [QRadioButton('All'), QRadioButton('Current timepoint')]
+        time_button_group[0].setChecked(True)
+        time_button_group[0].toggled.connect(lambda:self.show_by_timepoint(time_button_group[0].text()))
+        time_button_group[1].toggled.connect(lambda:self.show_by_timepoint(time_button_group[1].text()))
+        self.viewer.window.add_dock_widget(time_button_group, area='right')
+
         ### Axis for buttons for next/previous time series
         bprev = QPushButton('Previous')
         bprev.clicked.connect(lambda:self.prev())
@@ -383,6 +391,8 @@ class Curator:
         self.update_ims()
         self.update_figures()
         self.update_timeseries()
+        if self.show_timepoint_settings == 1:
+            self.update_trace_icons()
 
     def update_mm(self, button, val):
         if 'min' == button:
@@ -461,6 +471,14 @@ class Curator:
             'Trashed':3
         }
         self.show_settings = d[label]
+        self.update_trace_icons()
+
+    def show_by_timepoint(self,label):
+        d = {
+            'All': 0,
+            'Current timepoint': 1,
+        }
+        self.show_timepoint_settings = d[label]
         self.update_trace_icons()
 
     def set_index_prev(self):
@@ -557,18 +575,25 @@ class Curator:
             self.trace_grid.addItem(item)
     
     def update_trace_icons(self):
-        for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
+        for index in range(self.trace_grid.count()):
+            trace_icon = self.trace_grid.item(index)
+
             if self.show_settings == 0:
-                trace_icon.setHidden(False)
+                hidden = False
 
             elif self.show_settings == 1:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) in ['keep','trash'])
+                hidden = self.curate.get(trace_icon.text()) in ['keep','trash']
 
             elif self.show_settings == 2:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'keep')
+                hidden = self.curate.get(trace_icon.text()) != 'keep'
 
             else:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'trash')
+                hidden = self.curate.get(trace_icon.text()) != 'trash'
+            
+            if not hidden and self.show_timepoint_settings == 1:
+                hidden = not self.s.threads[index].found[self.t]
+
+            trace_icon.setHidden(hidden)
 
     def go_to_trace(self, index):
         self.set_index(index)
