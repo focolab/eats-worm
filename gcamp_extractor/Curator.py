@@ -312,6 +312,16 @@ class Curator:
         self.set_trace_icons()
         self.viewer.window.add_dock_widget(self.trace_grid)
 
+        ## Event trigger to pass napari point selections to QT trace grid
+        def point_selected(event):
+            selected_data = self.viewer.layers['other rois'].selected_data
+            if len(selected_data) == 1:
+                selected_index = list(selected_data)[0]
+                trace_grid_item = self.trace_grid.item(selected_index)
+                self.trace_grid.setCurrentItem(trace_grid_item)
+
+        self.viewer.layers['other rois'].events.current_properties.connect(point_selected)
+
         ### Update buttons in case of previous curation
         self.update_buttons()
         napari.run()
@@ -345,11 +355,15 @@ class Curator:
         self.viewer.layers['volume'].data = self.tf.get_t(self.t)
         self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
         if self.pointstate==0:
-            self.viewer.layers.data = np.empty((0, 3))
+            self.viewer.layers['other rois'].data = np.empty((0, 3))
+            self.other_roi_indices = []
         elif self.pointstate==1:
-            self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
+            z = self.s.threads[self.ind].get_position_t(self.t)[0]
+            self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, z)
+            self.other_roi_indices = np.where(self.s.get_positions_t(self.t)[:,0] == z)[0].tolist()
         elif self.pointstate==2:
             self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
+            self.other_roi_indices = list(range(self.viewer.layers['other rois'].data.shape[0]))
 
         self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
         self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
