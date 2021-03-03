@@ -4,19 +4,14 @@ from magicgui.widgets import FloatSlider, Slider
 import napari
 from napari.layers import Image
 from .segfunctions import *
-import skimage.data
-import skimage.filters
+#import skimage.data
+#import skimage.filters
 
 
 class FilterSweeper:
     """
     Provides a GUI for parameter selection for our filtering and thresholding flow and tracks selected parameter values.
     
-    Arguments
-    ---------
-    e: Extractor
-        extractor object containing the video/image stack stack for which you want select parameters
-
     Attributes
     ---------
     gaussian: tuple
@@ -26,58 +21,111 @@ class FilterSweeper:
     quantile: float
         selected threshold
     """
-    def __init__(self, e):
-        self.e = e
-        try:
-            if len(e.gaussian) == 4:
-                self.width_x_val = self.width_y_val = e.gaussian[0]
-                self.width_z_val =e.gaussian[2]
-                self.sigma_x = self.sigma_y = e.gaussian[1]
-                self.sigma_z = e.gaussian[3]
-            elif len(e.gaussian) == 6: 
-                self.width_x_val = e.gaussian[0]
-                self.width_y_val = e.gaussian[1]
-                self.width_z_val = e.gaussian[4]
-                self.sigma_x = e.gaussian[2]
-                self.sigma_y = e.gaussian[3]
-                self.sigma_z = e.gaussian[5]
-        except:
-            self.width_x_val = 1
-            self.width_y_val = 1
-            self.width_z_val = 1
-            self.sigma_x = e.gaussian[2]
-            self.sigma_y = e.gaussian[3]
-            self.sigma_z = e.gaussian[5]
-        try:
-            self.quantile = e.quantile
-        except:
-            self.quantile = 0.99
-        self.median_sizes = [1, 3, 5]
-        try:
-            self.median_index = self.median_sizes.index(e.median)
-        except:
-            self.median_index = 1
-
-
-    # adapted from example at https://magicgui.readthedocs.io/en/latest/examples/napari_parameter_sweep/
-    def sweep_parameters(self, timepoints=1):
+    def __init__(self, stacks, params=None):
         """
-        use napari and magicgui to do a parameter sweep for our filtering and thresholding flow. upon napari window close, return dict of selected parameters.
+        Arguments
+        ---------
+        stacks: list
+            a list of image volumes, each being a numpy.ndarray with ZYX
+            dimension order.
+            (NOTE: array data needs to be cv2 compliant for segtools to work.
+            np.uint16 seems to be one valid option)
+        params: dict
+            dictionary of filter parameters
+        """
+        self.stacks = stacks
+        if params is None:
+            params = {}
 
-        Parameters
-        ----------
-        timepoints : int
+        # gaussian
+        self.width_x_val = params.get('width_x_val', 3)
+        self.width_y_val = params.get('width_y_val', 3)
+        self.width_z_val = params.get('width_z_val', 3)
+        self.sigma_x = params.get('sigma_x', 1)
+        self.sigma_y = params.get('sigma_y', 1)
+        self.sigma_z = params.get('sigma_z', 1)
+        # median filter
+        self.median_sizes = params.get('median_sizes', [1, 3, 5])
+        self.median_index = params.get('median_index', 1)
+        # quantile
+        self.quantile = params.get('quantile', 0.9)
+
+    @classmethod
+    def from_extractor(cls, e, timepoints=1):
+        """instantiate from an Extractor object
+
+        Arguments
+        ---------
+        e: Extractor
+            extractor object containing the video/image stack stack for which you want select parameters
+        timepoints: int
             specifies number of timepoints for which each parameter combination will be evaluated. by default, only the first timepoint is used.
             timepoint 0 is always the first timepoint of the recording.
         """
+        try:
+            if len(e.gaussian) == 4:
+                width_x_val = width_y_val = e.gaussian[0]
+                width_z_val =e.gaussian[2]
+                sigma_x = sigma_y = e.gaussian[1]
+                sigma_z = e.gaussian[3]
+            elif len(e.gaussian) == 6: 
+                width_x_val = e.gaussian[0]
+                width_y_val = e.gaussian[1]
+                width_z_val = e.gaussian[4]
+                sigma_x = e.gaussian[2]
+                sigma_y = e.gaussian[3]
+                sigma_z = e.gaussian[5]
+        except:
+            width_x_val = 1
+            width_y_val = 1
+            width_z_val = 1
+            sigma_x = e.gaussian[2]
+            sigma_y = e.gaussian[3]
+            sigma_z = e.gaussian[5]
+        try:
+            quantile = e.quantile
+        except:
+            quantile = 0.99
+        median_sizes = [1, 3, 5]
+        try:
+            median_index = median_sizes.index(e.median)
+        except:
+            median_index = 1
+
+        # pack up parameters
+        params = dict(
+            width_x_val=width_x_val,
+            width_y_val=width_y_val,
+            width_z_val=width_z_val,
+            sigma_x=sigma_x,
+            sigma_y=sigma_y,
+            sigma_z=sigma_z,
+            quantile=quantile,
+            median_sizes=median_sizes,
+            median_index=median_index
+        )
+
+        # pull out image volumes
+        stacks = []
+        for i in range(timepoints):
+            im1 = e.im.get_t(t=i)
+            im1_unfiltered = copy.deepcopy(im1)
+            stacks.append(im1_unfiltered)
+        return cls(stacks=stacks, params=params)
+
+    # adapted from example at https://magicgui.readthedocs.io/en/latest/examples/napari_parameter_sweep/
+    def sweep_parameters(self):
+        """
+        use napari and magicgui to do a parameter sweep for our filtering and thresholding flow. upon napari window close, return dict of selected parameters.
+        """
         with napari.gui_qt():
-            stacks = []
-            for i in range(timepoints):
-                im1 = self.e.im.get_t(t=i)
-                im1_unfiltered = copy.deepcopy(im1)
-                stacks.append(im1_unfiltered)
+            # stacks = []
+            # for i in range(timepoints):
+            #     im1 = self.e.im.get_t(t=i)
+            #     im1_unfiltered = copy.deepcopy(im1)
+            #     stacks.append(im1_unfiltered)
             viewer = napari.Viewer()
-            viewer.add_image(np.array(stacks), name="worm", blending='additive', interpolation='bicubic')
+            viewer.add_image(np.array(self.stacks), name="worm", blending='additive', interpolation='bicubic')
 
             @magicgui(
                 auto_call=True,
@@ -103,7 +151,7 @@ class FilterSweeper:
                     self.sigma_x = sigma_x
                     self.sigma_y = sigma_y
                     self.sigma_z = sigma_z
-                    for stack in stacks:
+                    for stack in self.stacks:
                         blurred = gaussian3d(copy.deepcopy(stack), (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z))
                         filtered = medFilter2d(blurred, self.median_sizes[self.median_index])
                         thresholded = filtered > np.quantile(layer.data, self.quantile)
