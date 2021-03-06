@@ -3,6 +3,43 @@
 import numpy as np
 import cv2
 import scipy.ndimage
+import scipy.spatial
+
+def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
+    """
+    function that drops peaks that are found too close to each other (Not used by Spool or Thread)
+    """
+    peaks = np.array(peaks)
+    anisotropy = np.array(anisotropy,dtype=int)
+    for i in range(len(anisotropy)):
+        peaks[:,i]*=anisotropy[i]
+
+    diff = scipy.spatial.distance.cdist(peaks,peaks,metric='euclidean')
+    complete = False
+    while not complete:
+        try:
+            x,y = np.where(diff == np.min(diff[diff!=0]))
+            if diff[x,y] >= thresh:
+                complete = True
+            else:
+                peak1 = peaks[x]
+                peak2 = peaks[y]
+
+                if im[peak1] > im[peak2]:
+                    diff = np.delete(diff, y, axis = 0)
+                    diff = np.delete(diff, y, axis = 1)
+                    peaks = np.delete(peaks, y, axis = 0)
+                else:
+                    diff = np.delete(diff, x, axis = 0)
+                    diff = np.delete(diff, x, axis = 1)
+                    peaks = np.delete(peaks, x, axis = 0)
+        except:
+            complete = True
+
+    for i in range(len(anisotropy)):
+        peaks[:,i]= peaks[:,i]/anisotropy[i]
+    return peaks.astype(int)
+
 
 def convAxis(im, axis, kernel):
     '''
