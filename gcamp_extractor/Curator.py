@@ -175,6 +175,72 @@ class Curator:
         self.restart()
         atexit.register(self.log_curate)
 
+class Curator:
+    """
+    matplotlib display of scrolling image data 
+    
+    Parameters
+    ---------
+    extractor : extractor
+        extractor object containing a full set of infilled threads and time series
+
+    Attributes
+    ----------
+    ind : int
+        thread indexing 
+
+    min : int
+        min of image data (for setting ranges)
+
+    max : int
+        max of image data (for setting ranges)
+
+    """
+    def __init__(self, mft, spool, timeseries, window=100):
+        # get info from extractors
+        self.s = spool
+        self.timeseries = timeseries
+        self.tf = mft
+        self.tf.t = 0
+        self.window = window
+        ## num neurons
+        self.numneurons = len(self.s.threads)
+        self.num_frames = len(mft.frames)
+
+        self.path = mft.root + 'extractor-objects/curate.json'
+        self.ind = 0
+        try:
+            with open(self.path) as f:
+                self.curate = json.load(f)
+            
+            self.ind = int(self.curate['last'])
+        except:
+            self.curate = {}
+            self.ind = 0
+            self.curate['0']='seen'
+
+
+        # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
+        self.pointstate = 0
+        self.show_settings = 0
+        self.showmip = 0
+
+        ## index for which time point to display
+        self.t = 0
+
+        ### First frame of the first thread
+        self.update_ims()
+
+        ## Display range 
+        self.min = np.min(np.nonzero([self.im, self.im_plus_one, self.im_minus_one]))
+        self.max = np.max([self.im, self.im_plus_one, self.im_minus_one]) # just some arbitrary value
+        
+        ## maximum t
+        self.tmax = (mft.numframes-mft.offset)//mft.numz
+
+        self.restart()
+        atexit.register(self.log_curate)
+
     def restart(self):
         ### enable antialiasing in pyqtgraph
         pg.setConfigOption('antialias', True)

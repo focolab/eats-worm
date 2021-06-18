@@ -133,25 +133,25 @@ class MultiFileTiff():
 
         # Calculate indexing function
         ## Process kwargs for offset
-        offset = 0
+        self.offset = 0
         if 'offset' in kwargs.keys():
-            offset = kwargs['offset']
+            self.offset = kwargs['offset']
 
         ## Calculate indexing
         _s = np.cumsum(self.lens)
 
         for i in range(len(_s)):
-            if offset > _s[i]:
+            if self.offset > _s[i]:
                 pass
             else:
                 filecounter = i
                 if i == 0:
-                    pagecounter  = offset
+                    pagecounter  = self.offset
                 else:
-                    pagecounter = offset - _s[i-1]
+                    pagecounter = self.offset - _s[i-1]
                 break
         self.indexing = {}
-        for i in range(self.numframes-offset):
+        for i in range(self.numframes-self.offset):
             if pagecounter < self.lens[filecounter]:
                 self.indexing[i] = [filecounter, pagecounter]
                 pagecounter += 1
