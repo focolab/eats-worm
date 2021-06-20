@@ -245,7 +245,7 @@ class Curator:
         self.ortho_2_view = self.get_imageview()
         self.timeseries_view = pg.PlotWidget()
         self.timeseries_view.setBackground('w')
-        if self.timeseries:
+        if self.timeseries is not None:
             self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
             self.timeseries_view.addLine(x=self.t, pen='r')
 
@@ -428,12 +428,12 @@ class Curator:
 
             self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
 
-        if self.timeseries:
+        if self.timeseries is not None:
             self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
     def update_timeseries(self):
         self.timeseries_view.clear()
-        if self.timeseries:
+        if self.timeseries is not None:
             self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
             self.timeseries_view.addLine(x=self.t, pen='r')
             self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])), color='#000')
@@ -610,7 +610,7 @@ class Curator:
         self.update_figures()
 
     def set_trace_icons(self):
-        if self.timeseries:
+        if self.timeseries is not None:
             for ind in range(self.timeseries.shape[1]):
                 timeseries_view = pg.PlotWidget()
                 timeseries_view.setBackground('w')
