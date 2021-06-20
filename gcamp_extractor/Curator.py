@@ -362,7 +362,7 @@ class Curator:
         self.log_curate()
 
     def update_ims(self):
-        if not self.tf:
+        if not self.tf or not self.s:
             self.im = np.ones((1, 1))
             self.im_plus_one = np.ones((1, 1))
             self.im_minus_one = np.ones((1, 1))
@@ -610,13 +610,14 @@ class Curator:
         self.update_figures()
 
     def set_trace_icons(self):
-        for ind in range(self.tmax):
-            timeseries_view = pg.PlotWidget()
-            timeseries_view.setBackground('w')
-            timeseries_view.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])), pen=pg.mkPen(color=(31, 119, 180), width=5))
-            icon = QIcon(timeseries_view.grab())
-            item = QListWidgetItem(icon, str(ind))
-            self.trace_grid.addItem(item)
+        if self.timeseries:
+            for ind in range(self.timeseries.shape[1]):
+                timeseries_view = pg.PlotWidget()
+                timeseries_view.setBackground('w')
+                timeseries_view.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])), pen=pg.mkPen(color=(31, 119, 180), width=5))
+                icon = QIcon(timeseries_view.grab())
+                item = QListWidgetItem(icon, str(ind))
+                self.trace_grid.addItem(item)
     
     def update_trace_icons(self):
         for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
