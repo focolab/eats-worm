@@ -175,39 +175,19 @@ class Curator:
         self.restart()
         atexit.register(self.log_curate)
 
-class Curator:
-    """
-    matplotlib display of scrolling image data 
-    
-    Parameters
-    ---------
-    extractor : extractor
-        extractor object containing a full set of infilled threads and time series
-
-    Attributes
-    ----------
-    ind : int
-        thread indexing 
-
-    min : int
-        min of image data (for setting ranges)
-
-    max : int
-        max of image data (for setting ranges)
-
-    """
-    def __init__(self, mft, spool, timeseries, window=100):
+    def __init__(self, mft=None, spool=None, timeseries=None, window=100):
         # get info from extractors
+        self.tf = mft
+        if self.tf:
+            self.tf.t = 0
         self.s = spool
         self.timeseries = timeseries
-        self.tf = mft
-        self.tf.t = 0
         self.window = window
         ## num neurons
-        self.numneurons = len(self.s.threads)
-        self.num_frames = len(mft.frames)
+        self.numneurons = len(self.s.threads) if self.s else 0
+        self.num_frames = len(self.tf.frames) if self.tf else 0
 
-        self.path = mft.root + 'extractor-objects/curate.json'
+        self.path = self.tf.root + 'extractor-objects/curate.json' if self.tf else None
         self.ind = 0
         try:
             with open(self.path) as f:
@@ -236,7 +216,7 @@ class Curator:
         self.max = np.max([self.im, self.im_plus_one, self.im_minus_one]) # just some arbitrary value
         
         ## maximum t
-        self.tmax = (mft.numframes-mft.offset)//mft.numz
+        self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
 
         self.restart()
         atexit.register(self.log_curate)
@@ -248,9 +228,11 @@ class Curator:
         ### initialize napari viewer
         self.viewer = napari.Viewer(ndisplay=3)
         self.scale = [5, 1, 1]
-        self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
-        self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
-        self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
+        if self.tf:
+            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
+        if self.s:
+            self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
+            self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
 
         ### initialize views for images
         self.z_view = self.get_imageview()
@@ -263,8 +245,9 @@ class Curator:
         self.ortho_2_view = self.get_imageview()
         self.timeseries_view = pg.PlotWidget()
         self.timeseries_view.setBackground('w')
-        self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
-        self.timeseries_view.addLine(x=self.t, pen='r')
+        if self.timeseries:
+            self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
+            self.timeseries_view.addLine(x=self.t, pen='r')
 
         ### Series label
         self.series_label = QLabel()
@@ -379,68 +362,81 @@ class Curator:
         self.log_curate()
 
     def update_ims(self):
-        f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
-        if self.showmip:
-            self.im = np.max(self.tf.get_t(self.t),axis = 0)
+        if not self.tf:
+            self.im = np.ones((1, 1))
+            self.im_plus_one = np.ones((1, 1))
+            self.im_minus_one = np.ones((1, 1))
+            self.subim, self.offset = np.ones((1, 1)), 0
+            self.subim_plus_one = np.ones((1, 1))
+            self.subim_minus_one = np.ones((1, 1))
+    
         else:
-            self.im = self.tf.get_tbyf(self.t, f)
-        if f == self.num_frames - 1:
-            self.im_plus_one = np.zeros(self.im.shape)
-        else:
-            self.im_plus_one = self.tf.get_tbyf(self.t, f + 1)
-        if f == 0:
-            self.im_minus_one = np.zeros(self.im.shape)
-        else:
-            self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
-        self.subim, self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-        self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-        self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
+            f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
+            if self.showmip:
+                self.im = np.max(self.tf.get_t(self.t),axis = 0)
+            else:
+                self.im = self.tf.get_tbyf(self.t, f)
+            if f == self.num_frames - 1:
+                self.im_plus_one = np.zeros(self.im.shape)
+            else:
+                self.im_plus_one = self.tf.get_tbyf(self.t, f + 1)
+            if f == 0:
+                self.im_minus_one = np.zeros(self.im.shape)
+            else:
+                self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
+            self.subim, self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
+            self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
+            self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
     
     def get_im_display(self, im):
         return (im - self.min)/(self.max - self.min)
     
     def update_figures(self):
-        self.viewer.layers['volume'].data = self.tf.get_t(self.t)
-        self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
-        if self.pointstate==0:
-            self.viewer.layers.data = np.empty((0, 3))
-        elif self.pointstate==1:
-            self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
-        elif self.pointstate==2:
-            self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
+        if self.tf:
+            self.viewer.layers['volume'].data = self.tf.get_t(self.t)
+            self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
+            self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
+        if self.s:
+            self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
+            if self.pointstate==0:
+                self.viewer.layers.data = np.empty((0, 3))
+            elif self.pointstate==1:
+                self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
+            elif self.pointstate==2:
+                self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
 
         self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
         self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
         self.update_imageview(self.z_minus_one_view, self.get_im_display(self.im_minus_one), "Z - 1")
 
-        # plotting for multiple points
-        if self.pointstate==0:
-            pass
-        elif self.pointstate==1:
-            self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.blue)
-        elif self.pointstate==2:
-            self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
-            self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
-            self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
-        self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
+        if self.s:
+            # plotting for multiple points
+            if self.pointstate==0:
+                pass
+            elif self.pointstate==1:
+                self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.blue)
+            elif self.pointstate==2:
+                self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+                self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+                self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+            self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
 
-        #plotting for single point
-        self.update_imageview(self.z_subim, self.get_im_display(self.subim), "Parent Z")
-        self.update_imageview(self.z_plus_one_subim, self.get_im_display(self.subim_plus_one), "Z + 1")
-        self.update_imageview(self.z_minus_one_subim, self.get_im_display(self.subim_minus_one), "Z - 1")
+            #plotting for single point
+            self.update_imageview(self.z_subim, self.get_im_display(self.subim), "Parent Z")
+            self.update_imageview(self.z_plus_one_subim, self.get_im_display(self.subim_plus_one), "Z + 1")
+            self.update_imageview(self.z_minus_one_subim, self.get_im_display(self.subim_minus_one), "Z - 1")
 
-        self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
+            self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
 
-        self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
-
-        self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
-        self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
+        if self.timeseries:
+            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
     def update_timeseries(self):
         self.timeseries_view.clear()
-        self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
-        self.timeseries_view.addLine(x=self.t, pen='r')
-        self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])), color='#000')
+        if self.timeseries:
+            self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
+            self.timeseries_view.addLine(x=self.t, pen='r')
+            self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])), color='#000')
 
     def update_t(self, val):
         # Update index for t
