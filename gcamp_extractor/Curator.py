@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from .Extractor import *
 from .multifiletiff import *
 from .Threads import *
-from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
+from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
 
@@ -176,7 +176,6 @@ class Curator:
         atexit.register(self.log_curate)
 
     def __init__(self, mft=None, spool=None, timeseries=None, window=100):
-        # get info from extractors
         self.tf = mft
         if self.tf:
             self.tf.t = 0
@@ -234,6 +233,10 @@ class Curator:
             self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
             self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
 
+        # initialize load buttons
+        self.load_image_button = QPushButton("Load image folder")
+        self.load_image_button.clicked.connect(self.load_image_folder)
+
         ### initialize views for images
         self.z_view = self.get_imageview()
         self.z_plus_one_view = self.get_imageview()
@@ -257,7 +260,12 @@ class Curator:
         image_grid_container = QWidget()
         image_grid = QGridLayout(image_grid_container)
         image_grid.addWidget(self.z_plus_one_view, 0, 0)
-        image_grid.addWidget(self.z_view, 1, 0)
+        if self.tf:
+            image_grid.addWidget(self.z_view, 1, 0)
+            self.load_image_button.setVisible(False)
+        else:
+            image_grid.addWidget(self.load_image_button, 1, 0)
+            self.z_view.setVisible(False)
         image_grid.addWidget(self.z_minus_one_view, 2, 0)
         image_grid.addWidget(self.z_plus_one_subim, 0, 1)
         image_grid.addWidget(self.z_subim, 1, 1)
@@ -664,3 +672,9 @@ class Curator:
     def plot_on_imageview(self, image_view, x, y, color):
         plot_item = image_view.getView()
         plot_item.scatterPlot(x, y, symbolSize=10, pen=QPen(color, .1), brush=QBrush(color))
+    
+    def load_image_folder(self):
+        folder_path = QFileDialog.getExistingDirectory()
+        mft = MultiFileTiff(folder_path)
+        self.viewer.window.close()
+        Curator(mft, self.s, self.timeseries, self.window)
