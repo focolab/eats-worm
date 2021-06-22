@@ -11,6 +11,12 @@ from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QF
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
 
+viewer_settings = {
+    1: [{'colormap': 'gray', 'visible': True}],
+    4: [{'colormap': 'red', 'visible': True}, {'colormap': 'gray', 'visible': True}, {'colormap': 'green', 'visible': True}, {'colormap': 'blue', 'visible': True}],
+    5: [{'colormap': 'red', 'visible': True}, {'colormap': 'gray', 'visible': True}, {'colormap': 'green', 'visible': True}, {'colormap': 'gray', 'visible': False}, {'colormap': 'blue', 'visible': True}],
+}
+
 def subaxis(im, position, window = 100):
     """
     returns window around specified center of image, along with an an offset that gives how much the image was offset (and thus yields the center of the image)
@@ -228,7 +234,8 @@ class Curator:
         self.viewer = napari.Viewer(ndisplay=3)
         self.scale = [5, 1, 1]
         if self.tf:
-            self.viewer.add_image(self.tf.get_t(self.t), name='volume', scale=self.scale)
+            for c in range(self.tf.numc):
+                self.viewer.add_image(self.tf.get_t(self.t)[:,c,:,:], name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
             self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
             self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
@@ -401,7 +408,8 @@ class Curator:
     
     def update_figures(self):
         if self.tf:
-            self.viewer.layers['volume'].data = self.tf.get_t(self.t)
+            for c in range(self.tf.numc):
+                self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t)[:,c,:,:]
             self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
             self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
         if self.s:

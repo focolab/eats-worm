@@ -102,6 +102,7 @@ class MultiFileTiff():
                 self.lens = mft.lens
                 self.indexing = mft.indexing
                 self.numz = mft.numz
+                self.numc = mft.numc
                 self.frames = mft.frames
                 self.sizexy = mft.sizexy
                 self.numframes = mft.numframes
@@ -114,6 +115,7 @@ class MultiFileTiff():
                 self.lens = mft.lens
                 self.indexing = mft.indexing
                 self.numz = mft.numz
+                self.numc = mft.numc
                 self.frames = mft.frames
                 self.sizexy = mft.sizexy
                 self.numframes = mft.numframes
@@ -130,6 +132,28 @@ class MultiFileTiff():
             for index, length in zip(list(range(len(self.tf))),executor.map(lambda x: len(x.pages),self.tf)):
                 self.lens[index] = length
         self.numframes = np.sum(self.lens)
+
+
+        # Process inputs for numz and frames
+        self.numz = 10
+        self.numc = 1
+        if 'numz' in kwargs.keys() and 'numc' in kwargs.keys():
+            self.numz = kwargs['numz']
+            self.numc = kwargs['numc']
+        else:
+            max_slice_index = -1
+            max_channel_index = -1
+            for tif in self.tf:
+                for page in tif.pages:
+                    max_channel_index = max(max_channel_index, page.tags['MicroManagerMetadata'].value['ChannelIndex'])
+                    max_slice_index = max(max_slice_index, page.tags['MicroManagerMetadata'].value['SliceIndex'])
+            self.numz = max_slice_index + 1
+            self.numc = max_channel_index + 1
+        self.numframes //= self.numc
+        
+        self.frames = np.array([i for i in range(self.numz)])
+        if 'frames' in kwargs.keys():
+            self.frames = np.array(kwargs['frames'])
 
         # Calculate indexing function
         ## Process kwargs for offset
@@ -153,33 +177,18 @@ class MultiFileTiff():
         self.indexing = {}
         for i in range(self.numframes-self.offset):
             if pagecounter < self.lens[filecounter]:
-                self.indexing[i] = [filecounter, pagecounter]
-                pagecounter += 1
+                self.indexing[i] = [filecounter, range(pagecounter, pagecounter + self.numc)]
+                pagecounter += self.numc
             else:
                 pagecounter = 0
                 filecounter += 1
-                self.indexing[i] = [filecounter, pagecounter]
-                pagecounter += 1
+                self.indexing[i] = [filecounter, range(pagecounter, pagecounter + self.numc)]
+                pagecounter += self.numc
 
         # Get some shape data from file
         self.sizexy = self.tf[0].pages[0].asarray().shape
         self.dtype = type(self.tf[0].pages[0].asarray()[0,0])
         self.t = 0
-
-
-        # Process inputs for numz and frames
-        self.numz = 10
-        if 'numz' in kwargs.keys():
-            self.numz = kwargs['numz']
-        else:
-            max_slice_index = -1
-            for tif in self.tf:
-                for page in tif.pages:
-                    max_slice_index = max(max_slice_index, page.tags['MicroManagerMetadata'].value['SliceIndex'])
-            self.numz = max_slice_index + 1
-        self.frames = np.array([i for i in range(self.numz)])
-        if 'frames' in kwargs.keys():
-            self.frames = np.array(kwargs['frames'])
         
 
 
@@ -260,7 +269,10 @@ class MultiFileTiff():
             2d numpy array of the image data requested 
         """
         frame = int(frame)
-        return self.tf[self.indexing[frame][0]].pages[self.indexing[frame][1]].asarray()
+        channels = []
+        for i in self.indexing[frame][1]:
+            channels.append(self.tf[self.indexing[frame][0]].pages[i].asarray())
+        return np.array(channels)
 
     def get_frames(self, frames, suppress_output = True):
         """
@@ -282,7 +294,7 @@ class MultiFileTiff():
             print(frames)
 
         frames = list(frames)
-        returnim = np.zeros(tuple([len(frames)]) + self.sizexy,dtype=np.uint16)
+        returnim = np.zeros(((len(frames), self.numc) + self.sizexy), dtype=np.uint16)
 
         #[np.zeros(self.sizexy,dtype=np.uint16) for x in range(len(frames))]
 
@@ -340,13 +352,13 @@ class MultiFileTiff():
         for i in range(self.numframes):
             if pagecounter < self.lens[filecounter]:
                 if not i < offset:
-                    self.indexing[i] = [filecounter, pagecounter]
-                pagecounter += 1
+                    self.indexing[i] = [filecounter, range(pagecounter, pagecounter + self.numc)]
+                pagecounter += self.numc
             else:
                 pagecounter = 1
                 filecounter += 1
                 if not i < offset:
-                    self.indexing[i] = [filecounter, pagecounter]
+                    self.indexing[i] = [filecounter, range(pagecounter, pagecounter + self.numc)]
     def reset_t(self):
         """
         resets internal time counter to the beginning. no arguments necessary
