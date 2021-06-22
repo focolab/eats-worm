@@ -171,6 +171,12 @@ class MultiFileTiff():
         self.numz = 10
         if 'numz' in kwargs.keys():
             self.numz = kwargs['numz']
+        else:
+            max_slice_index = -1
+            for tif in self.tf:
+                for page in tif.pages:
+                    max_slice_index = max(max_slice_index, page.tags['MicroManagerMetadata'].value['SliceIndex'])
+            self.numz = max_slice_index + 1
         self.frames = np.array([i for i in range(self.numz)])
         if 'frames' in kwargs.keys():
             self.frames = np.array(kwargs['frames'])
