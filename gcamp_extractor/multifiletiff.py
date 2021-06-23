@@ -174,16 +174,20 @@ class MultiFileTiff():
                 else:
                     pagecounter = self.offset - _s[i-1]
                 break
+        # assumes that multichannel scans are done as channel, slice
         self.indexing = {}
+        last_pagecounter = pagecounter
         for i in range(self.numframes-self.offset):
-            if pagecounter < self.lens[filecounter]:
-                self.indexing[i] = [filecounter, range(pagecounter, pagecounter + self.numc)]
-                pagecounter += self.numc
-            else:
-                pagecounter = 0
-                filecounter += 1
-                self.indexing[i] = [filecounter, range(pagecounter, pagecounter + self.numc)]
-                pagecounter += self.numc
+            pagecounter = last_pagecounter
+            last_pagecounter += 1
+            self.indexing[i] = []
+            while len(self.indexing[i]) < self.numc:
+                if pagecounter < self.lens[filecounter]:
+                    self.indexing[i].append([filecounter, pagecounter])
+                    pagecounter += self.numz
+                else:
+                    pagecounter = pagecounter - self.lens[filecounter]
+                    filecounter += 1
 
         # Get some shape data from file
         self.sizexy = self.tf[0].pages[0].asarray().shape
@@ -270,8 +274,8 @@ class MultiFileTiff():
         """
         frame = int(frame)
         channels = []
-        for i in self.indexing[frame][1]:
-            channels.append(self.tf[self.indexing[frame][0]].pages[i].asarray())
+        for filecounter, pagecounter in self.indexing[frame]:
+            channels.append(self.tf[filecounter].pages[pagecounter].asarray())
         return np.array(channels)
 
     def get_frames(self, frames, suppress_output = True):
