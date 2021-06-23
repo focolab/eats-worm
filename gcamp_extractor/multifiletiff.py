@@ -176,11 +176,12 @@ class MultiFileTiff():
                 break
         # assumes that multichannel scans are done as channel, slice
         self.indexing = {}
-        last_pagecounter = pagecounter
         for i in range(self.numframes-self.offset):
-            pagecounter = last_pagecounter
-            last_pagecounter += 1
             self.indexing[i] = []
+            if i > 0:
+                last_filecounter, last_pagecounter = self.indexing[i - 1][len(self.indexing[i])]
+                filecounter = last_filecounter
+                pagecounter = last_pagecounter + 1
             while len(self.indexing[i]) < self.numc:
                 if pagecounter < self.lens[filecounter]:
                     self.indexing[i].append([filecounter, pagecounter])
