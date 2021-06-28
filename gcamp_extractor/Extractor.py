@@ -21,6 +21,7 @@ import scipy.cluster
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
     'numz':20,
+    'numc':1,
     'frames':[0,1,2,3,4,5,6,7,8,9,10,11],
     'offset':0,
     't':999,
@@ -192,6 +193,8 @@ class Extractor:
             self.root += '/'
         try:self.numz = kwargs['numz']
         except:self.numz = 10
+        try:self.numc = kwargs['numc']
+        except:self.numc = 1
         try:self.frames= kwargs['frames']
         except:self.frames = list(range(self.numz))
         try:self.offset= kwargs['offset']
@@ -232,7 +235,7 @@ class Extractor:
         mkdir(self.root+'extractor-objects')
         
         _regen_mft = kwargs.get('regen_mft')
-        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, frames=self.frames, regen=_regen_mft)
+        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         #self.im.set_frames(self.frames)
         #e.imself.im.numz = self.numz

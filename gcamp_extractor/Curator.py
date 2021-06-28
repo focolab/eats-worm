@@ -136,57 +136,18 @@ class Curator:
         max of image data (for setting ranges)
 
     """
-    def __init__(self,e,window=100):
-        # get info from extractors
-        self.s = e.spool
-        self.timeseries = e.timeseries
-        self.tf = e.im
-        self.tf.t = 0
-        self.window = window
-        ## num neurons
-        self.numneurons = len(self.s.threads)
-        self.num_frames = len(e.frames)
-
-        self.path = e.root + 'extractor-objects/curate.json'
-        self.ind = 0
-        try:
-            with open(self.path) as f:
-                self.curate = json.load(f)
-            
-            self.ind = int(self.curate['last'])
-        except:
-            self.curate = {}
-            self.ind = 0
-            self.curate['0']='seen'
-
-
-        # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
-        self.pointstate = 0
-        self.show_settings = 0
-        self.showmip = 0
-
-        ## index for which time point to display
-        self.t = 0
-
-        ### First frame of the first thread
-        self.update_ims()
-
-        ## Display range 
-        self.min = np.min(np.nonzero([self.im, self.im_plus_one, self.im_minus_one]))
-        self.max = np.max([self.im, self.im_plus_one, self.im_minus_one]) # just some arbitrary value
-        
-        ## maximum t
-        self.tmax = e.t
-
-        self.restart()
-        atexit.register(self.log_curate)
-
-    def __init__(self, mft=None, spool=None, timeseries=None, window=100):
-        self.tf = mft
+    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100):
+        if e:
+            self.s = e.spool
+            self.timeseries = e.timeseries
+            self.tf = e.im
+            self.tmax = e.t
+        else:
+            self.tf = mft
+            self.s = spool
+            self.timeseries = timeseries
         if self.tf:
             self.tf.t = 0
-        self.s = spool
-        self.timeseries = timeseries
         self.window = window
         ## num neurons
         self.numneurons = len(self.s.threads) if self.s else 0
@@ -221,7 +182,8 @@ class Curator:
         self.max = np.max([self.im, self.im_plus_one, self.im_minus_one]) # just some arbitrary value
         
         ## maximum t
-        self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
+        if not self.tmax:
+            self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
 
         self.restart()
         atexit.register(self.log_curate)
@@ -235,7 +197,7 @@ class Curator:
         self.scale = [5, 1, 1]
         if self.tf:
             for c in range(self.tf.numc):
-                self.viewer.add_image(self.tf.get_t(self.t)[:,c,:,:], name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
+                self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
             self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
             self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
@@ -409,7 +371,7 @@ class Curator:
     def update_figures(self):
         if self.tf:
             for c in range(self.tf.numc):
-                self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t)[:,c,:,:]
+                self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t, channel=c)
             self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
             self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
         if self.s:

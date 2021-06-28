@@ -259,7 +259,7 @@ class MultiFileTiff():
             else:
                 allFiles.append(fullPath)
         return allFiles
-    def get_frame(self, frame):
+    def get_frame(self, frame, channel = 0):
         """
         method for getting a single frame from your recording, mostly used internally. if you're going to call this function, please make sure you know what's going on.
 
@@ -277,9 +277,9 @@ class MultiFileTiff():
         channels = []
         for filecounter, pagecounter in self.indexing[frame]:
             channels.append(self.tf[filecounter].pages[pagecounter].asarray())
-        return np.array(channels)
+        return channels[channel]
 
-    def get_frames(self, frames, suppress_output = True):
+    def get_frames(self, frames, channel = 0, suppress_output = True):
         """
         method for getting multiple frames at a time. mostly used internally. if you're going to call this function, please make sure you know what's going on. 
 
@@ -299,7 +299,7 @@ class MultiFileTiff():
             print(frames)
 
         frames = list(frames)
-        returnim = np.zeros(((len(frames), self.numc) + self.sizexy), dtype=np.uint16)
+        returnim = np.zeros(((len(frames),) + self.sizexy), dtype=np.uint16)
 
         #[np.zeros(self.sizexy,dtype=np.uint16) for x in range(len(frames))]
 
@@ -316,7 +316,7 @@ class MultiFileTiff():
                     pass
         '''
         for i in range(len(frames)):
-            returnim[i] = self.get_frame(frames[i])
+            returnim[i] = self.get_frame(frames[i], channel = channel)
         #returnim = np.array(returnim)
         return returnim
 
@@ -399,6 +399,9 @@ class MultiFileTiff():
         sup = True
         if 'suppress_output' in kwargs.keys():
             sup = kwargs['suppress_output']
+        channel = 0
+        if 'channel' in kwargs.keys():
+            channel = kwargs['channel']
 
 
 
@@ -408,10 +411,10 @@ class MultiFileTiff():
         else:
             if t_in:
                 #self.t = ti
-                return self.get_frames(self.frames + (ti) * self.numz, suppress_output = sup)
+                return self.get_frames(self.frames + (ti) * self.numz, channel = channel, suppress_output = sup)
             else:
                 self.t += 1
-                return self.get_frames(self.frames + (self.t-1) * self.numz, suppress_output = sup)
+                return self.get_frames(self.frames + (self.t-1) * self.numz, channel = channel, suppress_output = sup)
     def get_tbyf(self,*args,**kwargs):
         """
         get frame for a particular z step by time
@@ -439,6 +442,9 @@ class MultiFileTiff():
         sup = True
         if 'suppress_output' in kwargs.keys():
             sup = kwargs['suppress_output']
+        channel = 0
+        if 'channel' in kwargs.keys():
+            channel = kwargs['channel']
 
         if len(args) == 2:
             f = args[1]
@@ -451,10 +457,10 @@ class MultiFileTiff():
         else:
             if t_in:
                 self.t = ti
-                return self.get_frame(f + (ti) * self.numz)
+                return self.get_frame(f + (ti) * self.numz, channel = channel)
             else:
                 self.t += 1
-                return self.get_frame(f + (self.t-1) * self.numz)
+                return self.get_frame(f + (self.t-1) * self.numz, channel = channel)
 
 
 
@@ -504,6 +510,7 @@ class minimal_mft:
         self.lens = mft.lens
         self.indexing = mft.indexing
         self.numz = mft.numz
+        self.numc = mft.numc
         self.frames = mft.frames
         self.sizexy = mft.sizexy
         self.numframes = mft.numframes
