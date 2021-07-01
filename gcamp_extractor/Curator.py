@@ -678,4 +678,4 @@ class Curator:
         folder_path = QFileDialog.getExistingDirectory()
         mft = MultiFileTiff(folder_path)
         self.viewer.window.close()
-        Curator(mft, self.s, self.timeseries, self.window)
+        Curator(mft=mft, spool = self.s, timeseries = self.timeseries, window = self.window)
