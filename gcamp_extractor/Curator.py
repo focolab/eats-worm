@@ -146,6 +146,7 @@ class Curator:
             self.tf = mft
             self.s = spool
             self.timeseries = timeseries
+            self.tmax = None
         if self.tf:
             self.tf.t = 0
         self.window = window
@@ -220,6 +221,10 @@ class Curator:
         if self.timeseries is not None:
             self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
             self.timeseries_view.addLine(x=self.t, pen='r')
+        
+        ### initialize montage view
+        self.montage_view = self.get_imageview()
+        self.montage_view.setVisible(False)
 
         ### Series label
         self.series_label = QLabel()
@@ -228,23 +233,8 @@ class Curator:
         ### figure grid
         image_grid_container = QWidget()
         image_grid = QGridLayout(image_grid_container)
-        image_grid.addWidget(self.z_plus_one_view, 0, 0)
-        if self.tf:
-            image_grid.addWidget(self.z_view, 1, 0)
-            self.load_image_button.setVisible(False)
-        else:
-            image_grid.addWidget(self.load_image_button, 1, 0)
-            self.z_view.setVisible(False)
-        image_grid.addWidget(self.z_minus_one_view, 2, 0)
-        image_grid.addWidget(self.z_plus_one_subim, 0, 1)
-        image_grid.addWidget(self.z_subim, 1, 1)
-        image_grid.addWidget(self.z_minus_one_subim, 2, 1)
-        image_grid.addWidget(self.timeseries_view, 1, 2)
-        image_grid.addWidget(self.ortho_1_view, 0, 2)
-        image_grid.addWidget(self.ortho_2_view, 2, 2)
-        image_grid.setColumnStretch(0, 2)
-        image_grid.setColumnStretch(1, 1)
-        image_grid.setColumnStretch(2, 2)
+        self.image_grid = image_grid
+        self.add_figures_to_image_grid()
         self.viewer.window.add_dock_widget(image_grid_container, area='bottom', name='image_grid')
 
         ### initialize figures
@@ -283,10 +273,11 @@ class Curator:
         self.viewer.window.add_dock_widget(points_button_group, area='right')
 
         #### Axis for whether to display MIP on left
-        mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP')]
+        mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP'), QRadioButton('Montage')]
         mip_button_group[0].setChecked(True)
         mip_button_group[0].toggled.connect(lambda:self.update_mipstate(mip_button_group[0].text()))
         mip_button_group[1].toggled.connect(lambda:self.update_mipstate(mip_button_group[1].text()))
+        mip_button_group[2].toggled.connect(lambda:self.update_mipstate(mip_button_group[2].text()))
         self.viewer.window.add_dock_widget(mip_button_group, area='right')
 
         ### Axis for button to keep
@@ -349,7 +340,7 @@ class Curator:
     
         else:
             f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
-            if self.showmip:
+            if 1 == self.showmip:
                 self.im = np.max(self.tf.get_t(self.t),axis = 0)
             else:
                 self.im = self.tf.get_tbyf(self.t, f)
@@ -368,12 +359,32 @@ class Curator:
     def get_im_display(self, im):
         return (im - self.min)/(self.max - self.min)
     
+    def add_figures_to_image_grid(self):
+        self.image_grid.addWidget(self.z_plus_one_view, 0, 0)
+        if self.tf:
+            self.image_grid.addWidget(self.z_view, 1, 0)
+            self.load_image_button.setVisible(False)
+        else:
+            self.image_grid.addWidget(self.load_image_button, 1, 0)
+            self.z_view.setVisible(False)
+        self.image_grid.addWidget(self.z_minus_one_view, 2, 0)
+        self.image_grid.addWidget(self.z_plus_one_subim, 0, 1)
+        self.image_grid.addWidget(self.z_subim, 1, 1)
+        self.image_grid.addWidget(self.z_minus_one_subim, 2, 1)
+        self.image_grid.addWidget(self.timeseries_view, 1, 2)
+        self.image_grid.addWidget(self.ortho_1_view, 0, 2)
+        self.image_grid.addWidget(self.ortho_2_view, 2, 2)
+        self.image_grid.setColumnStretch(0, 2)
+        self.image_grid.setColumnStretch(1, 1)
+        self.image_grid.setColumnStretch(2, 2)
+    
     def update_figures(self):
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t, channel=c)
             self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
             self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
+            self.update_imageview(self.montage_view, np.rot90(np.vstack(self.tf.get_t(self.t))), "Montage View")
         if self.s:
             self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
             if self.pointstate==0:
@@ -578,11 +589,31 @@ class Curator:
         self.update_figures()
 
     def update_mipstate(self, label):
+        last_setting = self.showmip
         d = {
             'Single Z':0,
             'MIP':1,
+            'Montage':2,
         }
         self.showmip = d[label]
+
+        ## clear image grid and reassign
+        if 2 == self.showmip:
+            i = self.image_grid.count() - 1
+            while(i >= 0):
+                grid_item = self.image_grid.itemAt(i).widget()
+                grid_item.setParent(None)
+                i -=1
+            self.image_grid.addWidget(self.montage_view, 0, 0)
+            self.montage_view.setVisible(True)
+            self.image_grid.setColumnStretch(1, 0)
+            self.image_grid.setColumnStretch(2, 0)
+            # self.montage_view.setVisible(True)
+
+        elif 2 == last_setting:
+            self.montage_view.setVisible(False)
+            self.montage_view.setParent(None)
+            self.add_figures_to_image_grid()
 
         self.update_ims()
         self.update_figures()
