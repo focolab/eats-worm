@@ -90,7 +90,7 @@ class FilterSweeper:
                 sigma_y={"widget_type": FloatSlider, "max": 6},
                 sigma_z={"widget_type": FloatSlider, "max": 6},
             )
-            def filter_and_threshold(layer: Image, quantile: float = self.quantile, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> Image:
+            def filter_and_threshold(layer: Image, quantile: float = self.quantile, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> napari.types.ImageData:
                 """Apply a gaussian blur to ``layer``."""
                 if layer:
                     # todo: the order used here does not match the documentation in sefgunctions. change either order or documentation in segfunctions
@@ -110,8 +110,7 @@ class FilterSweeper:
                         filtered_and_thresholded.append(thresholded)
                     return np.array(filtered_and_thresholded)
 
-            gui = filter_and_threshold.Gui()
-            viewer.window.add_dock_widget(gui)
+            viewer.window.add_dock_widget(filter_and_threshold)
             viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
             viewer.layers["filter_and_threshold result"].colormap = "cyan"
             viewer.layers["filter_and_threshold result"].blending = "additive"
