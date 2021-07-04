@@ -456,7 +456,7 @@ class Extractor:
         dmatlist = self._calc_dist_mat_list(self._threads_by_z())
 
         for i in range(len(dmatlist)):
-            if len(dmatlist[i]) > 0:
+            if len(dmatlist[i]) > 1:
                 sort_mat,b,c = self._compute_serial_matrix(dmatlist[i])
             
     def _calc_dist_mat(self, indices):

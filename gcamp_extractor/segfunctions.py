@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import scipy.ndimage
 import scipy.spatial
+import sys
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
     """
@@ -19,13 +20,14 @@ def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
     while not complete:
         try:
             x,y = np.where(diff == np.min(diff[diff!=0]))
+            x,y = x[0],y[0]
             if diff[x,y] >= thresh:
                 complete = True
             else:
-                peak1 = peaks[x]
-                peak2 = peaks[y]
+                peak1 = peaks[x] // anisotropy
+                peak2 = peaks[y] // anisotropy
 
-                if im[peak1] > im[peak2]:
+                if im[tuple(peak1)] > im[tuple(peak2)]:
                     diff = np.delete(diff, y, axis = 0)
                     diff = np.delete(diff, y, axis = 1)
                     peaks = np.delete(peaks, y, axis = 0)
@@ -34,6 +36,7 @@ def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
                     diff = np.delete(diff, x, axis = 1)
                     peaks = np.delete(peaks, x, axis = 0)
         except:
+            print("\nUnexpected error: ", sys.exc_info())
             complete = True
 
     for i in range(len(anisotropy)):
