@@ -76,8 +76,8 @@ class FilterSweeper:
                 im1 = self.e.im.get_t(t=i)
                 im1_unfiltered = copy.deepcopy(im1)
                 stacks.append(im1_unfiltered)
-            viewer = napari.Viewer()
-            viewer.add_image(np.array(stacks), name="worm", blending='additive', interpolation='bicubic')
+            viewer = napari.Viewer(ndisplay=3)
+            viewer.add_image(np.array(stacks), name="worm", blending='additive', scale=self.e.anisotropy)
 
             @magicgui(
                 auto_call=True,
@@ -114,7 +114,7 @@ class FilterSweeper:
             viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
             viewer.layers["filter_and_threshold result"].colormap = "cyan"
             viewer.layers["filter_and_threshold result"].blending = "additive"
-            viewer.layers["filter_and_threshold result"].interpolation = "bicubic"
+            viewer.layers["filter_and_threshold result"].scale = self.e.anisotropy
 
         final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile}
         self.gaussian, self.median = final_params["gaussian"], final_params["median"]
