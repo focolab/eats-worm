@@ -15,6 +15,7 @@ import glob
 import json
 import imreg_dft as ird
 from scipy.spatial.distance import pdist, squareform
+from skimage.feature import peak_local_max
 from fastcluster import linkage
 import scipy.cluster
 
@@ -229,6 +230,8 @@ class Extractor:
         except: self.register = False
         try: self.predict = kwargs['predict']
         except: self.predict = True 
+        try: self.skimage = kwargs['skimage']
+        except: self.skimage = False
 
 
         self.threed = kwargs.get('3d')
@@ -269,7 +272,11 @@ class Extractor:
             im1 = self.im.get_t()
             im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
-            if self.threed:
+            if self.skimage:
+                footprint = np.ones(tuple((self.reg_peak_dist / np.array(self.anisotropy)).astype(int)))
+                footprint = np.ones((1, self.reg_peak_dist, self.reg_peak_dist))
+                peaks = peak_local_max(im1, footprint=footprint, num_peaks=50)
+            elif self.threed:
                 peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
             else:
                 peaks = findpeaks2d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
