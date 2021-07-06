@@ -267,7 +267,7 @@ class Extractor:
         """
         for i in range(self.t):
             im1 = self.im.get_t()
-            im1 = medFilter2d(im1)
+            im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
             if self.threed:
                 peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
