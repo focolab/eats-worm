@@ -6,7 +6,7 @@ from napari.layers import Image
 from .segfunctions import *
 import skimage.data
 import skimage.filters
-
+from skimage.feature import peak_local_max
 
 class FilterSweeper:
     """
@@ -57,6 +57,15 @@ class FilterSweeper:
             self.median_index = self.median_sizes.index(e.median)
         except:
             self.median_index = 1
+        self.num_peaks = 50,
+        try:
+            self.footprint_z = 3
+            self.footprint_x = e.reg_peak_dist
+            self.footprint_y = e.reg_peak_dist
+        except:
+            self.footprint_z = 3,
+            self.footprint_x = 20,
+            self.footprint_y = 20,
 
 
     # adapted from example at https://magicgui.readthedocs.io/en/latest/examples/napari_parameter_sweep/
@@ -81,7 +90,6 @@ class FilterSweeper:
 
             @magicgui(
                 auto_call=True,
-                quantile={"widget_type": FloatSlider, "min": 0.5, "max": 1},
                 median_index={"widget_type": Slider, "min": 0, "max": 2},
                 width_x={"widget_type": Slider, "min": 0, "max": 24},
                 width_y={"widget_type": Slider, "min": 0, "max": 24},
@@ -90,12 +98,11 @@ class FilterSweeper:
                 sigma_y={"widget_type": FloatSlider, "max": 6},
                 sigma_z={"widget_type": FloatSlider, "max": 6},
             )
-            def filter_and_threshold(layer: Image, quantile: float = self.quantile, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> napari.types.ImageData:
+            def filter(layer: Image, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> napari.types.ImageData:
                 """Apply a gaussian blur to ``layer``."""
                 if layer:
                     # todo: the order used here does not match the documentation in sefgunctions. change either order or documentation in segfunctions
-                    filtered_and_thresholded = []
-                    self.quantile = quantile
+                    filtered = []
                     self.median_index = median_index
                     self.width_x_val = 2 * width_x + 1
                     self.width_y_val = 2 * width_y + 1
@@ -105,17 +112,55 @@ class FilterSweeper:
                     self.sigma_z = sigma_z
                     for stack in stacks:
                         blurred = gaussian3d(copy.deepcopy(stack), (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z))
-                        filtered = medFilter2d(blurred, self.median_sizes[self.median_index])
-                        thresholded = filtered > np.quantile(layer.data, self.quantile)
-                        filtered_and_thresholded.append(thresholded)
-                    return np.array(filtered_and_thresholded)
+                        median_filtered = medFilter2d(blurred, self.median_sizes[self.median_index])
+                        filtered.append(median_filtered)
+                    return np.array(filtered)
 
-            viewer.window.add_dock_widget(filter_and_threshold)
+            viewer.window.add_dock_widget(filter)
+
+            @magicgui(
+                auto_call=True,
+                quantile={"widget_type": FloatSlider, "min": 0.5, "max": 1},
+            )
+            def threshold(layer: Image, quantile: float = self.quantile) -> napari.types.ImageData:
+                self.quantile = quantile
+                filtered = viewer.layers["filter result"].data
+                return filtered > np.quantile(layer.data, self.quantile)
+
+            viewer.window.add_dock_widget(threshold)
+
+            @magicgui(
+                auto_call=True,
+                num_peaks={"widget_type": Slider, "min": 1, "max": 302},
+                footprint_z={"widget_type": Slider, "min": 1, "max": self.e.numz},
+                footprint_x={"widget_type": Slider, "min": 1, "max": 200},
+                footprint_y={"widget_type": Slider, "min": 1, "max": 200},
+            )
+            def find_peaks(layer: Image, num_peaks: int = 50, footprint_z: int = self.footprint_z, footprint_x: int = self.footprint_x, footprint_y: int = self.footprint_y) -> napari.types.ImageData:
+                if layer:
+                    self.num_peaks = num_peaks,
+                    self.footprint_z = footprint_z,
+                    self.footprint_x = footprint_x,
+                    self.footprint_y = footprint_y,
+                    peaks = []
+                    for stack in stacks:
+                        peaks.append(peak_local_max(np.array(stack), footprint=np.ones((footprint_z, footprint_x, footprint_y)), num_peaks=num_peaks, indices=False))
+                    return np.array(peaks)
+            
+            viewer.window.add_dock_widget(find_peaks)
             viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
-            viewer.layers["filter_and_threshold result"].colormap = "cyan"
-            viewer.layers["filter_and_threshold result"].blending = "additive"
-            viewer.layers["filter_and_threshold result"].scale = self.e.anisotropy
+            viewer.layers["threshold result"].colormap = "cyan"
+            viewer.layers["threshold result"].blending = "additive"
+            viewer.layers["threshold result"].scale = self.e.anisotropy
+            viewer.layers["threshold result"].visible = False
+            viewer.layers["filter result"].blending = "additive"
+            viewer.layers["filter result"].scale = self.e.anisotropy
+            viewer.layers["find_peaks result"].colormap = "magenta"
+            viewer.layers["find_peaks result"].blending = "additive"
+            viewer.layers["find_peaks result"].scale = self.e.anisotropy
+            viewer.layers["worm"].visible = False
+                
 
-        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile}
+        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, (self.footprint_z, self.footprint_x, self.footprint_y))}
         self.gaussian, self.median = final_params["gaussian"], final_params["median"]
         print("final parameters from sweep: ", final_params)
