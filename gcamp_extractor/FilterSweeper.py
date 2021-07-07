@@ -57,7 +57,7 @@ class FilterSweeper:
             self.median_index = self.median_sizes.index(e.median)
         except:
             self.median_index = 1
-        self.num_peaks = 50,
+        self.num_peaks = 50
         try:
             self.footprint_z = 3
             self.footprint_x = e.reg_peak_dist
@@ -138,10 +138,10 @@ class FilterSweeper:
             )
             def find_peaks(layer: Image, num_peaks: int = 50, footprint_z: int = self.footprint_z, footprint_x: int = self.footprint_x, footprint_y: int = self.footprint_y) -> napari.types.ImageData:
                 if layer:
-                    self.num_peaks = num_peaks,
-                    self.footprint_z = footprint_z,
-                    self.footprint_x = footprint_x,
-                    self.footprint_y = footprint_y,
+                    self.num_peaks = num_peaks
+                    self.footprint_z = footprint_z
+                    self.footprint_x = footprint_x
+                    self.footprint_y = footprint_y
                     peaks = []
                     for stack in stacks:
                         peaks.append(peak_local_max(np.array(stack), footprint=np.ones((footprint_z, footprint_x, footprint_y)), num_peaks=num_peaks, indices=False))
@@ -161,6 +161,6 @@ class FilterSweeper:
             viewer.layers["worm"].visible = False
                 
 
-        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, (self.footprint_z, self.footprint_x, self.footprint_y))}
-        self.gaussian, self.median = final_params["gaussian"], final_params["median"]
+        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, self.footprint_z, self.footprint_x, self.footprint_y)}
+        self.gaussian, self.median, self.skimage = final_params["gaussian"], final_params["median"], final_params["peaks"]
         print("final parameters from sweep: ", final_params)
