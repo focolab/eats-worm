@@ -273,14 +273,19 @@ class Extractor:
             im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
             if self.skimage:
-                footprint = np.ones(tuple((self.reg_peak_dist / np.array(self.anisotropy)).astype(int)))
-                footprint = np.ones((1, self.reg_peak_dist, self.reg_peak_dist))
-                peaks = peak_local_max(im1, footprint=footprint, num_peaks=50)
+                try:
+                    footprint = np.ones((self.skimage[1], self.skimage[2], self.skimage[3]))
+                    peaks = peak_local_max(im1, footprint=footprint, num_peaks=self.skimage[0])
+                except:
+                    print("No peak_local_max params supplied; falling back to default inference.")
+                    footprint = np.ones(tuple((self.reg_peak_dist / np.array(self.anisotropy)).astype(int)))
+                    peaks = peak_local_max(im1, footprint=footprint, num_peaks=50)
             elif self.threed:
                 peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
+                peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             else:
                 peaks = findpeaks2d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
-            peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+                peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
                 _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
