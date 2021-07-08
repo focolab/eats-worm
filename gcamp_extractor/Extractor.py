@@ -531,9 +531,9 @@ class Extractor:
         # iterate over threads, append index to threads_by_z
         for i in range(len(self.spool.threads)):
             z = int(self.spool.threads[i].positions[0,0])
-            ndx = np.where(np.array(self.frames) == z)[0][0]
+            # ndx = np.where(np.array(self.frames) == z)[0][0]
 
-            threads_by_z[ndx].append(i)
+            threads_by_z[z].append(i)
 
         return threads_by_z
 
