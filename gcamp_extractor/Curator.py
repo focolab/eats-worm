@@ -393,6 +393,19 @@ class Curator:
                 self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
             elif self.pointstate==2:
                 self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
+                if self.show_settings != 0:
+                    other_rois = []
+                    for i in range(self.viewer.layers['other rois'].data.shape[0]):
+                        roi = self.viewer.layers['other rois'].data[i]
+                        if self.curate.get(str(i))=='keep':
+                            if self.show_settings == 2:
+                                other_rois.append(roi)
+                        elif self.curate.get(str(i))=='trash':
+                            if self.show_settings == 3:
+                                other_rois.append(roi)
+                        elif self.show_settings ==1:
+                            other_rois.append(roi)
+                    self.viewer.layers['other rois'].data = np.array(other_rois)
 
         self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
         self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
@@ -513,6 +526,7 @@ class Curator:
         }
         self.show_settings = d[label]
         self.update_trace_icons()
+        self.update_figures()
 
     def set_index_prev(self):
         if self.show_settings == 0:
