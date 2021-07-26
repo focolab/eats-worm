@@ -128,6 +128,7 @@ class Spool:
         #print(matchings)
         '''
         matchings = []
+        mat_copy = np.copy(mat)
         if np.size(mat):
             for i in range(mat.shape[0]): #iterate over existing points
                 if np.min(mat[i,:]) < thresh:
@@ -142,6 +143,13 @@ class Spool:
         if matchings.any():
             unmatched = list(set(range(mat.shape[0]))-set(matchings[:,0]))
             newpoints = list(set(range(mat.shape[1]))-set(matchings[:,1]))
+            # if new point is too close to any old point, don't add!
+            bad_newpoints = []
+            for point in newpoints:
+                if np.min(mat_copy[:,point]) < thresh:
+                    bad_newpoints.append(point)
+            for bad_newpoint in bad_newpoints:
+                newpoints.remove(bad_newpoint)
         else:
             unmatched = list(range(mat.shape[0]))
             newpoints = list(range(mat.shape[1]))
