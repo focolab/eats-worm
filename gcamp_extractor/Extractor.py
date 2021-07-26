@@ -272,6 +272,7 @@ class Extractor:
             im1 = self.im.get_t()
             im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
+            im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
             if self.skimage:
                 expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                 expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
@@ -283,10 +284,10 @@ class Extractor:
                     print("No peak_local_max params supplied; falling back to default inference.")
                     peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
             elif self.threed:
-                peaks = findpeaks3d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
+                peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             else:
-                peaks = findpeaks2d(np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile))))
+                peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:

@@ -136,7 +136,10 @@ class FilterSweeper:
                     self.num_peaks = num_peaks
                     self.min_distance = min_distance
                     peaks = []
-                    for stack in stacks:
+                    filtered = viewer.layers["filter result"].data
+                    thresholded = viewer.layers["threshold result"].data
+                    processed = filtered * thresholded
+                    for stack in processed:
                         expanded_im = np.repeat(stack, self.e.anisotropy[0], axis=0)
                         expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
                         expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
