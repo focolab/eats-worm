@@ -57,15 +57,12 @@ class FilterSweeper:
             self.median_index = self.median_sizes.index(e.median)
         except:
             self.median_index = 1
-        self.num_peaks = 50
         try:
-            self.footprint_z = 3
-            self.footprint_x = e.reg_peak_dist
-            self.footprint_y = e.reg_peak_dist
+            self.num_peaks = e.skimage[0]
+            self.min_distance = e.skimage[1]
         except:
-            self.footprint_z = 3,
-            self.footprint_x = 20,
-            self.footprint_y = 20,
+            self.num_peaks = 50
+            self.min_distance = 3
 
 
     # adapted from example at https://magicgui.readthedocs.io/en/latest/examples/napari_parameter_sweep/
@@ -132,19 +129,22 @@ class FilterSweeper:
             @magicgui(
                 auto_call=True,
                 num_peaks={"widget_type": Slider, "min": 1, "max": 302},
-                footprint_z={"widget_type": Slider, "min": 1, "max": self.e.numz},
-                footprint_x={"widget_type": Slider, "min": 1, "max": 200},
-                footprint_y={"widget_type": Slider, "min": 1, "max": 200},
+                min_distance={"widget_type": Slider, "min": 1, "max": self.e.numz},
             )
-            def find_peaks(layer: Image, num_peaks: int = 50, footprint_z: int = self.footprint_z, footprint_x: int = self.footprint_x, footprint_y: int = self.footprint_y) -> napari.types.ImageData:
+            def find_peaks(layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance) -> napari.types.ImageData:
                 if layer:
                     self.num_peaks = num_peaks
-                    self.footprint_z = footprint_z
-                    self.footprint_x = footprint_x
-                    self.footprint_y = footprint_y
+                    self.min_distance = min_distance
                     peaks = []
                     for stack in stacks:
-                        peaks.append(peak_local_max(np.array(stack), footprint=np.ones((footprint_z, footprint_x, footprint_y)), num_peaks=num_peaks, indices=False))
+                        expanded_im = np.repeat(stack, self.e.anisotropy[0], axis=0)
+                        expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
+                        expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
+                        stack_peaks = peak_local_max(np.array(expanded_im), min_distance=min_distance, num_peaks=num_peaks)
+                        stack_peaks //= self.e.anisotropy
+                        stack_peak_mask = np.zeros(stack.shape, dtype=bool)
+                        stack_peak_mask[tuple(stack_peaks.T)] = True
+                        peaks.append(stack_peak_mask)
                     return np.array(peaks)
             
             viewer.window.add_dock_widget(find_peaks)
@@ -161,6 +161,6 @@ class FilterSweeper:
             viewer.layers["worm"].visible = False
                 
 
-        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, self.footprint_z, self.footprint_x, self.footprint_y)}
+        final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, self.min_distance)}
         self.gaussian, self.median, self.skimage = final_params["gaussian"], final_params["median"], final_params["peaks"]
         print("final parameters from sweep: ", final_params)
