@@ -16,6 +16,8 @@ class MultiFileTiff():
     ----------
     root : string, mandatory (can be passed as non-keyword argument)
         string representing path to folder containing the tiff files. If no tiff files exist in the root folder, will search all subdirectories for tiff files as well. Can end with '/' or not
+    output_dir : string, optional (keyword argument only)
+        string representing path to folder to use for output objects. Defaults to root. Can end with '/' or not
     offset : int, optional (keyword argument only)
         integer representing the number of frames at the beginning to throw away
     numz : int, optional (keyword argument only)
@@ -79,6 +81,13 @@ class MultiFileTiff():
         if len(self.filenames) > 1:
             self.sort_filenames()
         
+        try:
+            self.output_dir = kwargs['output_dir']
+            if self.output_dir[-1] != '/':
+                self.output_dir = self.output_dir + '/'
+        except:
+            self.output_dir = self.root
+
         ## Create TiffFile objects for each file in directory
         self.tf = []
         for i in range(len(self.filenames)):
@@ -491,7 +500,7 @@ class MultiFileTiff():
         self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
 
     def save(self, *args, **kwargs):
-        path = self.root + 'extractor-objects/mft.obj'
+        path = self.output_dir + 'extractor-objects/mft.obj'
 
         if kwargs.get('path'):
             path = kwargs['path']

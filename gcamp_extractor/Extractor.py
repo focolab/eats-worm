@@ -139,6 +139,8 @@ class Extractor:
     ---------
     root:str
         a string containing path to directory containing images to be processed
+    output_dir:str
+        a string containing path to directory to use for output. Default is root
     numz:int
         an integer of the number of frames taken per time point. Default is 10. TODO:self.get numz from image metadata processing
     frames:list
@@ -192,6 +194,12 @@ class Extractor:
         #self.root = kwargs['root']
         if self.root[-1] != '/':
             self.root += '/'
+        try:
+            self.output_dir = kwargs['output_dir']
+            if self.output_dir[-1] != '/':
+                self.output_dir += '/'
+        except:
+            self.output_dir = self.root
         try:self.numz = kwargs['numz']
         except:self.numz = 10
         try:self.numc = kwargs['numc']
@@ -235,10 +243,10 @@ class Extractor:
 
 
         self.threed = kwargs.get('3d')
-        mkdir(self.root+'extractor-objects')
+        mkdir(self.output_dir+'extractor-objects')
         
         _regen_mft = kwargs.get('regen_mft')
-        self.im = MultiFileTiff(self.root, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
+        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         #self.im.set_frames(self.frames)
         #e.imself.im.numz = self.numz
@@ -254,9 +262,9 @@ class Extractor:
         if kwargs.get('regen'):
             pass
         else:
-            mkdir(self.root+'extractor-objects')
+            mkdir(self.output_dir+'extractor-objects')
             kwargs['regen']=True
-            with open(self.root + 'extractor-objects/params.json', 'w') as json_file:
+            with open(self.output_dir + 'extractor-objects/params.json', 'w') as json_file:
                 json.dump(kwargs, json_file)
 
     def calc_blob_threads(self):
@@ -352,8 +360,8 @@ class Extractor:
 
         self.spool.make_allthreads()
         print('Saving blob timeseries as numpy object...')
-        mkdir(self.root+'extractor-objects')
-        file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
+        mkdir(self.output_dir+'extractor-objects')
+        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
@@ -388,22 +396,22 @@ class Extractor:
                 print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
 
 
-        mkdir(self.root + 'extractor-objects')
-        np.savetxt(self.root+'extractor-objects/timeseries.txt',self.timeseries)
+        mkdir(self.output_dir + 'extractor-objects')
+        np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
         print('\nSaved timeseries as text file...')
     
     def save_threads(self):
         print('Saving blob threads as pickle object...')
-        mkdir(self.root+'extractor-objects')
-        file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
+        mkdir(self.output_dir+'extractor-objects')
+        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
 
     def save_timeseries(self):
         print('Saving blob threads as pickle object...')
-        mkdir(self.root+'extractor-objects')
-        file_pi = open(self.root + 'extractor-objects/threads.obj', 'wb') 
+        mkdir(self.output_dir+'extractor-objects')
+        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
@@ -411,11 +419,11 @@ class Extractor:
 
         # if passed with no argument, save with default
         if fname == '':
-            fname = self.root + "/extractor-objects/MIP.tif"
+            fname = self.output_dir + "/extractor-objects/MIP.tif"
         
         # if just filename specified, save in extractor objects with the filename 
         elif '/' not in fname and '\\' not in fname:
-            fname = self.root + '/extractor-objects/' + fname
+            fname = self.output_dir + '/extractor-objects/' + fname
 
 
         # if the filename passed is a directory: 
