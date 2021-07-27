@@ -154,7 +154,7 @@ class Curator:
         self.numneurons = len(self.s.threads) if self.s else 0
         self.num_frames = len(self.tf.frames) if self.tf else 0
 
-        self.path = self.tf.root + 'extractor-objects/curate.json' if self.tf else None
+        self.path = self.tf.output_dir + 'extractor-objects/curate.json' if self.tf else None
         self.ind = 0
         try:
             with open(self.path) as f:
