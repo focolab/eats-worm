@@ -293,7 +293,12 @@ def peak_filter_2(data=None, params=None):
     pad = [int((x-1)/2) for x in template.shape]
     res = np.pad(res, tuple(zip(pad, pad)))
     filtered = res*np.array(res>p['threshold'])
-    return np.transpose(np.nonzero(filtered))
+    labeled_features, num_features = scipy.ndimage.label(filtered)
+    centers = []
+    for feature in range(num_features):
+        center = scipy.ndimage.center_of_mass(filtered, labels=labeled_features, index=feature)
+        centers.append(list(center))
+    return np.array(centers).astype(int)
 
 def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
     """Do filtering and peakfinding, then some extra useful things
