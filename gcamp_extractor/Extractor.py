@@ -237,9 +237,15 @@ class Extractor:
         try: self.register = kwargs['register_frames']
         except: self.register = False
         try: self.predict = kwargs['predict']
-        except: self.predict = True 
+        except: self.predict = True
         try: self.skimage = kwargs['skimage']
         except: self.skimage = False
+        try:
+            self.template = kwargs['template']
+            self.template_made = type(self.template) != bool
+        except:
+            self.template = False
+            self.template_made = False
 
 
         self.threed = kwargs.get('3d')
@@ -294,6 +300,17 @@ class Extractor:
             elif self.threed:
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+            elif self.template:
+                if not self.template_made:
+                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                    peaks = peak_local_max(expanded_im, min_distance=11, num_peaks=45)
+                    peaks //= self.anisotropy
+                    avg_3d_chunk, blobs = peakfinder(data=im1, peaks=peaks, pad=[9//dim for dim in self.anisotropy])
+                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
+                    self.template_made = True
+                peaks = peak_filter_2(data=im1,params={'template': self.template.data})
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)

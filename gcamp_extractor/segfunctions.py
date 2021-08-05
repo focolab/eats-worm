@@ -2,8 +2,11 @@
 
 import numpy as np
 import cv2
+import json
 import scipy.ndimage
+import scipy.optimize
 import scipy.spatial
+import skimage.feature
 import sys
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
@@ -273,4 +276,259 @@ def findpeaks3d(im):
 
     return centers_newway
 
+def peak_filter_2(data=None, params=None):
+    """peakfilter 2: template matching filter scheme"""
+    # handle params
+    if params is None:
+        params = {}
+    p = {'threshold':0.5, 'template':None}
+    p.update(params)
 
+    template = p.get('template', None)
+    if template is None:
+        raise Exception('template required')
+
+    # the template match result needs padding to match the original data dimensions
+    res = skimage.feature.match_template(data, template)
+    pad = [int((x-1)/2) for x in template.shape]
+    res = np.pad(res, tuple(zip(pad, pad)))
+    filtered = res*np.array(res>p['threshold'])
+    return np.transpose(np.nonzero(filtered))
+
+def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
+    """Do filtering and peakfinding, then some extra useful things
+    Parameters
+    ----------
+    filt : function
+        A function of the form ```filtered=pf(data, params)``` that takes
+        a 3D array and parameter dict and returns a filtered array (same size).
+    chunk : DataChunk
+    params : dict
+        These get passed to pf
+    pad : list/array
+        Defines bounding box around a peak by padding voxels to both sides
+    legacy : bool
+        If true, use legacy 3D peakfinding (6NN), otherwise 26NN
+    Returns
+    -------
+    out : dict
+        May be bloated, but holds extra info useful for diagnostics
+    """
+    
+    # cull out peaks for which the bounding box goes beyond data bounds
+    peaks_inbounds, blobs, bboxes = [], [], []
+    for i, x in enumerate(peaks):
+        blob = SegmentedBlob(index=i, pos=x, dims=["z","x","y"], pad=pad)
+        try:
+            chreq = blob.chreq()
+            bbox = data[chreq["z"][0]:chreq["z"][1], chreq["x"][0]:chreq["x"][1], chreq["y"][0]:chreq["y"][1]]
+            peaks_inbounds.append(x)
+            blobs.append(blob)
+            bboxes.append(bbox)
+        except:
+            pass
+
+    avg3D_chunk = np.mean([x.data for x in bboxes], axis=0)
+
+    return avg3D_chunk, blobs
+
+class BlobTemplate(object):
+    """3D blob template
+    Class for a "learned" 3D blob template, should be approximately Gaussian
+    and isotropic.
+    - holds the chunk of data
+    - handles anisotropic voxel size/spacing
+    - computes intensity profiles and Gaussian fits
+    - plots a bunch of visualizations
+    """
+    def __init__(self, data=None, scale=None, blobs=None):
+        """
+        Parameters
+        ----------
+        data: (ndarray) ndarray containing the template data
+        scale: (dict) voxel size/spacing for each dimension (in micron)
+        blobs: (list) List of SegmentedBlobs (used to derive the template)
+        """
+
+        if len(data.shape) > 4:
+            raise NotImplementedError('Color templates not yet implemented')
+
+        self.blobs = blobs
+        
+        self.data = data
+        if scale is None:
+            scale = {d:1 for d in data.shape}
+        self.scale = scale
+        
+        # compute some helpful things
+        self.chunk_center = {}
+        for dim in range(len(data.shape)):
+            self.chunk_center[dim] = np.floor(data.shape[dim]/2).astype(int)
+    
+        self.profiles_1D = self.get_1D_profiles()
+                
+    def get_1D_center_profile(self, dim=None):
+        """1D intensity profile that skewers the chunk center"""
+        if dim is None:
+            raise Exception('dim required')
+
+        slc = [slice(None)] * len(self.data.shape)
+        slc[0] = slice(self.chunk_center[0],self.chunk_center[0] + 1)
+        slc[1] = slice(self.chunk_center[1],self.chunk_center[1] + 1)
+        slc[2] = slice(self.chunk_center[2],self.chunk_center[2] + 1)
+        slc[dim] = slice(0, self.data.shape[dim])
+        return self.data[tuple(slc)].squeeze()
+        
+    def get_1D_profiles(self):
+        """Get 1D intensity profiles through center and Gaussian fits
+        """
+        chunk = self.data
+        scale = self.scale
+
+        profiles = {}
+        fits = []
+        for dim in self.chunk_center:
+            x_px = np.arange(chunk.shape[dim])-self.chunk_center[dim]
+            x_um = x_px*scale[dim]
+            val = self.get_1D_center_profile(dim=dim)
+            profiles[dim] = [x_px, x_um, val]
+
+            # gaussian fit (in pixel and micron units)
+            popt = self._gauss_fitter_1D(x_px, val)
+            cols = ['amplitude', 'mean_px', 'std_px']
+            fd = dict(zip(cols, popt))
+            fd['mean_um'] = fd['mean_px']*scale[dim] 
+            fd['std_um'] = fd['std_px']*scale[dim]
+            fits.append(fd)
+        
+        out = dict(
+            profiles=profiles
+        )
+                
+        return out
+
+    def _gaussian(self, x, amplitude, mean, stddev):
+        return amplitude * np.exp(-((x - mean) / 4 / stddev)**2)
+
+    def _gauss_fitter_1D(self, x, data):
+        """returns: amplitude, mean, std"""
+        popt, _ = scipy.optimize.curve_fit(self._gaussian, x, data)
+        return popt
+
+class SegmentedBlob(object):
+    """holds the info for a blob that has been segmented from an image(vol)
+    Right now, this is only intended to describe a blob in a static, volumetric
+    image (CZYX) and is not intended for a time varying blob (termed a thread
+    in gcamp_extractor). A more general blob/thread spec, where this is just a
+    special case, would be ideal.
+    The provenence attribute ```prov``` can 'detected', 'curated', or 'imputed'
+    The attributes ```status``` and ```index``` are not really intrinsic to a
+    blob, but are tacked on for convenience.
+    ```status``` in [-1, 0, 1] is a quick and easy way to classify a blob that
+    is (-1) marked for deletion, (0) needs checking, or (1) has passed human
+    curation. If a list of ```SegmentedBlob```s is curated in multiple
+    sessions, this status is important to preserve.
+    ```index``` is just a numerical index for sorting and, like ```status``` is
+    bound to the blob.
+    ```stash``` is not serialized or saved with a SegmentedBlob, but could be
+    used to hold temporary associated information, e.g. a pre-computed
+    bounding box DataChunk or voxel mask, during an interactive session. Such
+    a mask or masks could/should also be their own attributes.
+    """
+    def __init__(self, index=-1, pos=None, status=0, pad=[10, 10, 4], dims=['X','Y','Z'], ID='', prov='x'):
+        self.pos = pos          # position
+        self.dims = dims        # let's be explicit and not lose track of these
+        self.ID = ID            # string for the cell name
+        self.pad = pad
+        self.prov = prov        # provenence
+        self.status = status    # not well defined yet
+        self.index = index      # just an int for tracking
+        self.stash = {}         # could stash the bbox datachunk here for speed
+
+    @property
+    def posd(self):
+        """position, but in dict form so dimensions don't get twisted"""
+        return dict(zip(self.dims, self.pos))
+
+    def lower_corner(self):
+        """lower corner of the bounding box"""
+        return {d:r-p for r,p,d in zip(self.pos, self.pad, self.dims)}
+
+    def clone(self):
+        """This is mainly used to create a dummy/provisional blob in a GUI.
+        A hard copy is done so as not to be referring to another blob's
+        attributes
+        """
+        po = [x for x in self.pos]
+        pa = [x for x in self.pad]
+        di = [x for x in self.dims]
+        return SegmentedBlob(pos=po, pad=pa, dims=di, status=0, prov=self.prov)
+
+    def to_jdict(self):
+        """serialize to a json-izable dictionary"""
+        dd = dict(
+            pos=[int(x) for x in self.pos],
+            pad=[int(x) for x in self.pad],
+            dims=self.dims,
+            ID=self.ID,
+            status=int(self.status),
+            index=int(self.index),
+            prov=self.prov
+        )
+        return dd
+
+    def chreq(self, offset=None, rounding=None, pad=None):
+        """chunk request for the blob's bounding box
+        Parameters
+        ----------
+        offset : dict
+            A dictionary of index offsets for the parent DataChunk,
+            needed to correctly extract a bounding chunk from a dataset that
+            has been cropped down (i.e. a DataChunk with an offset).
+            For example, {'X': 10, 'Y':0, 'Z':4}
+        rounding : str
+            The method to round a non-integer blob center to have
+            integer coordinates (i.e. associate it with a voxel).
+            TODO: implement 'closest'
+        pad : dict
+            (optional to override the attribute)
+            Same format as offset.
+            The chunk is defined by the central voxel plus padding. i.e. the
+            interval [X-pad['X'], X+pad['X']] and the equivalent for 'Y' and
+            'Z'.
+        Returns
+        -------
+        req: dict
+            A DataChunk.subchunk request
+        Assuming that the raw data is in a DataChunk, this is a helper that
+        generates the DataChunk.subchunk() request, for a blob's bounding box.
+        TODO: make sure it does not run outside of parent box dimensions!
+        """
+        if rounding == None:
+            pos_int = self.pos
+        elif rounding == 'floor':
+            pos_int = np.floor(self.pos).astype(np.int)
+        elif rounding == 'closest':
+            raise NotImplementedError('rounding (%s) not YET implemented', 'closest')
+        else:
+            raise NotImplementedError('rounding (%s) not implemented', rounding)
+
+        if offset is None:
+            offset = {}
+
+        if pad is None:
+            pad_arr = self.pad
+        else:
+            pad_arr = [pad[k] for k in self.dims]
+
+        req = {}
+        for r,p,d in zip(pos_int, pad_arr, self.dims):
+            req[d] = (r-p-offset.get(d, 0), r+p-offset.get(d, 0)+1)
+        return req
+
+
+    def load_blobs(j=None):
+        """load blobs from json"""
+        with open(j) as jfopen:
+            data = json.load(jfopen)
+        return [SegmentedBlob(**x) for x in data]
