@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 import pdb
 import time
@@ -223,6 +224,30 @@ class Spool:
         
         return _a[_a[:,0]==z]
 
+    def to_dataframe(self, dims=None):
+        """package results to a dataframe
+
+        parameters
+        ----------
+        dims (list): Required to specify dimension order e.g. ['Z', 'Y', 'X']
+
+        returns
+        -------
+        df_out (pandas.DataFrame):
+        """
+        if dims is None:
+            raise Exception('need to pass dims e.g. [\'Z\', \'Y\', \'X\']')
+        dd = {True:'detected', False:'infilled'}
+
+        all_dataframes = []
+        for ix, th in enumerate(self.threads):
+            df = pd.DataFrame(data=th.positions, columns=dims)
+            df['T'] = th.t
+            df['prov'] = [dd[k] for k in th.found]
+            df['blob_ix'] = [ix]*len(df)
+            all_dataframes.append(df)
+        df_out = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
+        return df_out
 
 
 class Thread:

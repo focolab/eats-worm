@@ -432,6 +432,20 @@ class Extractor:
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
+    def results_as_dataframe(self):
+        ## TODO: dims should be a class attribute or accessible somewhere
+        dims = ['Z', 'Y', 'X']
+        df = self.spool.to_dataframe(dims=dims)
+        df['gce_quant'] = self.timeseries.T.ravel()
+        return df
+
+    def save_dataframe(self):
+        csv = os.path.join(self.output_dir, 'spool.csv')
+        print('Export threads+quant:', csv)
+        df = self.results_as_dataframe()
+        df.to_csv(csv, float_format='%6g')
+
+
     def save_MIP(self, fname = ''):
 
         # if passed with no argument, save with default
