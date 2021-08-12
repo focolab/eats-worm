@@ -41,7 +41,7 @@ def subaxis(im, position, window = 100):
     """
 
     z,y,x = position
-    z = int(z)
+    z = round(z)
     xmin,xmax = int(x-window//2),int(x+window//2)
     ymin,ymax = int(y-window//2),int(y+window//2)
 
@@ -431,7 +431,7 @@ class Curator:
             self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
 
         if self.timeseries is not None:
-            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(round(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
     def update_timeseries(self):
         self.timeseries_view.clear()

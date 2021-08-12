@@ -62,9 +62,9 @@ def default_quant_function(im, positions):
         z,y,x = [],[],[]
         for i in range(-3,4):
             for j in range(-3,4):
-                z.append(int(center[0]))
-                y.append(int(center[1] + j))
-                x.append(int(center[2] + i))
+                z.append(round(center[0]))
+                y.append(round(center[1] + j))
+                x.append(round(center[2] + i))
         masked = im[z,y,x]
         masked.sort()
         timeseries.append(np.mean(masked[-10:]))
@@ -336,13 +336,13 @@ class Extractor:
         imshape = tuple([len(self.frames)]) + self.im.sizexy
         def collided(positions, imshape, window = 3):
             for i in [1,2]:
-                if np.sum(positions[:,i].astype(int) < window) != 0:
+                if np.sum(np.rint(positions[:,i]).astype(int) < window) != 0:
                     return True
 
-                if np.sum(imshape[i] - positions[:,i].astype(int) < window+1) != 0:
+                if np.sum(imshape[i] - np.rint(positions[:,i]).astype(int) < window+1) != 0:
                     return True
 
-            if np.sum(positions[:,0].astype(int)<0) != 0 or np.sum(positions[:,0].astype(int) > imshape[0]-1) != 0:
+            if np.sum(np.rint(positions[:,0]).astype(int)<0) != 0 or np.sum(np.rint(positions[:,0]).astype(int) > imshape[0]-1) != 0:
                 return True
 
             #if positions[0] < 0 or int(positions[0]) == imshape[0]:
@@ -558,7 +558,7 @@ class Extractor:
 
         # iterate over threads, append index to threads_by_z
         for i in range(len(self.spool.threads)):
-            z = int(self.spool.threads[i].positions[0,0])
+            z = round(self.spool.threads[i].positions[0,0])
             # ndx = np.where(np.array(self.frames) == z)[0][0]
 
             threads_by_z[z].append(i)

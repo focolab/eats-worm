@@ -44,7 +44,7 @@ def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
 
     for i in range(len(anisotropy)):
         peaks[:,i]= peaks[:,i]/anisotropy[i]
-    return peaks.astype(int)
+    return np.rint(peaks).astype(int)
 
 
 def convAxis(im, axis, kernel):
@@ -298,7 +298,7 @@ def peak_filter_2(data=None, params=None):
     for feature in range(num_features):
         center = scipy.ndimage.center_of_mass(filtered, labels=labeled_features, index=feature)
         centers.append(list(center))
-    return np.array(centers).astype(int)
+    return np.rint(centers).astype(int)
 
 def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
     """Do filtering and peakfinding, then some extra useful things
