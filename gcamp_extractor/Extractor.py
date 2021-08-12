@@ -130,6 +130,333 @@ def load_extractor(path):
 
     return e
 
+class BlobThreadTracker_alpha():
+    """peakfinding and tracking
+
+    The aim of this class is to have the current peakfinding and tracking
+    scheme(s) implemented in a self contained manner, so that Extractor can
+    handle alternatives without growing in complexity.
+
+    """
+    def __init__(self, mft=None, t_max=None, kwargs=None):
+        """
+
+        parameters:
+        -----------
+        mft: (MultiFileTiff)
+        t_max: (int)
+            Analyze only the first `t_max` volumes
+        kwargs: (dict)
+            ALL of the parameters specific to peakfinding, tracking etc
+        """
+        ## datasource
+        self.im = mft
+
+        ## parameters
+        self.t = t_max
+        self.frames = self.im.frames
+        self.output_dir = kwargs['output_dir']
+
+        ## TODO: tighten this up
+        try:self.gaussian= kwargs['gaussian']
+        except:self.gaussian = (25,4,3,1)
+        try:self.median= kwargs['median']
+        except:self.median = 3
+        try:self.quantile= kwargs['quantile']
+        except:self.quantile = 0.99
+        try:self.reg_peak_dist= kwargs['reg_peak_dist']
+        except:self.reg_peak_dist = 40
+        try:self.anisotropy= kwargs['anisotropy']
+        except:self.anisotropy = (6,1,1)
+        try:self.blob_merge_dist_thresh= kwargs['blob_merge_dist_thresh']
+        except:self.blob_merge_dist_thresh = 6
+        try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
+        except:self.remove_blobs_dist = 20
+        #try:self.mip_movie= kwargs['mip_movie']
+        #except:self.mip_movie = True
+        #try:self.marker_movie= kwargs['marker_movie']
+        #except:self.marker_movie = True
+        try:self.suppress_output= kwargs['suppress_output']
+        except:self.suppress_output = False
+        try:self.incomplete = kwargs['incomplete']
+        except:self.incomplete = False
+        try: self.register = kwargs['register_frames']
+        except: self.register = False
+        try: self.predict = kwargs['predict']
+        except: self.predict = True
+        try: self.skimage = kwargs['skimage']
+        except: self.skimage = False
+        try:
+            self.template = kwargs['template']
+            self.template_made = type(self.template) != bool
+        except:
+            self.template = False
+            self.template_made = False
+        self.threed = kwargs.get('3d')
+
+
+        self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
+
+    def calc_blob_threads(self):
+        """
+        calculates blob threads
+
+        returns
+        -------
+        spool: (Spool)
+        """
+
+        for i in range(self.t):
+            im1 = self.im.get_t()
+            im1 = medFilter2d(im1, self.median)
+            im1 = gaussian3d(im1,self.gaussian)
+            im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
+            if self.skimage:
+                expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                try:
+                    peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
+                    peaks //= self.anisotropy
+                except:
+                    print("No peak_local_max params supplied; falling back to default inference.")
+                    peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
+            elif self.threed:
+                peaks = findpeaks3d(im1)
+                peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+            elif self.template:
+                if not self.template_made:
+                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                    peaks = peak_local_max(expanded_im, min_distance=11, num_peaks=45)
+                    peaks //= self.anisotropy
+                    avg_3d_chunk, blobs = peakfinder(data=im1, peaks=peaks, pad=[15//dim for dim in self.anisotropy])
+                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
+                    self.template_made = True
+                peaks = peak_filter_2(data=im1,params={'template': self.template.data, 'threshold': 0.7})
+            else:
+                peaks = findpeaks2d(im1)
+                peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+
+            if self.register and i!=0:
+                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+
+                _off = np.insert(_off, 0,0)
+                #peaks = peaks+ _off
+                #print(_off)
+            #print(peaks)
+                self.spool.reel(peaks,self.anisotropy, offset=_off)
+            else:
+                self.spool.reel(peaks,self.anisotropy)
+            
+            if not self.suppress_output:
+                print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+        print('\nInfilling...')
+        self.spool.infill()
+        
+        
+        
+        imshape = tuple([len(self.frames)]) + self.im.sizexy
+        def collided(positions, imshape, window = 3):
+            for i in [1,2]:
+                if np.sum(positions[:,i].astype(int) < window) != 0:
+                    return True
+
+                if np.sum(imshape[i] - positions[:,i].astype(int) < window+1) != 0:
+                    return True
+
+            if np.sum(positions[:,0].astype(int)<0) != 0 or np.sum(positions[:,0].astype(int) > imshape[0]-1) != 0:
+                return True
+
+            #if positions[0] < 0 or int(positions[0]) == imshape[0]:
+            #    return True
+            return False
+
+
+
+            #for i in range(1,len(p)):
+            #    if p[i] < window:
+            #        return True
+            #    elif s[i]-p[i] < window:
+            #       return True
+
+        print('Removing bad threads')
+        self.remove_bad_threads()
+        destroy = []
+        _a = len(self.spool.threads)
+        for i in range(_a):
+            if collided(self.spool.threads[i].positions,imshape):
+                destroy.append(i)
+            print('\r' + 'Blob Threads Checked: ' + str(i+1)+'/'+str(_a), sep='', end='', flush=True)
+        print('\n')
+        destroy = sorted(list(set(destroy)), reverse = True)
+        if destroy:
+            for item in destroy:
+                self.spool.threads.pop(item)
+
+
+        self._merge_within_z()
+
+
+        self.spool.make_allthreads()
+        print('Saving blob timeseries as numpy object...')
+        mkdir(self.output_dir+'/extractor-objects')
+        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
+        pickle.dump(self.spool, file_pi)
+        file_pi.close()
+
+        return self.spool
+
+    def remove_bad_threads(self):
+        d = np.zeros(len(self.spool.threads))
+        zd = np.zeros(len(self.spool.threads))
+        orig = len(self.spool.threads)
+        for i in range(len(self.spool.threads)):
+            dvec = np.diff(self.spool.threads[i].positions, axis = 0)
+            d[i] = np.abs(dvec).max()
+            zd[i] = np.abs(dvec[0:self.t,0]).max()
+
+        ans = d > self.remove_blobs_dist
+        ans = ans + (zd > self.remove_blobs_dist/2.5)
+    
+        throw_ndx = np.where(ans)[0]
+        throw_ndx = list(throw_ndx)
+
+        throw_ndx.sort(reverse = True)
+
+        for ndx in throw_ndx:
+            self.spool.threads.pop(int(ndx))
+        print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
+
+
+    def _merge_within_z(self):
+        # sort threads by z
+        tbyz = self._threads_by_z()
+        # calculate distance matrix list
+        dmatlist = self._calc_dist_mat_list(self._threads_by_z())
+
+        for i in range(len(dmatlist)):
+            if len(dmatlist[i]) > 1:
+                sort_mat,b,c = self._compute_serial_matrix(dmatlist[i])
+            
+    def _calc_dist_mat(self, indices):
+        """
+        Calculates distance matrix among threads with indices specified
+
+        Arguments:
+            indices : list of ints
+                list of indices corresponding to which threads are present for the distance matrix calculation
+        """
+        
+        # initialize distance matrix
+        dmat = np.zeros((len(indices), len(indices)))
+
+        # calculate dmat, non-diagonals only
+        for i in range(len(indices)):
+            for j in range(i+1, len(indices)):
+                pos1 = self.spool.threads[indices[i]].positions
+                pos2 = self.spool.threads[indices[j]].positions
+
+                dmat[i,j] = np.linalg.norm(pos1 - pos2, axis = 1).mean()
+        dmat = dmat + dmat.T
+
+        return dmat
+
+
+    def _calc_dist_mat_list(self, indices: list) -> list:
+        """
+        Calculates list of distance matrices 
+
+        Arguments:
+            e : extractor
+                extractor object
+            indices : list of list of ints
+                list of list of indices made by threads_by_z
+        """
+        # initialize dmat list
+        dmatlist = []
+
+        # iterate over z planes
+        for i in range(len(indices)):
+            dmat = self._calc_dist_mat(indices[i])
+            dmatlist.append(dmat)
+        return dmatlist
+
+
+    def _threads_by_z(self):
+        """
+        Organizes thread indices by z plane
+
+        Arguments:
+            e : extractor
+                extractor object
+        """
+
+        # make object to store thread indices corresponding to z plane
+        threads_by_z = [[] for i in self.frames]
+
+
+        # iterate over threads, append index to threads_by_z
+        for i in range(len(self.spool.threads)):
+            z = int(self.spool.threads[i].positions[0,0])
+            # ndx = np.where(np.array(self.frames) == z)[0][0]
+
+            threads_by_z[z].append(i)
+
+        return threads_by_z
+
+
+    def _seriation(self, Z,N,cur_index):
+        '''
+            input:
+                - Z is a hierarchical tree (dendrogram)
+                - N is the number of points given to the clustering process
+                - cur_index is the position in the tree for the recursive traversal
+            output:
+                - order implied by the hierarchical tree Z
+                
+            seriation computes the order implied by a hierarchical tree (dendrogram)
+        '''
+        if cur_index < N:
+            return [cur_index]
+        else:
+            left = int(Z[cur_index-N,0])
+            right = int(Z[cur_index-N,1])
+            return (self._seriation(Z,N,left) + self._seriation(Z,N,right))
+        
+    def _compute_serial_matrix(self, dist_mat,method="ward"):
+        '''
+        input:
+            - dist_mat is a distance matrix
+            - method = ["ward","single","average","complete"]
+        output:
+            - seriated_dist is the input dist_mat,
+              but with re-ordered rows and columns
+              according to the seriation, i.e. the
+              order implied by the hierarchical tree
+            - res_order is the order implied by
+              the hierarhical tree
+            - res_linkage is the hierarhical tree (dendrogram)
+        
+        compute_serial_matrix transforms a distance matrix into 
+        a sorted distance matrix according to the order implied 
+        by the hierarchical tree (dendrogram)
+        '''
+        N = len(dist_mat)
+        flat_dist_mat = squareform(dist_mat)
+        res_linkage = linkage(flat_dist_mat, method=method,preserve_input=True)
+        res_order = self._seriation(res_linkage, N, N + N-2)
+        seriated_dist = np.zeros((N,N))
+        a,b = np.triu_indices(N,k=1)
+        seriated_dist[a,b] = dist_mat[ [res_order[i] for i in a], [res_order[j] for j in b]]
+        seriated_dist[b,a] = seriated_dist[a,b]
+        
+        return seriated_dist, res_order, res_linkage
+
+
+
+
 
 class Extractor:
     """
@@ -246,11 +573,14 @@ class Extractor:
         except:
             self.template = False
             self.template_made = False
-
-
         self.threed = kwargs.get('3d')
-        mkdir(self.output_dir+'extractor-objects')
-        
+
+        self.input_kwargs = kwargs
+
+
+        os.makedirs(self.output_dir+'/extractor-objects', exist_ok=True)
+        # mkdir(self.output_dir+'extractor-objects')
+
         _regen_mft = kwargs.get('regen_mft')
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
@@ -268,10 +598,19 @@ class Extractor:
         if kwargs.get('regen'):
             pass
         else:
-            mkdir(self.output_dir+'extractor-objects')
+            mkdir(self.output_dir+'/extractor-objects')
             kwargs['regen']=True
-            with open(self.output_dir + 'extractor-objects/params.json', 'w') as json_file:
+            with open(self.output_dir + '/extractor-objects/params.json', 'w') as json_file:
                 json.dump(kwargs, json_file)
+
+    def calc_blob_threadsv2(self):
+        """to replace calc_blob_threads
+        
+        Replicates calc_blob_threads but all of the implementation logic is
+        outside of Extractor.
+        """
+        x = BlobThreadTracker_alpha(mft=self.im, t_max=self.t, kwargs=self.input_kwargs)
+        self.spool = x.calc_blob_threads()
 
     def calc_blob_threads(self):
         """
@@ -377,8 +716,8 @@ class Extractor:
 
         self.spool.make_allthreads()
         print('Saving blob timeseries as numpy object...')
-        mkdir(self.output_dir+'extractor-objects')
-        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
+        mkdir(self.output_dir+'/extractor-objects')
+        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
@@ -413,22 +752,21 @@ class Extractor:
                 print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
 
 
-        mkdir(self.output_dir + 'extractor-objects')
+        mkdir(self.output_dir + '/extractor-objects')
         np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
         print('\nSaved timeseries as text file...')
     
     def save_threads(self):
         print('Saving blob threads as pickle object...')
-        mkdir(self.output_dir+'extractor-objects')
-        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
+        mkdir(self.output_dir+'/extractor-objects')
+        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
-
     def save_timeseries(self):
         print('Saving blob threads as pickle object...')
-        mkdir(self.output_dir+'extractor-objects')
-        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
+        mkdir(self.output_dir+'/extractor-objects')
+        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
