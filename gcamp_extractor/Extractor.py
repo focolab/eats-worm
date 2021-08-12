@@ -39,7 +39,7 @@ default_arguments = {
     'regen':False,
 }
 
-def default_quant_function(im, positions):
+def default_quant_function(im, positions, numz):
     """
     Default quantification function, to be used in conjunction with the Extractor class. Takes the 10 brightest pixels in a 6x6 square around the specified position 
 
@@ -62,12 +62,14 @@ def default_quant_function(im, positions):
         z,y,x = [],[],[]
         for i in range(-3,4):
             for j in range(-3,4):
-                z.append(round(center[0]))
-                y.append(round(center[1] + j))
-                x.append(round(center[2] + i))
+                for k in range(-1,2):
+                    if 0 <= round(center[0] + k) < numz: 
+                        z.append(round(center[0] + k))
+                        y.append(round(center[1] + j))
+                        x.append(round(center[2] + i))
         masked = im[z,y,x]
         masked.sort()
-        timeseries.append(np.mean(masked[-10:]))
+        timeseries.append(np.mean(masked[-20:]))
     return timeseries
     
 def load_extractor(path):
@@ -310,7 +312,7 @@ class Extractor:
                     avg_3d_chunk, blobs = peakfinder(data=im1, peaks=peaks, pad=[15//dim for dim in self.anisotropy])
                     self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
                     self.template_made = True
-                peaks = peak_filter_2(data=im1,params={'template': self.template.data, 'threshold': 0.7})
+                peaks = peak_filter_2(data=im1,params={'template': self.template.data, 'threshold': 0.5})
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
@@ -407,7 +409,7 @@ class Extractor:
         self.im.t = 0
         self.timeseries = np.zeros((self.t,len(self.spool.threads)))
         for i in range(self.t):
-            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))])
+            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.numz)
             
             if not self.suppress_output:
                 print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
