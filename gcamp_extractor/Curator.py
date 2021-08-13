@@ -195,7 +195,7 @@ class Curator:
 
         ### initialize napari viewer
         self.viewer = napari.Viewer(ndisplay=3)
-        self.scale = [5, 1, 1]
+        self.scale = [15, 1, 1]
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
@@ -386,13 +386,13 @@ class Curator:
             self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
             self.update_imageview(self.montage_view, np.rot90(np.vstack(self.tf.get_t(self.t))), "Montage View")
         if self.s:
-            self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
+            self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)]) + 0.5
             if self.pointstate==0:
                 self.viewer.layers.data = np.empty((0, 3))
             elif self.pointstate==1:
-                self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
+                self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]) + 0.5
             elif self.pointstate==2:
-                self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t)
+                self.viewer.layers['other rois'].data = self.s.get_positions_t(self.t) + 0.5
                 if self.show_settings != 0:
                     other_rois = []
                     for i in range(self.viewer.layers['other rois'].data.shape[0]):
