@@ -142,11 +142,13 @@ class Curator:
             self.timeseries = e.timeseries
             self.tf = e.im
             self.tmax = e.t
+            self.scale = e.anisotropy
         else:
             self.tf = mft
             self.s = spool
             self.timeseries = timeseries
             self.tmax = None
+            self.scale = (15, 1, 1)
         if self.tf:
             self.tf.t = 0
         self.window = window
@@ -195,7 +197,6 @@ class Curator:
 
         ### initialize napari viewer
         self.viewer = napari.Viewer(ndisplay=3)
-        self.scale = [15, 1, 1]
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
