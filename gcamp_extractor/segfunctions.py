@@ -7,6 +7,7 @@ import scipy.ndimage
 import scipy.optimize
 import scipy.spatial
 import skimage.feature
+import skimage.segmentation
 import sys
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
@@ -288,14 +289,46 @@ def peak_filter_2(data=None, params=None):
     if template is None:
         raise Exception('template required')
 
+    anisotropy = p.get('anisotropy', np.array([15, 1, 1]))
+
     # the template match result needs padding to match the original data dimensions
     res = skimage.feature.match_template(data, template)
     pad = [int((x-1)/2) for x in template.shape]
     res = np.pad(res, tuple(zip(pad, pad)))
     filtered = res*np.array(res>p['threshold'])
     labeled_features, num_features = scipy.ndimage.label(filtered)
+    expanded_im = np.repeat(filtered, anisotropy[0], axis=0)
+    expanded_im = np.repeat(expanded_im, anisotropy[1], axis=1)
+    expanded_im = np.repeat(expanded_im, anisotropy[2], axis=2)
+    peaks = skimage.feature.peak_local_max(expanded_im, min_distance=15)
+    peaks //= anisotropy
     centers = []
-    for feature in range(num_features):
+    peak_labels = labeled_features[tuple(peaks.T)]
+    unique_peak_labels, peak_label_counts = np.unique(peak_labels, return_counts=True)
+    features = unique_peak_labels.tolist()
+    multipeak_features = unique_peak_labels[np.where(peak_label_counts > 1)]
+    for feature in multipeak_features:
+        features.remove(feature)
+        feature_peaks = peaks[np.where(peak_labels == feature)]
+        feature_masked_segmentation = np.copy(filtered)
+        feature_masked_segmentation[labeled_features != feature] = 0
+        # print(peaks)
+        # if peaks.shape[0] > 1:
+        #     print(peaks.shape)
+        #     peaks /= anisotropy
+        markers = np.zeros(feature_masked_segmentation.shape)
+        for i in range(len(feature_peaks)):
+            markers[tuple(feature_peaks[i])] = i+1
+        labels = skimage.segmentation.watershed(feature_masked_segmentation, markers=markers)
+        #     print(labels)
+        #     for label in peaks.shape[0]:
+        #         segmented_feature_only = labels
+        for label in np.unique(labels):
+            center = scipy.ndimage.center_of_mass(labels, labels=labels, index=label)
+            centers.append(list(center))
+            print("appended ",center)
+        # else:
+    for feature in features:
         center = scipy.ndimage.center_of_mass(filtered, labels=labeled_features, index=feature)
         centers.append(list(center))
     return np.rint(centers).astype(int)
