@@ -7,6 +7,7 @@ import scipy.ndimage
 import scipy.optimize
 import scipy.spatial
 import skimage.feature
+import skimage.morphology
 import sys
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
@@ -293,6 +294,11 @@ def peak_filter_2(data=None, params=None):
     pad = [int((x-1)/2) for x in template.shape]
     res = np.pad(res, tuple(zip(pad, pad)))
     filtered = res*np.array(res>p['threshold'])
+    footprint = np.zeros((3,3,3))
+    footprint[1,:,1] = 1
+    footprint[1,1,:] = 1
+    for i in range(3):
+        filtered = skimage.morphology.erosion(filtered, selem=footprint)
     labeled_features, num_features = scipy.ndimage.label(filtered)
     centers = []
     for feature in range(num_features):
