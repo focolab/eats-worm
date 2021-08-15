@@ -389,7 +389,7 @@ class Curator:
         if self.s:
             self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)]) + 0.5
             if self.pointstate==0:
-                self.viewer.layers.data = np.empty((0, 3))
+                self.viewer.layers['other rois'].data = np.empty((0, 3))
             elif self.pointstate==1:
                 self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]) + 0.5
             elif self.pointstate==2:
