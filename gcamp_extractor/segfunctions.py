@@ -300,8 +300,9 @@ def peak_filter_2(data=None, params=None):
     expanded_im = np.repeat(filtered, anisotropy[0], axis=0)
     expanded_im = np.repeat(expanded_im, anisotropy[1], axis=1)
     expanded_im = np.repeat(expanded_im, anisotropy[2], axis=2)
-    peaks = skimage.feature.peak_local_max(expanded_im, min_distance=15)
+    peaks = skimage.feature.peak_local_max(expanded_im, min_distance=13)
     peaks //= anisotropy
+    peaks = np.unique(peaks, axis=0)
     centers = []
     peak_labels = labeled_features[tuple(peaks.T)]
     unique_peak_labels, peak_label_counts = np.unique(peak_labels, return_counts=True)
@@ -319,7 +320,7 @@ def peak_filter_2(data=None, params=None):
         markers = np.zeros(feature_masked_segmentation.shape)
         for i in range(len(feature_peaks)):
             markers[tuple(feature_peaks[i])] = i+1
-        labels = skimage.segmentation.watershed(feature_masked_segmentation, markers=markers)
+        labels = skimage.segmentation.watershed(feature_masked_segmentation, markers=markers, mask=feature_masked_segmentation!=0)
         #     print(labels)
         #     for label in peaks.shape[0]:
         #         segmented_feature_only = labels
