@@ -8,6 +8,11 @@ import skimage.data
 import skimage.filters
 from skimage.feature import peak_local_max
 
+import scipy.ndimage
+from skimage._shared.coord import ensure_spacing
+import skimage.feature
+import skimage.morphology
+
 class FilterSweeper:
     """
     Provides a GUI for parameter selection for our filtering and thresholding flow and tracks selected parameter values.
@@ -129,7 +134,7 @@ class FilterSweeper:
             @magicgui(
                 auto_call=True,
                 num_peaks={"widget_type": Slider, "min": 1, "max": 302},
-                min_distance={"widget_type": Slider, "min": 1, "max": self.e.numz},
+                min_distance={"widget_type": Slider, "min": 1, "max": self.e.numz * self.e.anisotropy[0]},
             )
             def find_peaks(layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance) -> napari.types.ImageData:
                 if layer:
@@ -149,8 +154,85 @@ class FilterSweeper:
                         stack_peak_mask[tuple(stack_peaks.T)] = True
                         peaks.append(stack_peak_mask)
                     return np.array(peaks)
+
+            self.last_min_distance = None
+
+            @magicgui(
+                auto_call=True,
+                num_peaks={"widget_type": Slider, "min": 1, "max": 302},
+                min_distance={"widget_type": Slider, "min": 1, "max": self.e.numz * self.e.anisotropy[0]},
+                template_threshold={"widget_type": FloatSlider, "min": -1, "max": 1},
+                erosions={"widget_type": Slider, "min": 0, "max": 20},
+                spacing={"widget_type": Slider, "min": 1, "max": self.e.numz * self.e.anisotropy[0]},
+            )
+            def find_peaks_template(layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance, template_threshold: float = .5, erosions: int = 3, spacing: int = 9) -> napari.types.ImageData:
+                if not 'segmented' in viewer.layers:
+                    viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented", blending='additive', scale=self.e.anisotropy, visible=False)
+                    viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented thresholded", blending='additive', scale=self.e.anisotropy, visible=False)
+                    viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="eroded", blending='additive', scale=self.e.anisotropy, visible=False)
+                if layer:
+                    self.num_peaks = num_peaks
+                    self.min_distance = min_distance
+                    peaks = []
+                    filtered = viewer.layers["filter result"].data
+                    thresholded = viewer.layers["threshold result"].data
+                    processed = filtered * thresholded
+                    stack = processed[0]
+
+                    if min_distance != self.last_min_distance:
+                        expanded_im = np.repeat(stack, self.e.anisotropy[0], axis=0)
+                        expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
+                        expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
+                        peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
+                        peaks //= self.e.anisotropy
+                        avg_3d_chunk, blobs = peakfinder(data=stack, peaks=peaks, pad=[self.e.anisotropy[0]//dim for dim in self.e.anisotropy])
+                        self.template = BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')
+                        self.last_min_distance = min_distance
+
+                    # the template match result needs padding to match the original data dimensions
+                    res = skimage.feature.match_template(stack, self.template.data)
+                    pad = [int((x-1)/2) for x in self.template.data.shape]
+                    res = np.pad(res, tuple(zip(pad, pad)))
+                    viewer.layers['segmented'].data = res
+                    filtered = res*np.array(res>template_threshold)
+                    viewer.layers['segmented thresholded'].data = filtered
+                    footprint = np.zeros((3,3,3))
+                    footprint[1,:,1] = 1
+                    footprint[1,1,:] = 1
+                    eroded = np.copy(filtered)
+                    for i in range(erosions):
+                        eroded = skimage.morphology.erosion(eroded, selem=footprint)
+                    viewer.layers['eroded'].data = eroded
+                    labeled_features, num_features = scipy.ndimage.label(eroded)
+                    centers = []
+                    for feature in range(num_features):
+                        center = scipy.ndimage.center_of_mass(eroded, labels=labeled_features, index=feature)
+                        centers.append(list(center))
+
+                    centers = np.array(centers)
+                    centers = np.rint(centers[~np.isnan(centers).any(axis=1)]).astype(int)
+                    intensities = eroded[tuple(centers.T)]
+                    # Highest peak first
+                    idx_maxsort = np.argsort(-intensities)
+                    centers = centers[idx_maxsort]
+
+                    centers = ensure_spacing(centers, spacing=spacing)
+                    peaks = np.rint(centers).astype(int)
+
+                    stack_peak_mask = np.zeros(stack.shape, dtype=bool)
+                    stack_peak_mask[tuple(peaks.T)] = True
+                    return stack_peak_mask
             
-            viewer.window.add_dock_widget(find_peaks)
+            if self.e.template:
+                viewer.window.add_dock_widget(find_peaks_template)
+                viewer.layers["find_peaks_template result"].colormap = "magenta"
+                viewer.layers["find_peaks_template result"].blending = "additive"
+                viewer.layers["find_peaks_template result"].scale = self.e.anisotropy
+            else:
+                viewer.window.add_dock_widget(find_peaks)
+                viewer.layers["find_peaks result"].colormap = "magenta"
+                viewer.layers["find_peaks result"].blending = "additive"
+                viewer.layers["find_peaks result"].scale = self.e.anisotropy
             viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
             viewer.layers["threshold result"].colormap = "cyan"
             viewer.layers["threshold result"].blending = "additive"
@@ -158,9 +240,6 @@ class FilterSweeper:
             viewer.layers["threshold result"].visible = False
             viewer.layers["filter result"].blending = "additive"
             viewer.layers["filter result"].scale = self.e.anisotropy
-            viewer.layers["find_peaks result"].colormap = "magenta"
-            viewer.layers["find_peaks result"].blending = "additive"
-            viewer.layers["find_peaks result"].scale = self.e.anisotropy
             viewer.layers["worm"].visible = False
                 
 
