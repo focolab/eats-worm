@@ -307,7 +307,7 @@ class Extractor:
                     expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
-                    peaks = peak_local_max(expanded_im, min_distance=11, num_peaks=45)
+                    peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                     peaks //= self.anisotropy
                     avg_3d_chunk, blobs = peakfinder(data=im1, peaks=peaks, pad=[15//dim for dim in self.anisotropy])
                     self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')

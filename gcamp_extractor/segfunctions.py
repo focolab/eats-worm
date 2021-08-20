@@ -6,9 +6,11 @@ import json
 import scipy.ndimage
 import scipy.optimize
 import scipy.spatial
+from skimage._shared.coord import ensure_spacing
 import skimage.feature
 import skimage.morphology
 import sys
+from scipy.spatial.distance import pdist, squareform
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
     """
@@ -304,6 +306,15 @@ def peak_filter_2(data=None, params=None):
     for feature in range(num_features):
         center = scipy.ndimage.center_of_mass(filtered, labels=labeled_features, index=feature)
         centers.append(list(center))
+
+    centers = np.array(centers)
+    centers = np.rint(centers[~np.isnan(centers).any(axis=1)]).astype(int)
+    intensities = filtered[tuple(centers.T)]
+    # Highest peak first
+    idx_maxsort = np.argsort(-intensities)
+    centers = centers[idx_maxsort]
+
+    centers = ensure_spacing(centers, spacing=9)
     return np.rint(centers).astype(int)
 
 def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
