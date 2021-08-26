@@ -248,6 +248,8 @@ class Extractor:
         except:
             self.template = False
             self.template_made = False
+        try: self.peakfinding_params = kwargs['peakfinding_params']
+        except: self.peakfinding_params = {}
 
 
         self.threed = kwargs.get('3d')
@@ -307,8 +309,11 @@ class Extractor:
                     expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
-                    peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
-                    peaks //= self.anisotropy
+                    try:
+                        peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
+                    except:
+                        peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
+                        peaks //= self.anisotropy
                     chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.anisotropy])
                     avg_3d_chunk = np.mean(chunks)
                     templates = []
@@ -493,25 +498,26 @@ class Extractor:
         print('\n')
 
     def remove_bad_threads(self):
-        d = np.zeros(len(self.spool.threads))
-        zd = np.zeros(len(self.spool.threads))
-        orig = len(self.spool.threads)
-        for i in range(len(self.spool.threads)):
-            dvec = np.diff(self.spool.threads[i].positions, axis = 0)
-            d[i] = np.abs(dvec).max()
-            zd[i] = np.abs(dvec[0:self.t,0]).max()
+        if self.t > 1:
+            d = np.zeros(len(self.spool.threads))
+            zd = np.zeros(len(self.spool.threads))
+            orig = len(self.spool.threads)
+            for i in range(len(self.spool.threads)):
+                dvec = np.diff(self.spool.threads[i].positions, axis = 0)
+                d[i] = np.abs(dvec).max()
+                zd[i] = np.abs(dvec[0:self.t,0]).max()
 
-        ans = d > self.remove_blobs_dist
-        ans = ans + (zd > self.remove_blobs_dist/2.5)
-    
-        throw_ndx = np.where(ans)[0]
-        throw_ndx = list(throw_ndx)
+            ans = d > self.remove_blobs_dist
+            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
+        
+            throw_ndx = np.where(ans)[0]
+            throw_ndx = list(throw_ndx)
 
-        throw_ndx.sort(reverse = True)
+            throw_ndx.sort(reverse = True)
 
-        for ndx in throw_ndx:
-            self.spool.threads.pop(int(ndx))
-        print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
+            for ndx in throw_ndx:
+                self.spool.threads.pop(int(ndx))
+            print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
 
 
     def _merge_within_z(self):
