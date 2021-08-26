@@ -309,10 +309,33 @@ class Extractor:
                     expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
                     peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                     peaks //= self.anisotropy
-                    avg_3d_chunk, blobs = peakfinder(data=im1, peaks=peaks, pad=[15//dim for dim in self.anisotropy])
+                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.anisotropy])
+                    avg_3d_chunk = np.mean(chunks)
+                    templates = []
+                    quantiles = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
+                    for quantile in quantiles:
+                        try:
+                            templates.append(BlobTemplate(data=np.quantile(chunks, quantile, axis=0), scale=self.anisotropy, blobs='blobs'))
+                        except:
+                            pass
+                    print("Total number of computed templates: ",len(templates))
                     self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
                     self.template_made = True
-                peaks = peak_filter_2(data=im1,params={'template': self.template.data, 'threshold': 0.5})
+                peaks = None
+                for template in templates:
+                    template_peaks = peak_filter_2(data=im1,params={'template': template.data, 'threshold': 0.5})
+                    if peaks is None:
+                        peaks = template_peaks
+                    else:
+                        peaks = np.concatenate((peaks, template_peaks))
+                peak_mask = np.zeros(im1.shape, dtype=bool)
+                peak_mask[tuple(peaks.T)] = True
+                peak_masked = im1 * peak_mask
+                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                peaks = peak_local_max(expanded_im, min_distance=13)
+                peaks //= self.anisotropy
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)

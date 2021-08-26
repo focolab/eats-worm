@@ -352,7 +352,7 @@ def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
 
     avg3D_chunk = np.mean([x.data for x in bboxes], axis=0)
 
-    return avg3D_chunk, blobs
+    return np.array(bboxes), blobs
 
 class BlobTemplate(object):
     """3D blob template
