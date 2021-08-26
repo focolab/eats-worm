@@ -39,7 +39,7 @@ default_arguments = {
     'regen':False,
 }
 
-def default_quant_function(im, positions, numz):
+def default_quant_function(im, positions, frames):
     """
     Default quantification function, to be used in conjunction with the Extractor class. Takes the 10 brightest pixels in a 6x6 square around the specified position 
 
@@ -63,7 +63,7 @@ def default_quant_function(im, positions, numz):
         for i in range(-3,4):
             for j in range(-3,4):
                 for k in range(-1,2):
-                    if 0 <= round(center[0] + k) < numz: 
+                    if 0 <= round(center[0] + k) < len(frames): 
                         z.append(round(center[0] + k))
                         y.append(round(center[1] + j))
                         x.append(round(center[2] + i))
@@ -409,7 +409,7 @@ class Extractor:
         self.im.t = 0
         self.timeseries = np.zeros((self.t,len(self.spool.threads)))
         for i in range(self.t):
-            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.numz)
+            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
             
             if not self.suppress_output:
                 print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
