@@ -430,11 +430,12 @@ class BlobTemplate(object):
         return out
 
     def _gaussian(self, x, amplitude, mean, stddev):
-        return amplitude * np.exp(-((x - mean) / 4 / stddev)**2)
+        return amplitude*np.exp(-0.5*((x-mean)/stddev)**2)
 
     def _gauss_fitter_1D(self, x, data):
         """returns: amplitude, mean, std"""
         popt, _ = scipy.optimize.curve_fit(self._gaussian, x, data)
+        popt[2] = np.abs(popt[2])
         return popt
 
 class SegmentedBlob(object):
