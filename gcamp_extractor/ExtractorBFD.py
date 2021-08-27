@@ -577,8 +577,7 @@ class ExtractorBFD:
     def quantify(self, quant_function=default_quant_function):
         """generates timeseries based on calculated threads"""
         self.timeseries = quantify(mft=self.im, spool=self.spool)
-        np.savetxt(os.path.join(self.output_dir, 'timeseries.txt'), self.timeseries)
-        print('\nSaved timeseries as text file...')
+        self.save_timeseries()
 
     def save_threads(self):
         print('Saving blob threads as pickle object...')
@@ -587,10 +586,8 @@ class ExtractorBFD:
         file_pi.close()
 
     def save_timeseries(self):
-        print('Saving blob threads as pickle object...')
-        file_pi = open(os.path.join(self.output_dir, 'threads.obj'), 'wb')
-        pickle.dump(self.spool, file_pi)
-        file_pi.close()
+        print('Saving blob timeseries as text file...')
+        np.savetxt(os.path.join(self.output_dir, 'timeseries.txt'), self.timeseries)
 
     def results_as_dataframe(self):
         ## TODO: dims should be a class attribute or accessible somewhere
