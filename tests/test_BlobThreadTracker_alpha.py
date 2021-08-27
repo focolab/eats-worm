@@ -48,8 +48,13 @@ assert all(df1['X'].values == df2['X'].values)
 assert all(df1['Y'].values == df2['Y'].values)
 assert all(df1['prov'].values == df2['prov'].values)
 
+print('=======================')
 print(df1.head(10))
 print(df2.head(10))
+print('=======================')
+print(df1.tail(10))
+print(df2.tail(10))
+
 
 #e.quantify()
 #c = Curator(e)

@@ -475,10 +475,6 @@ class BlobThreadTracker_alpha():
         return seriated_dist, res_order, res_linkage
 
 
-
-
-
-
 class ExtractorBFD:
     """
     Timeseries extractor for GCaMP neuroimaging of paralyzed C. elegans. 
@@ -549,35 +545,32 @@ class ExtractorBFD:
         except:
             self.output_dir = self.root
 
-
-        self.numz = kwargs.get('numz', 10)
-        self.numc = kwargs.get('numc', 1)
-        self.frames = kwargs.get('frames', list(range(self.numz)))
-        self.offset = kwargs.get('offset', 0)
         self.t = kwargs.get('t', 0)
-        _regen_mft = kwargs.get('regen_mft')
 
         # pf_keys = [
         #     'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
         #     'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
         #     'incomplete', 'register', 'predict', 'skimage'
         #     ]
-
         self.input_kwargs = kwargs
-
 
         os.makedirs(self.output_dir+'/extractor-objects', exist_ok=True)
         # mkdir(self.output_dir+'extractor-objects')
 
-        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
+        # MFT params
+        mft_params = dict(
+            numz = kwargs.get('numz', 10),
+            numc = kwargs.get('numc', 1),
+            frames = kwargs.get('frames', list(range(kwargs.get('numz', 10)))),
+            offset = kwargs.get('offset', 0),
+            _regen_mft = kwargs.get('regen_mft')
+        )
+
+        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, **mft_params)
         self.im.save()
-        #self.im.set_frames(self.frames)
-        #e.imself.im.numz = self.numz
         self.im.t = 0
         
 
-        # if self.t==0 or self.t>(self.im.numframes-self.offset)//self.im.numz:
-        #     self.t=(self.im.numframes-self.offset)//self.im.numz
         if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
             self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
