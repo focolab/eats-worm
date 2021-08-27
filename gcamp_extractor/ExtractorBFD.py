@@ -32,8 +32,6 @@ default_arguments = {
     'anisotropy':(7,1,1),
     'blob_merge_dist_thresh':6.8,
     'remove_blobs_dist':20,
-    'mip_movie':True,
-    'marker_movie':True,
     'infill':True,
     'suppress_output':False,
     'regen':False,
@@ -210,10 +208,6 @@ class BlobThreadTracker_alpha():
         except:self.blob_merge_dist_thresh = 6
         try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
         except:self.remove_blobs_dist = 20
-        #try:self.mip_movie= kwargs['mip_movie']
-        #except:self.mip_movie = True
-        #try:self.marker_movie= kwargs['marker_movie']
-        #except:self.marker_movie = True
         try:self.suppress_output= kwargs['suppress_output']
         except:self.suppress_output = False
         try:self.incomplete = kwargs['incomplete']
@@ -592,10 +586,6 @@ class ExtractorBFD:
         except:self.blob_merge_dist_thresh = 6
         try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
         except:self.remove_blobs_dist = 20
-        try:self.mip_movie= kwargs['mip_movie']
-        except:self.mip_movie = True
-        try:self.marker_movie= kwargs['marker_movie']
-        except:self.marker_movie = True
         try:self.suppress_output= kwargs['suppress_output']
         except:self.suppress_output = False
         try:self.incomplete = kwargs['incomplete']
