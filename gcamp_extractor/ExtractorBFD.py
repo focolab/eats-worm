@@ -193,41 +193,28 @@ class BlobThreadTracker_alpha():
         self.frames = self.im.frames
         self.output_dir = kwargs['output_dir']
 
-        ## TODO: tighten this up
-        try:self.gaussian= kwargs['gaussian']
-        except:self.gaussian = (25,4,3,1)
-        try:self.median= kwargs['median']
-        except:self.median = 3
-        try:self.quantile= kwargs['quantile']
-        except:self.quantile = 0.99
-        try:self.reg_peak_dist= kwargs['reg_peak_dist']
-        except:self.reg_peak_dist = 40
-        try:self.anisotropy= kwargs['anisotropy']
-        except:self.anisotropy = (6,1,1)
-        try:self.blob_merge_dist_thresh= kwargs['blob_merge_dist_thresh']
-        except:self.blob_merge_dist_thresh = 6
-        try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
-        except:self.remove_blobs_dist = 20
-        try:self.suppress_output= kwargs['suppress_output']
-        except:self.suppress_output = False
-        try:self.incomplete = kwargs['incomplete']
-        except:self.incomplete = False
-        try: self.register = kwargs['register_frames']
-        except: self.register = False
-        try: self.predict = kwargs['predict']
-        except: self.predict = True
-        try: self.skimage = kwargs['skimage']
-        except: self.skimage = False
+        ## peakfinding/spooling parameters
+        self.gaussian = kwargs.get('gaussian', (25,4,3,1))
+        self.median = kwargs.get('median', 3)
+        self.quantile = kwargs.get('quantile', 0.99)
+        self.reg_peak_dist = kwargs.get('reg_peak_dist', 40)
+        self.anisotropy = kwargs.get('anisotropy', (6,1,1))
+        self.blob_merge_dist_thresh = kwargs.get('blob_merge_dist_thresh', 6)
+        self.remove_blobs_dist = kwargs.get('remove_blobs_dist', 20)
+        self.suppress_output = kwargs.get('suppress_output', False)
+        self.incomplete = kwargs.get('incomplete', False)
+        self.register = kwargs.get('register_frames', False)
+        self.predict = kwargs.get('predict', True)
+        self.skimage = kwargs.get('skimage', False)
+        self.threed = kwargs.get('3d', None)
         try:
             self.template = kwargs['template']
             self.template_made = type(self.template) != bool
         except:
             self.template = False
             self.template_made = False
-        self.threed = kwargs.get('3d')
 
 
-        self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
 
     def calc_blob_threads(self):
         """
@@ -237,6 +224,7 @@ class BlobThreadTracker_alpha():
         -------
         spool: (Spool)
         """
+        self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
 
         for i in range(self.t):
             im1 = self.im.get_t()
@@ -560,49 +548,20 @@ class ExtractorBFD:
                 self.output_dir += '/'
         except:
             self.output_dir = self.root
-        try:self.numz = kwargs['numz']
-        except:self.numz = 10
-        try:self.numc = kwargs['numc']
-        except:self.numc = 1
-        try:self.frames= kwargs['frames']
-        except:self.frames = list(range(self.numz))
-        try:self.offset= kwargs['offset']
-        except:self.offset = 0
-        try:self.t = kwargs['t']
-        except:self.t = 0
 
 
-        try:self.gaussian= kwargs['gaussian']
-        except:self.gaussian = (25,4,3,1)
-        try:self.median= kwargs['median']
-        except:self.median = 3
-        try:self.quantile= kwargs['quantile']
-        except:self.quantile = 0.99
-        try:self.reg_peak_dist= kwargs['reg_peak_dist']
-        except:self.reg_peak_dist = 40
-        try:self.anisotropy= kwargs['anisotropy']
-        except:self.anisotropy = (6,1,1)
-        try:self.blob_merge_dist_thresh= kwargs['blob_merge_dist_thresh']
-        except:self.blob_merge_dist_thresh = 6
-        try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
-        except:self.remove_blobs_dist = 20
-        try:self.suppress_output= kwargs['suppress_output']
-        except:self.suppress_output = False
-        try:self.incomplete = kwargs['incomplete']
-        except:self.incomplete = False 
-        try: self.register = kwargs['register_frames']
-        except: self.register = False
-        try: self.predict = kwargs['predict']
-        except: self.predict = True
-        try: self.skimage = kwargs['skimage']
-        except: self.skimage = False
-        try:
-            self.template = kwargs['template']
-            self.template_made = type(self.template) != bool
-        except:
-            self.template = False
-            self.template_made = False
-        self.threed = kwargs.get('3d')
+        self.numz = kwargs.get('numz', 10)
+        self.numc = kwargs.get('numc', 1)
+        self.frames = kwargs.get('frames', list(range(self.numz)))
+        self.offset = kwargs.get('offset', 0)
+        self.t = kwargs.get('t', 0)
+        _regen_mft = kwargs.get('regen_mft')
+
+        # pf_keys = [
+        #     'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
+        #     'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
+        #     'incomplete', 'register', 'predict', 'skimage'
+        #     ]
 
         self.input_kwargs = kwargs
 
@@ -610,7 +569,6 @@ class ExtractorBFD:
         os.makedirs(self.output_dir+'/extractor-objects', exist_ok=True)
         # mkdir(self.output_dir+'extractor-objects')
 
-        _regen_mft = kwargs.get('regen_mft')
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         #self.im.set_frames(self.frames)
@@ -618,10 +576,12 @@ class ExtractorBFD:
         self.im.t = 0
         
 
-        if self.t==0 or self.t>(self.im.numframes-self.offset)//self.im.numz:
-            self.t=(self.im.numframes-self.offset)//self.im.numz
+        # if self.t==0 or self.t>(self.im.numframes-self.offset)//self.im.numz:
+        #     self.t=(self.im.numframes-self.offset)//self.im.numz
+        if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
+            self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
-        self.spool = Spool(self.blob_merge_dist_thresh, max_t = self.t,predict = self.predict)
+
         self.timeseries = []
 
         if kwargs.get('regen'):
