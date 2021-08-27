@@ -174,14 +174,12 @@ class BlobThreadTracker_alpha():
     handle alternatives without growing in complexity.
 
     """
-    def __init__(self, mft=None, t_max=None, kwargs=None):
+    def __init__(self, mft=None, kwargs=None):
         """
 
         parameters:
         -----------
         mft: (MultiFileTiff)
-        t_max: (int)
-            Analyze only the first `t_max` volumes
         kwargs: (dict)
             ALL of the parameters specific to peakfinding, tracking etc
         """
@@ -189,7 +187,6 @@ class BlobThreadTracker_alpha():
         self.im = mft
 
         ## parameters
-        self.t = t_max
         self.frames = self.im.frames
         self.output_dir = kwargs['output_dir']
 
@@ -214,6 +211,10 @@ class BlobThreadTracker_alpha():
             self.template = False
             self.template_made = False
 
+        # self.t is a time index cutoff for partial analysis
+        self.t = kwargs.get('t', 0)
+        if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
+            self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
 
     def calc_blob_threads(self):
@@ -545,12 +546,10 @@ class ExtractorBFD:
         except:
             self.output_dir = self.root
 
-        self.t = kwargs.get('t', 0)
-
         # pf_keys = [
         #     'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
         #     'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
-        #     'incomplete', 'register', 'predict', 'skimage'
+        #     'incomplete', 'register', 'predict', 'skimage', 't'
         #     ]
         self.input_kwargs = kwargs
 
@@ -569,10 +568,6 @@ class ExtractorBFD:
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, **mft_params)
         self.im.save()
         self.im.t = 0
-        
-
-        if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
-            self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
 
         self.timeseries = []
@@ -591,7 +586,7 @@ class ExtractorBFD:
         Replicates calc_blob_threads but all of the implementation logic is
         outside of Extractor.
         """
-        x = BlobThreadTracker_alpha(mft=self.im, t_max=self.t, kwargs=self.input_kwargs)
+        x = BlobThreadTracker_alpha(mft=self.im, kwargs=self.input_kwargs)
         self.spool = x.calc_blob_threads()
 
 
