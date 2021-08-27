@@ -174,7 +174,7 @@ class BlobThreadTracker_alpha():
     handle alternatives without growing in complexity.
 
     """
-    def __init__(self, mft=None, params=None, output_dir=None):
+    def __init__(self, mft=None, params=None):
         """
 
         parameters:
@@ -182,12 +182,7 @@ class BlobThreadTracker_alpha():
         mft : (MultiFileTiff)
         params : (dict)
             ALL of the parameters specific to peakfinding, tracking etc
-        output_dir : (str)
-            (required) where to dump output files
         """
-        assert isinstance(output_dir, str)
-        self.output_dir = output_dir
-
         ## datasource
         self.im = mft
         self.frames = self.im.frames
@@ -318,16 +313,8 @@ class BlobThreadTracker_alpha():
             for item in destroy:
                 self.spool.threads.pop(item)
 
-
         self._merge_within_z()
-
-
         self.spool.make_allthreads()
-        print('Saving blob timeseries as numpy object...')
-        file_pi = open(os.path.join(self.output_dir , 'threads.obj'), 'wb')
-        pickle.dump(self.spool, file_pi)
-        file_pi.close()
-
         return self.spool
 
     def remove_bad_threads(self):
@@ -583,8 +570,9 @@ class ExtractorBFD:
         Replicates calc_blob_threads but all of the implementation logic is
         outside of Extractor.
         """
-        x = BlobThreadTracker_alpha(mft=self.im, params=self.pf_params, output_dir=self.output_dir)
+        x = BlobThreadTracker_alpha(mft=self.im, params=self.pf_params)
         self.spool = x.calc_blob_threads()
+        self.save_threads()
 
     def quantify(self, quant_function=default_quant_function):
         """generates timeseries based on calculated threads"""
