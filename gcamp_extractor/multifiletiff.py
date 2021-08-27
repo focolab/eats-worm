@@ -83,10 +83,8 @@ class MultiFileTiff():
         
         try:
             self.output_dir = kwargs['output_dir']
-            if self.output_dir[-1] != '/':
-                self.output_dir = self.output_dir + '/'
         except:
-            self.output_dir = self.root
+            self.output_dir = os.path.join(self.root, 'extractor-objects')
 
         ## Create TiffFile objects for each file in directory
         self.tf = []
@@ -500,7 +498,7 @@ class MultiFileTiff():
         self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
 
     def save(self, *args, **kwargs):
-        path = self.output_dir + 'extractor-objects/mft.obj'
+        path = os.path.join(self.output_dir, 'mft.obj')
 
         if kwargs.get('path'):
             path = kwargs['path']

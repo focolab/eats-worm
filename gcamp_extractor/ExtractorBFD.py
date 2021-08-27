@@ -174,21 +174,23 @@ class BlobThreadTracker_alpha():
     handle alternatives without growing in complexity.
 
     """
-    def __init__(self, mft=None, kwargs=None):
+    def __init__(self, mft=None, kwargs=None, output_dir=None):
         """
 
         parameters:
         -----------
-        mft: (MultiFileTiff)
-        kwargs: (dict)
+        mft : (MultiFileTiff)
+        kwargs : (dict)
             ALL of the parameters specific to peakfinding, tracking etc
+        output_dir : (str)
+            (required) where to dump output files
         """
+        assert isinstance(output_dir, str)
+        self.output_dir = output_dir
+
         ## datasource
         self.im = mft
-
-        ## parameters
         self.frames = self.im.frames
-        self.output_dir = kwargs['output_dir']
 
         ## peakfinding/spooling parameters
         self.gaussian = kwargs.get('gaussian', (25,4,3,1))
@@ -322,8 +324,7 @@ class BlobThreadTracker_alpha():
 
         self.spool.make_allthreads()
         print('Saving blob timeseries as numpy object...')
-        mkdir(self.output_dir+'/extractor-objects')
-        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
+        file_pi = open(os.path.join(self.output_dir , 'threads.obj'), 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
@@ -536,15 +537,14 @@ class ExtractorBFD:
         else:
             print('did not pass root directory')
             return 0
-        #self.root = kwargs['root']
-        if self.root[-1] != '/':
-            self.root += '/'
-        try:
-            self.output_dir = kwargs['output_dir']
-            if self.output_dir[-1] != '/':
-                self.output_dir += '/'
-        except:
-            self.output_dir = self.root
+
+        ### set up output_dir
+        if kwargs.get('output_dir') is None:
+            self.output_dir = os.path.join(self.root, 'extractor-objects')
+        else:
+            self.output_dir = os.path.join(kwargs['output_dir'], 'extractor-objects')
+        os.makedirs(self.output_dir, exist_ok=True)
+
 
         # pf_keys = [
         #     'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
@@ -553,10 +553,7 @@ class ExtractorBFD:
         #     ]
         self.input_kwargs = kwargs
 
-        os.makedirs(self.output_dir+'/extractor-objects', exist_ok=True)
-        # mkdir(self.output_dir+'extractor-objects')
-
-        # MFT params
+        ### build MultiFileTiff
         mft_params = dict(
             numz = kwargs.get('numz', 10),
             numc = kwargs.get('numc', 1),
@@ -564,7 +561,6 @@ class ExtractorBFD:
             offset = kwargs.get('offset', 0),
             _regen_mft = kwargs.get('regen_mft')
         )
-
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, **mft_params)
         self.im.save()
         self.im.t = 0
@@ -575,9 +571,8 @@ class ExtractorBFD:
         if kwargs.get('regen'):
             pass
         else:
-            mkdir(self.output_dir+'/extractor-objects')
             kwargs['regen']=True
-            with open(self.output_dir + '/extractor-objects/params.json', 'w') as json_file:
+            with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
                 json.dump(kwargs, json_file)
 
     def calc_blob_threadsv2(self):
@@ -586,29 +581,29 @@ class ExtractorBFD:
         Replicates calc_blob_threads but all of the implementation logic is
         outside of Extractor.
         """
-        x = BlobThreadTracker_alpha(mft=self.im, kwargs=self.input_kwargs)
+        x = BlobThreadTracker_alpha(
+            mft=self.im,
+            kwargs=self.input_kwargs,
+            output_dir=self.output_dir
+            )
         self.spool = x.calc_blob_threads()
 
 
     def quantify(self, quant_function=default_quant_function):
         """generates timeseries based on calculated threads"""
         self.timeseries = quantify(mft=self.im, spool=self.spool)
-
-        mkdir(self.output_dir + '/extractor-objects')
-        np.savetxt(self.output_dir+'extractor-objects/timeseries.txt', self.timeseries)
+        np.savetxt(os.path.join(self.output_dir, 'timeseries.txt'), self.timeseries)
         print('\nSaved timeseries as text file...')
 
     def save_threads(self):
         print('Saving blob threads as pickle object...')
-        mkdir(self.output_dir+'/extractor-objects')
-        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
+        file_pi = open(os.path.join(self.output_dir, 'threads.obj'), 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
     def save_timeseries(self):
         print('Saving blob threads as pickle object...')
-        mkdir(self.output_dir+'/extractor-objects')
-        file_pi = open(self.output_dir + '/extractor-objects/threads.obj', 'wb')
+        file_pi = open(os.path.join(self.output_dir, 'threads.obj'), 'wb')
         pickle.dump(self.spool, file_pi)
         file_pi.close()
 
@@ -629,11 +624,11 @@ class ExtractorBFD:
 
         # if passed with no argument, save with default
         if fname == '':
-            fname = self.output_dir + "/extractor-objects/MIP.tif"
+            fname = os.path.join(self.output_dir, 'MIP.tif')
         
         # if just filename specified, save in extractor objects with the filename 
         elif '/' not in fname and '\\' not in fname:
-            fname = self.output_dir + '/extractor-objects/' + fname
+            fname = os.path.join(self.output_dir, fname)
 
 
         # if the filename passed is a directory: 
@@ -659,152 +654,3 @@ class ExtractorBFD:
                 print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
 
         print('\n')
-
-    # def remove_bad_threads(self):
-    #     d = np.zeros(len(self.spool.threads))
-    #     zd = np.zeros(len(self.spool.threads))
-    #     orig = len(self.spool.threads)
-    #     for i in range(len(self.spool.threads)):
-    #         dvec = np.diff(self.spool.threads[i].positions, axis = 0)
-    #         d[i] = np.abs(dvec).max()
-    #         zd[i] = np.abs(dvec[0:self.t,0]).max()
-
-    #     ans = d > self.remove_blobs_dist
-    #     ans = ans + (zd > self.remove_blobs_dist/2.5)
-    
-    #     throw_ndx = np.where(ans)[0]
-    #     throw_ndx = list(throw_ndx)
-
-    #     throw_ndx.sort(reverse = True)
-
-    #     for ndx in throw_ndx:
-    #         self.spool.threads.pop(int(ndx))
-    #     print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
-
-
-    # def _merge_within_z(self):
-    #     # sort threads by z
-    #     tbyz = self._threads_by_z()
-    #     # calculate distance matrix list
-    #     dmatlist = self._calc_dist_mat_list(self._threads_by_z())
-
-    #     for i in range(len(dmatlist)):
-    #         if len(dmatlist[i]) > 1:
-    #             sort_mat,b,c = self._compute_serial_matrix(dmatlist[i])
-            
-    # def _calc_dist_mat(self, indices):
-    #     """
-    #     Calculates distance matrix among threads with indices specified
-
-    #     Arguments:
-    #         indices : list of ints
-    #             list of indices corresponding to which threads are present for the distance matrix calculation
-    #     """
-        
-    #     # initialize distance matrix
-    #     dmat = np.zeros((len(indices), len(indices)))
-
-    #     # calculate dmat, non-diagonals only
-    #     for i in range(len(indices)):
-    #         for j in range(i+1, len(indices)):
-    #             pos1 = self.spool.threads[indices[i]].positions
-    #             pos2 = self.spool.threads[indices[j]].positions
-
-    #             dmat[i,j] = np.linalg.norm(pos1 - pos2, axis = 1).mean()
-    #     dmat = dmat + dmat.T
-
-    #     return dmat
-
-
-    # def _calc_dist_mat_list(self, indices: list) -> list:
-    #     """
-    #     Calculates list of distance matrices 
-
-    #     Arguments:
-    #         e : extractor
-    #             extractor object
-    #         indices : list of list of ints
-    #             list of list of indices made by threads_by_z
-    #     """
-    #     # initialize dmat list
-    #     dmatlist = []
-
-    #     # iterate over z planes
-    #     for i in range(len(indices)):
-    #         dmat = self._calc_dist_mat(indices[i])
-    #         dmatlist.append(dmat)
-    #     return dmatlist
-
-
-    # def _threads_by_z(self):
-    #     """
-    #     Organizes thread indices by z plane
-
-    #     Arguments:
-    #         e : extractor
-    #             extractor object
-    #     """
-
-    #     # make object to store thread indices corresponding to z plane
-    #     threads_by_z = [[] for i in self.frames]
-
-
-    #     # iterate over threads, append index to threads_by_z
-    #     for i in range(len(self.spool.threads)):
-    #         z = int(self.spool.threads[i].positions[0,0])
-    #         # ndx = np.where(np.array(self.frames) == z)[0][0]
-
-    #         threads_by_z[z].append(i)
-
-    #     return threads_by_z
-
-
-    # def _seriation(self, Z,N,cur_index):
-    #     '''
-    #         input:
-    #             - Z is a hierarchical tree (dendrogram)
-    #             - N is the number of points given to the clustering process
-    #             - cur_index is the position in the tree for the recursive traversal
-    #         output:
-    #             - order implied by the hierarchical tree Z
-                
-    #         seriation computes the order implied by a hierarchical tree (dendrogram)
-    #     '''
-    #     if cur_index < N:
-    #         return [cur_index]
-    #     else:
-    #         left = int(Z[cur_index-N,0])
-    #         right = int(Z[cur_index-N,1])
-    #         return (self._seriation(Z,N,left) + self._seriation(Z,N,right))
-        
-    # def _compute_serial_matrix(self, dist_mat,method="ward"):
-    #     '''
-    #     input:
-    #         - dist_mat is a distance matrix
-    #         - method = ["ward","single","average","complete"]
-    #     output:
-    #         - seriated_dist is the input dist_mat,
-    #           but with re-ordered rows and columns
-    #           according to the seriation, i.e. the
-    #           order implied by the hierarchical tree
-    #         - res_order is the order implied by
-    #           the hierarhical tree
-    #         - res_linkage is the hierarhical tree (dendrogram)
-        
-    #     compute_serial_matrix transforms a distance matrix into 
-    #     a sorted distance matrix according to the order implied 
-    #     by the hierarchical tree (dendrogram)
-    #     '''
-    #     N = len(dist_mat)
-    #     flat_dist_mat = squareform(dist_mat)
-    #     res_linkage = linkage(flat_dist_mat, method=method,preserve_input=True)
-    #     res_order = self._seriation(res_linkage, N, N + N-2)
-    #     seriated_dist = np.zeros((N,N))
-    #     a,b = np.triu_indices(N,k=1)
-    #     seriated_dist[a,b] = dist_mat[ [res_order[i] for i in a], [res_order[j] for j in b]]
-    #     seriated_dist[b,a] = seriated_dist[a,b]
-        
-    #     return seriated_dist, res_order, res_linkage
-
-
-
