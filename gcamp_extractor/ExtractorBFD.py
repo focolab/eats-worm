@@ -174,13 +174,13 @@ class BlobThreadTracker_alpha():
     handle alternatives without growing in complexity.
 
     """
-    def __init__(self, mft=None, kwargs=None, output_dir=None):
+    def __init__(self, mft=None, params=None, output_dir=None):
         """
 
         parameters:
         -----------
         mft : (MultiFileTiff)
-        kwargs : (dict)
+        params : (dict)
             ALL of the parameters specific to peakfinding, tracking etc
         output_dir : (str)
             (required) where to dump output files
@@ -193,28 +193,28 @@ class BlobThreadTracker_alpha():
         self.frames = self.im.frames
 
         ## peakfinding/spooling parameters
-        self.gaussian = kwargs.get('gaussian', (25,4,3,1))
-        self.median = kwargs.get('median', 3)
-        self.quantile = kwargs.get('quantile', 0.99)
-        self.reg_peak_dist = kwargs.get('reg_peak_dist', 40)
-        self.anisotropy = kwargs.get('anisotropy', (6,1,1))
-        self.blob_merge_dist_thresh = kwargs.get('blob_merge_dist_thresh', 6)
-        self.remove_blobs_dist = kwargs.get('remove_blobs_dist', 20)
-        self.suppress_output = kwargs.get('suppress_output', False)
-        self.incomplete = kwargs.get('incomplete', False)
-        self.register = kwargs.get('register_frames', False)
-        self.predict = kwargs.get('predict', True)
-        self.skimage = kwargs.get('skimage', False)
-        self.threed = kwargs.get('3d', None)
+        self.gaussian = params.get('gaussian', (25,4,3,1))
+        self.median = params.get('median', 3)
+        self.quantile = params.get('quantile', 0.99)
+        self.reg_peak_dist = params.get('reg_peak_dist', 40)
+        self.anisotropy = params.get('anisotropy', (6,1,1))
+        self.blob_merge_dist_thresh = params.get('blob_merge_dist_thresh', 6)
+        self.remove_blobs_dist = params.get('remove_blobs_dist', 20)
+        self.suppress_output = params.get('suppress_output', False)
+        self.incomplete = params.get('incomplete', False)
+        self.register = params.get('register_frames', False)
+        self.predict = params.get('predict', True)
+        self.skimage = params.get('skimage', False)
+        self.threed = params.get('3d', None)
         try:
-            self.template = kwargs['template']
+            self.template = params['template']
             self.template_made = type(self.template) != bool
         except:
             self.template = False
             self.template_made = False
 
         # self.t is a time index cutoff for partial analysis
-        self.t = kwargs.get('t', 0)
+        self.t = params.get('t', 0)
         if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
             self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
@@ -545,15 +545,19 @@ class ExtractorBFD:
             self.output_dir = os.path.join(kwargs['output_dir'], 'extractor-objects')
         os.makedirs(self.output_dir, exist_ok=True)
 
+        ### Make a dictionary of only the peakfinding parameters
+        ### TODO: Extractor should require a pf_params dict
+        pf_keys_all = [
+            'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
+            'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
+            'incomplete', 'register_frames', 'predict', 'skimage', 't',
+            'template', 'template_made', '3d'
+            ]
+        pf_keys = [k for k in pf_keys_all if k in list(kwargs.keys())]
+        self.pf_params = {k:kwargs[k] for k in pf_keys}
 
-        # pf_keys = [
-        #     'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
-        #     'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
-        #     'incomplete', 'register', 'predict', 'skimage', 't'
-        #     ]
-        self.input_kwargs = kwargs
-
-        ### build MultiFileTiff
+        ### Build MultiFileTiff
+        ### TODO: Extractor should require a mft_params dict
         mft_params = dict(
             numz = kwargs.get('numz', 10),
             numc = kwargs.get('numc', 1),
@@ -565,9 +569,7 @@ class ExtractorBFD:
         self.im.save()
         self.im.t = 0
 
-
-        self.timeseries = []
-
+        ### Dump a record of input parameters
         if kwargs.get('regen'):
             pass
         else:
@@ -581,13 +583,8 @@ class ExtractorBFD:
         Replicates calc_blob_threads but all of the implementation logic is
         outside of Extractor.
         """
-        x = BlobThreadTracker_alpha(
-            mft=self.im,
-            kwargs=self.input_kwargs,
-            output_dir=self.output_dir
-            )
+        x = BlobThreadTracker_alpha(mft=self.im, params=self.pf_params, output_dir=self.output_dir)
         self.spool = x.calc_blob_threads()
-
 
     def quantify(self, quant_function=default_quant_function):
         """generates timeseries based on calculated threads"""
