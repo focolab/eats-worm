@@ -55,7 +55,6 @@ def default_quant_function(im, positions):
     activity: list
         list of quantifications corresponding to the positions specified
     """
-    
     timeseries = []
     for i in range(len(positions)):
         center = positions[i]
@@ -69,6 +68,45 @@ def default_quant_function(im, positions):
         masked.sort()
         timeseries.append(np.mean(masked[-10:]))
     return timeseries
+
+def quantify(mft=None, spool=None, quant_function=default_quant_function, suppress_output=False):
+    """
+    generates timeseries based on calculated threads. 
+
+    Parameters
+    ----------
+    quant_function : function
+        function that takes in a list of positions/pixel indices, and returns a
+        list of floats that describe neuronal activity. A default
+        quantification function is included. It takes the 10 brightest pixels
+        in a 6x6 square around the position and averages them. 
+
+        Parameters
+        ----------
+        im : numpy array
+            an N (=3) dimensional numpy array of an image volume taken at some time point
+        positions : list
+            a list of positions/pixel indices of found centers
+
+        Returns
+        -------
+        activity : list
+            list of floats representing neuronal activity. should be returned in the same order as positions, i.e. activity[0] corresponds to positions[0]
+
+    """
+    mft.t = 0
+    num_threads = len(spool.threads)
+    num_t = spool.t
+
+    timeseries = np.zeros((num_t,len(spool.threads)))
+    for i in range(num_t):
+        timeseries[i] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in range(len(spool.threads))])
+
+        if not suppress_output:
+            print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
+
+    return timeseries
+
 
 def load_extractor(path):
     """
@@ -457,40 +495,7 @@ class BlobThreadTracker_alpha():
 
 
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, suppress_output=False):
-    """
-    generates timeseries based on calculated threads. 
 
-    Parameters
-    ----------
-    quant_function : function
-        function that takes in a list of positions/pixel indices, and returns a list of floats that describe neuronal activity. A default quantification function is included. It takes the 10 brightest pixels in a 6x6 square around the position and averages them. 
-
-        Parameters
-        ----------
-        im : numpy array
-            an N (=3) dimensional numpy array of an image volume taken at some time point
-        positions : list
-            a list of positions/pixel indices of found centers
-
-        Returns
-        -------
-        activity : list
-            list of floats representing neuronal activity. should be returned in the same order as positions, i.e. activity[0] corresponds to positions[0]
-
-    """
-    mft.t = 0
-    num_threads = len(spool.threads)
-    num_t = spool.t
-
-    timeseries = np.zeros((num_t,len(spool.threads)))
-    for i in range(num_t):
-        timeseries[i] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in range(len(spool.threads))])
-        
-        if not suppress_output:
-            print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
-
-    return timeseries
 
 class ExtractorBFD:
     """
