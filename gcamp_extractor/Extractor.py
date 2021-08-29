@@ -8,9 +8,6 @@ import pickle
 import os
 from .multifiletiff import *
 from .segfunctions import *
-def mkdir(path):
-    try: os.mkdir(path)
-    except: pass
 import glob
 import json
 import imreg_dft as ird
@@ -108,21 +105,6 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, suppre
     print('\r')
 
     return timeseries
-
-
-    # self.im.t = 0
-    # self.timeseries = np.zeros((self.t,len(self.spool.threads)))
-    # for i in range(self.t):
-    #     self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
-        
-    #     if not self.suppress_output:
-    #         print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
-
-
-    # mkdir(self.output_dir + 'extractor-objects')
-    # np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
-    # print('\nSaved timeseries as text file...')
-    
 
 
 def load_extractor(path):
@@ -236,7 +218,7 @@ class Extractor:
 
     """
 
-    def __init__(self,*args, **kwargs):
+    def __init__(self, *args, **kwargs):
 
         ### Specifying all parameters, and filling in initial values if they weren't passed
         if len(args)!=0:
@@ -540,42 +522,6 @@ class BlobThreadTracker_alpha():
         self._merge_within_z()
         self.spool.make_allthreads()
         return self.spool
-
-    # def quantify(self, quant_function=default_quant_function):
-    #     """
-    #     generates timeseries based on calculated threads. 
-
-    #     Parameters
-    #     ----------
-    #     quant_function : function
-    #         function that takes in a list of positions/pixel indices, and returns a list of floats that describe neuronal activity. A default quantification function is included. It takes the 10 brightest pixels in a 6x6 square around the position and averages them. 
-
-    #         Parameters
-    #         ----------
-    #         im : numpy array
-    #             an N (=3) dimensional numpy array of an image volume taken at some time point
-    #         positions : list
-    #             a list of positions/pixel indices of found centers
-
-    #         Returns
-    #         -------
-    #         activity : list
-    #             list of floats representing neuronal activity. should be returned in the same order as positions, i.e. activity[0] corresponds to positions[0]
-
-    #     """
-    #     self.im.t = 0
-    #     self.timeseries = np.zeros((self.t,len(self.spool.threads)))
-    #     for i in range(self.t):
-    #         self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
-            
-    #         if not self.suppress_output:
-    #             print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
-
-
-    #     mkdir(self.output_dir + 'extractor-objects')
-    #     np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
-    #     print('\nSaved timeseries as text file...')
-    
 
     def remove_bad_threads(self):
         if self.t > 1:
