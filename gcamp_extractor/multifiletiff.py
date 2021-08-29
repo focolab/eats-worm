@@ -113,6 +113,7 @@ class MultiFileTiff():
                 self.frames = mft.frames
                 self.sizexy = mft.sizexy
                 self.numframes = mft.numframes
+                self.anisotropy = mft.anisotropy
                 del mft
             else:
                 print('loading file at: '+l[ndx[0]])
@@ -126,6 +127,7 @@ class MultiFileTiff():
                 self.frames = mft.frames
                 self.sizexy = mft.sizexy
                 self.numframes = mft.numframes
+                self.anisotropy = mft.anisotropy
                 del mft
 
         else:
@@ -140,6 +142,7 @@ class MultiFileTiff():
                 self.lens[index] = length
         self.numframes = np.sum(self.lens)
 
+        self.anisotropy = kwargs.get('anisotropy', [6, 1, 1])
 
         # Process inputs for numz and frames
         self.numz = 10
@@ -521,6 +524,7 @@ class minimal_mft:
         self.frames = mft.frames
         self.sizexy = mft.sizexy
         self.numframes = mft.numframes
+        self.anisotropy = mft.anisotropy
 '''
 
 from multifiletiff import *

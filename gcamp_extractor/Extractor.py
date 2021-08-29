@@ -240,7 +240,7 @@ class Extractor:
         ### Make a dictionary of only the peakfinding parameters
         ### TODO: Extractor should require a pf_params dict
         pf_keys_all = [
-            'gaussian', 'median', 'quantile', 'reg_peak_dist', 'anisotropy',
+            'gaussian', 'median', 'quantile', 'reg_peak_dist',
             'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
             'incomplete', 'register_frames', 'predict', 'skimage', 't',
             'template', 'template_made', '3d'
@@ -255,7 +255,8 @@ class Extractor:
             numc = kwargs.get('numc', 1),
             frames = kwargs.get('frames', list(range(kwargs.get('numz', 10)))),
             offset = kwargs.get('offset', 0),
-            _regen_mft = kwargs.get('regen_mft')
+            _regen_mft = kwargs.get('regen_mft'),
+            anisotropy = kwargs.get('anisotropy')
         )
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, **mft_params)
         self.im.save()
@@ -372,7 +373,6 @@ class BlobThreadTracker_alpha():
         self.median = params.get('median', 3)
         self.quantile = params.get('quantile', 0.99)
         self.reg_peak_dist = params.get('reg_peak_dist', 40)
-        self.anisotropy = params.get('anisotropy', (6,1,1))
         self.blob_merge_dist_thresh = params.get('blob_merge_dist_thresh', 6)
         self.remove_blobs_dist = params.get('remove_blobs_dist', 20)
         self.suppress_output = params.get('suppress_output', False)
@@ -410,12 +410,12 @@ class BlobThreadTracker_alpha():
             im1 = gaussian3d(im1,self.gaussian)
             im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
             if self.skimage:
-                expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 try:
                     peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
-                    peaks //= self.anisotropy
+                    peaks //= self.im.anisotropy
                 except:
                     print("No peak_local_max params supplied; falling back to default inference.")
                     peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
@@ -424,25 +424,25 @@ class BlobThreadTracker_alpha():
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             elif self.template:
                 if not self.template_made:
-                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
-                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                    expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                     try:
                         peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
-                        peaks //= self.anisotropy
-                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.anisotropy])
+                        peaks //= self.im.anisotropy
+                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.im.anisotropy])
                     avg_3d_chunk = np.mean(chunks)
                     templates = []
                     quantiles = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
                     for quantile in quantiles:
                         try:
-                            templates.append(BlobTemplate(data=np.quantile(chunks, quantile, axis=0), scale=self.anisotropy, blobs='blobs'))
+                            templates.append(BlobTemplate(data=np.quantile(chunks, quantile, axis=0), scale=self.im.anisotropy, blobs='blobs'))
                         except:
                             pass
                     print("Total number of computed templates: ",len(templates))
-                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
+                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.im.anisotropy, blobs='blobs')
                     self.template_made = True
                 peaks = None
                 for template in templates:
@@ -454,11 +454,11 @@ class BlobThreadTracker_alpha():
                 peak_mask = np.zeros(im1.shape, dtype=bool)
                 peak_mask[tuple(peaks.T)] = True
                 peak_masked = im1 * peak_mask
-                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 peaks = peak_local_max(expanded_im, min_distance=13)
-                peaks //= self.anisotropy
+                peaks //= self.im.anisotropy
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
@@ -470,9 +470,9 @@ class BlobThreadTracker_alpha():
                 #peaks = peaks+ _off
                 #print(_off)
             #print(peaks)
-                self.spool.reel(peaks,self.anisotropy, offset=_off)
+                self.spool.reel(peaks,self.im.anisotropy, offset=_off)
             else:
-                self.spool.reel(peaks,self.anisotropy)
+                self.spool.reel(peaks,self.im.anisotropy)
             
             if not self.suppress_output:
                 print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
@@ -534,7 +534,7 @@ class BlobThreadTracker_alpha():
                 zd[i] = np.abs(dvec[0:self.t,0]).max()
 
             ans = d > self.remove_blobs_dist
-            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
+            ans = ans + (zd > self.remove_blobs_dist/self.im.anisotropy[0])
         
             throw_ndx = np.where(ans)[0]
             throw_ndx = list(throw_ndx)
