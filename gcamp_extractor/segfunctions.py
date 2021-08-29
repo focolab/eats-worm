@@ -6,8 +6,11 @@ import json
 import scipy.ndimage
 import scipy.optimize
 import scipy.spatial
+from skimage._shared.coord import ensure_spacing
 import skimage.feature
+import skimage.morphology
 import sys
+from scipy.spatial.distance import pdist, squareform
 
 def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
     """
@@ -44,7 +47,7 @@ def reg_peaks(im, peaks, thresh = 36, anisotropy = (6,1,1)):
 
     for i in range(len(anisotropy)):
         peaks[:,i]= peaks[:,i]/anisotropy[i]
-    return peaks.astype(int)
+    return np.rint(peaks).astype(int)
 
 
 def convAxis(im, axis, kernel):
@@ -293,12 +296,26 @@ def peak_filter_2(data=None, params=None):
     pad = [int((x-1)/2) for x in template.shape]
     res = np.pad(res, tuple(zip(pad, pad)))
     filtered = res*np.array(res>p['threshold'])
+    footprint = np.zeros((3,3,3))
+    footprint[1,:,1] = 1
+    footprint[1,1,:] = 1
+    for i in range(3):
+        filtered = skimage.morphology.erosion(filtered, selem=footprint)
     labeled_features, num_features = scipy.ndimage.label(filtered)
     centers = []
     for feature in range(num_features):
         center = scipy.ndimage.center_of_mass(filtered, labels=labeled_features, index=feature)
         centers.append(list(center))
-    return np.array(centers).astype(int)
+
+    centers = np.array(centers)
+    centers = np.rint(centers[~np.isnan(centers).any(axis=1)]).astype(int)
+    intensities = filtered[tuple(centers.T)]
+    # Highest peak first
+    idx_maxsort = np.argsort(-intensities)
+    centers = centers[idx_maxsort]
+
+    centers = ensure_spacing(centers, spacing=9)
+    return np.rint(centers).astype(int)
 
 def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
     """Do filtering and peakfinding, then some extra useful things
@@ -335,7 +352,7 @@ def peakfinder(data=None, peaks=None, params=None, pad=None, legacy=False):
 
     avg3D_chunk = np.mean([x.data for x in bboxes], axis=0)
 
-    return avg3D_chunk, blobs
+    return np.array(bboxes), blobs
 
 class BlobTemplate(object):
     """3D blob template
@@ -413,11 +430,12 @@ class BlobTemplate(object):
         return out
 
     def _gaussian(self, x, amplitude, mean, stddev):
-        return amplitude * np.exp(-((x - mean) / 4 / stddev)**2)
+        return amplitude*np.exp(-0.5*((x-mean)/stddev)**2)
 
     def _gauss_fitter_1D(self, x, data):
         """returns: amplitude, mean, std"""
         popt, _ = scipy.optimize.curve_fit(self._gaussian, x, data)
+        popt[2] = np.abs(popt[2])
         return popt
 
 class SegmentedBlob(object):

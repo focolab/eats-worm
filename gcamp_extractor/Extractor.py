@@ -37,7 +37,7 @@ default_arguments = {
     'regen':False,
 }
 
-def default_quant_function(im, positions):
+def default_quant_function(im, positions, frames):
     """
     Default quantification function, to be used in conjunction with the Extractor class. Takes the 10 brightest pixels in a 6x6 square around the specified position 
 
@@ -59,12 +59,14 @@ def default_quant_function(im, positions):
         z,y,x = [],[],[]
         for i in range(-3,4):
             for j in range(-3,4):
-                z.append(int(center[0]))
-                y.append(int(center[1] + j))
-                x.append(int(center[2] + i))
+                for k in range(-1,2):
+                    if 0 <= round(center[0] + k) < len(frames): 
+                        z.append(round(center[0] + k))
+                        y.append(round(center[1] + j))
+                        x.append(round(center[2] + i))
         masked = im[z,y,x]
         masked.sort()
-        timeseries.append(np.mean(masked[-10:]))
+        timeseries.append(np.mean(masked[-20:]))
     return timeseries
 
 def quantify(mft=None, spool=None, quant_function=default_quant_function, suppress_output=False):
@@ -98,7 +100,7 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, suppre
 
     timeseries = np.zeros((num_t,len(spool.threads)))
     for i in range(num_t):
-        timeseries[i] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in range(len(spool.threads))])
+        timeseries[i] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in range(len(spool.threads))], mft.frames)
 
         if not suppress_output:
             print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
@@ -106,6 +108,21 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, suppre
     print('\r')
 
     return timeseries
+
+
+    # self.im.t = 0
+    # self.timeseries = np.zeros((self.t,len(self.spool.threads)))
+    # for i in range(self.t):
+    #     self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
+        
+    #     if not self.suppress_output:
+    #         print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
+
+    # mkdir(self.output_dir + 'extractor-objects')
+    # np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
+    # print('\nSaved timeseries as text file...')
+    
 
 
 def load_extractor(path):
@@ -428,12 +445,38 @@ class BlobThreadTracker_alpha():
                     expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
-                    peaks = peak_local_max(expanded_im, min_distance=11, num_peaks=45)
-                    peaks //= self.anisotropy
-                    avg_3d_chunk, blobs = peakfinder(data=im1, peaks=peaks, pad=[15//dim for dim in self.anisotropy])
+                    try:
+                        peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
+                    except:
+                        peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
+                        peaks //= self.anisotropy
+                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.anisotropy])
+                    avg_3d_chunk = np.mean(chunks)
+                    templates = []
+                    quantiles = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
+                    for quantile in quantiles:
+                        try:
+                            templates.append(BlobTemplate(data=np.quantile(chunks, quantile, axis=0), scale=self.anisotropy, blobs='blobs'))
+                        except:
+                            pass
+                    print("Total number of computed templates: ",len(templates))
                     self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
                     self.template_made = True
-                peaks = peak_filter_2(data=im1,params={'template': self.template.data, 'threshold': 0.7})
+                peaks = None
+                for template in templates:
+                    template_peaks = peak_filter_2(data=im1,params={'template': template.data, 'threshold': 0.5})
+                    if peaks is None:
+                        peaks = template_peaks
+                    else:
+                        peaks = np.concatenate((peaks, template_peaks))
+                peak_mask = np.zeros(im1.shape, dtype=bool)
+                peak_mask[tuple(peaks.T)] = True
+                peak_masked = im1 * peak_mask
+                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                peaks = peak_local_max(expanded_im, min_distance=13)
+                peaks //= self.anisotropy
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
@@ -459,13 +502,13 @@ class BlobThreadTracker_alpha():
         imshape = tuple([len(self.frames)]) + self.im.sizexy
         def collided(positions, imshape, window = 3):
             for i in [1,2]:
-                if np.sum(positions[:,i].astype(int) < window) != 0:
+                if np.sum(np.rint(positions[:,i]).astype(int) < window) != 0:
                     return True
 
-                if np.sum(imshape[i] - positions[:,i].astype(int) < window+1) != 0:
+                if np.sum(imshape[i] - np.rint(positions[:,i]).astype(int) < window+1) != 0:
                     return True
 
-            if np.sum(positions[:,0].astype(int)<0) != 0 or np.sum(positions[:,0].astype(int) > imshape[0]-1) != 0:
+            if np.sum(np.rint(positions[:,0]).astype(int)<0) != 0 or np.sum(np.rint(positions[:,0]).astype(int) > imshape[0]-1) != 0:
                 return True
 
             #if positions[0] < 0 or int(positions[0]) == imshape[0]:
@@ -498,26 +541,63 @@ class BlobThreadTracker_alpha():
         self.spool.make_allthreads()
         return self.spool
 
-    def remove_bad_threads(self):
-        d = np.zeros(len(self.spool.threads))
-        zd = np.zeros(len(self.spool.threads))
-        orig = len(self.spool.threads)
-        for i in range(len(self.spool.threads)):
-            dvec = np.diff(self.spool.threads[i].positions, axis = 0)
-            d[i] = np.abs(dvec).max()
-            zd[i] = np.abs(dvec[0:self.t,0]).max()
+    # def quantify(self, quant_function=default_quant_function):
+    #     """
+    #     generates timeseries based on calculated threads. 
 
-        ans = d > self.remove_blobs_dist
-        ans = ans + (zd > self.remove_blobs_dist/2.5)
+    #     Parameters
+    #     ----------
+    #     quant_function : function
+    #         function that takes in a list of positions/pixel indices, and returns a list of floats that describe neuronal activity. A default quantification function is included. It takes the 10 brightest pixels in a 6x6 square around the position and averages them. 
+
+    #         Parameters
+    #         ----------
+    #         im : numpy array
+    #             an N (=3) dimensional numpy array of an image volume taken at some time point
+    #         positions : list
+    #             a list of positions/pixel indices of found centers
+
+    #         Returns
+    #         -------
+    #         activity : list
+    #             list of floats representing neuronal activity. should be returned in the same order as positions, i.e. activity[0] corresponds to positions[0]
+
+    #     """
+    #     self.im.t = 0
+    #     self.timeseries = np.zeros((self.t,len(self.spool.threads)))
+    #     for i in range(self.t):
+    #         self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
+            
+    #         if not self.suppress_output:
+    #             print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
+
+    #     mkdir(self.output_dir + 'extractor-objects')
+    #     np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
+    #     print('\nSaved timeseries as text file...')
     
-        throw_ndx = np.where(ans)[0]
-        throw_ndx = list(throw_ndx)
 
-        throw_ndx.sort(reverse = True)
+    def remove_bad_threads(self):
+        if self.t > 1:
+            d = np.zeros(len(self.spool.threads))
+            zd = np.zeros(len(self.spool.threads))
+            orig = len(self.spool.threads)
+            for i in range(len(self.spool.threads)):
+                dvec = np.diff(self.spool.threads[i].positions, axis = 0)
+                d[i] = np.abs(dvec).max()
+                zd[i] = np.abs(dvec[0:self.t,0]).max()
 
-        for ndx in throw_ndx:
-            self.spool.threads.pop(int(ndx))
-        print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
+            ans = d > self.remove_blobs_dist
+            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
+        
+            throw_ndx = np.where(ans)[0]
+            throw_ndx = list(throw_ndx)
+
+            throw_ndx.sort(reverse = True)
+
+            for ndx in throw_ndx:
+                self.spool.threads.pop(int(ndx))
+            print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
 
 
     def _merge_within_z(self):
@@ -589,7 +669,7 @@ class BlobThreadTracker_alpha():
 
         # iterate over threads, append index to threads_by_z
         for i in range(len(self.spool.threads)):
-            z = int(self.spool.threads[i].positions[0,0])
+            z = round(self.spool.threads[i].positions[0,0])
             # ndx = np.where(np.array(self.frames) == z)[0][0]
 
             threads_by_z[z].append(i)

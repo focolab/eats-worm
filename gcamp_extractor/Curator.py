@@ -41,7 +41,7 @@ def subaxis(im, position, window = 100):
     """
 
     z,y,x = position
-    z = int(z)
+    z = round(z)
     xmin,xmax = int(x-window//2),int(x+window//2)
     ymin,ymax = int(y-window//2),int(y+window//2)
 
@@ -142,11 +142,13 @@ class Curator:
             self.timeseries = e.timeseries
             self.tf = e.im
             self.tmax = e.t
+            self.scale = e.anisotropy
         else:
             self.tf = mft
             self.s = spool
             self.timeseries = timeseries
             self.tmax = None
+            self.scale = (15, 1, 1)
         if self.tf:
             self.tf.t = 0
         self.window = window
@@ -195,13 +197,12 @@ class Curator:
 
         ### initialize napari viewer
         self.viewer = napari.Viewer(ndisplay=3)
-        self.scale = [5, 1, 1]
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
-            self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
-            self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
+            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=.1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
+            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
 
         # initialize load buttons
         self.load_image_button = QPushButton("Load image folder")
@@ -388,7 +389,7 @@ class Curator:
         if self.s:
             self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
             if self.pointstate==0:
-                self.viewer.layers.data = np.empty((0, 3))
+                self.viewer.layers['other rois'].data = np.empty((0, 3))
             elif self.pointstate==1:
                 self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
             elif self.pointstate==2:
@@ -431,7 +432,7 @@ class Curator:
             self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
 
         if self.timeseries is not None:
-            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(round(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
     def update_timeseries(self):
         self.timeseries_view.clear()
