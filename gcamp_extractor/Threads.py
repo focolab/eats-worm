@@ -1,3 +1,6 @@
+
+import os
+import pickle
 import pandas as pd
 import numpy as np
 import pdb
@@ -33,6 +36,25 @@ class Spool:
         self.t = None
         self.dvec = np.zeros((self.maxt-1,3))
         self.allthreads = None
+
+    def export(self, f=None):
+        if not f:
+            raise Exception('output file (f) is required')
+        print('Saving spool as pickle object...')
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        file_pi = open(f, 'wb')
+        pickle.dump(self, file_pi)
+        file_pi.close()
+
+    @classmethod
+    def load(cls, f):
+        if not f:
+            raise Exception('pickle file (f) is required')
+        print('Loading spool from pickle object...')
+        with open(f,'rb') as fopen:
+            x = pickle.load(fopen)
+        return x
+
     def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
 
         # if no threads already exist, add all incoming points to new threads them and positions tracker

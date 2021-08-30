@@ -271,25 +271,15 @@ class Extractor:
                 json.dump(kwargs, json_file)
 
     def calc_blob_threads(self):
-        """to replace calc_blob_threads
-        
-        Replicates calc_blob_threads but all of the implementation logic is
-        outside of Extractor.
-        """
+        """peakfinding and tracking"""
         x = BlobThreadTracker_alpha(mft=self.im, params=self.pf_params)
         self.spool = x.calc_blob_threads()
-        self.save_threads()
+        self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
 
     def quantify(self, quant_function=default_quant_function):
         """generates timeseries based on calculated threads"""
         self.timeseries = quantify(mft=self.im, spool=self.spool)
         self.save_timeseries()
-
-    def save_threads(self):
-        print('Saving blob threads as pickle object...')
-        file_pi = open(os.path.join(self.output_dir, 'threads.obj'), 'wb')
-        pickle.dump(self.spool, file_pi)
-        file_pi.close()
 
     def save_timeseries(self):
         print('Saving blob timeseries as text file...')
