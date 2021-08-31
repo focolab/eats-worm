@@ -185,7 +185,8 @@ class FilterSweeper:
                         expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
                         peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
                         peaks //= self.e.anisotropy
-                        avg_3d_chunk, blobs = peakfinder(data=stack, peaks=peaks, pad=[self.e.anisotropy[0]//dim for dim in self.e.anisotropy])
+                        chunks, blobs = peakfinder(data=stack, peaks=peaks, pad=[self.e.anisotropy[0]//dim for dim in self.e.anisotropy])
+                        avg_3d_chunk = np.mean(chunks, axis=0)
                         self.template = BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')
                         self.last_min_distance = min_distance
 
@@ -223,7 +224,7 @@ class FilterSweeper:
                     stack_peak_mask[tuple(peaks.T)] = True
                     return stack_peak_mask
             
-            if self.e.template:
+            if self.e.algorithm == "template":
                 viewer.window.add_dock_widget(find_peaks_template)
                 viewer.layers["find_peaks_template result"].colormap = "magenta"
                 viewer.layers["find_peaks_template result"].blending = "additive"

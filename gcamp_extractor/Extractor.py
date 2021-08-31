@@ -37,6 +37,8 @@ default_arguments = {
     'infill':True,
     'suppress_output':False,
     'regen':False,
+    'algorithm': 'template',
+    'algorithm_params': {},
 }
 
 def default_quant_function(im, positions, frames):
@@ -240,19 +242,15 @@ class Extractor:
         except: self.register = False
         try: self.predict = kwargs['predict']
         except: self.predict = True
-        try: self.skimage = kwargs['skimage']
-        except: self.skimage = False
         try:
-            self.template = kwargs['template']
-            self.template_made = type(self.template) != bool
+            self.algorithm = kwargs['algorithm']
+            self.template_made = type(self.algorithm_params['template']) != bool
         except:
-            self.template = False
+            self.algorithm = 'template'
             self.template_made = False
-        try: self.peakfinding_params = kwargs['peakfinding_params']
-        except: self.peakfinding_params = {}
+        try: self.algorithm_params = kwargs['algorithm_params']
+        except: self.algorithm_params = {}
 
-
-        self.threed = kwargs.get('3d')
         mkdir(self.output_dir+'extractor-objects')
         
         _regen_mft = kwargs.get('regen_mft')
@@ -291,7 +289,7 @@ class Extractor:
             im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
             im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
-            if self.skimage:
+            if self.algorithm == 'skimage':
                 expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                 expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
                 expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
@@ -301,10 +299,10 @@ class Extractor:
                 except:
                     print("No peak_local_max params supplied; falling back to default inference.")
                     peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
-            elif self.threed:
+            elif self.algorithm == 'threed':
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
-            elif self.template:
+            elif self.algorithm == 'template':
                 if not self.template_made:
                     expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
