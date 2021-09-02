@@ -183,8 +183,11 @@ class FilterSweeper:
                         expanded_im = np.repeat(stack, self.e.anisotropy[0], axis=0)
                         expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
                         expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
-                        peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
-                        peaks //= self.e.anisotropy
+                        try:
+                            peaks = np.rint(self.e.peakfinding_params["template_peaks"]).astype(int)
+                        except:
+                            peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
+                            peaks //= self.e.anisotropy
                         chunks, blobs = peakfinder(data=stack, peaks=peaks, pad=[self.e.anisotropy[0]//dim for dim in self.e.anisotropy])
                         avg_3d_chunk = np.mean(chunks, axis=0)
                         self.template = BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')
