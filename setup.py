@@ -18,7 +18,7 @@ setuptools.setup(
           'numpy>=1.13.3',
           'scipy>=1.0.0',
           'tifffile>=0.15.1',
-          'opencv-python>=4.1.0.25',
+          'opencv-python-headless>=4.1.0.25',
           'matplotlib>=2.1.0',
           'imreg_dft',
           'fastcluster',
