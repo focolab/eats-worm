@@ -151,9 +151,10 @@ class Curator:
             self.scale = (15, 1, 1)
         if self.tf:
             self.tf.t = 0
+        self.e = e
         self.window = window
         ## num neurons
-        self.numneurons = len(self.s.threads) if self.s else 0
+        self.num_neurons = len(self.s.threads) if self.s else 0
         self.num_frames = len(self.tf.frames) if self.tf else 0
 
         self.path = self.tf.output_dir + 'extractor-objects/curate.json' if self.tf else None
@@ -213,6 +214,14 @@ class Curator:
                             #print(self.other_rois.selected_data)
                             pass
             self.other_rois.events.highlight.connect(handle_selection)
+
+            def handle_add(event):
+                if self.other_rois.mode == 'add':
+                    data = self.other_rois.data
+                    if data.size:
+                        if not (self.s.get_positions_t(self.t) == data[-1]).all(axis=1).any():
+                            self.add_roi(data[-1], self.t)
+            self.other_rois.events.data.connect(handle_add)
 
             self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
 
@@ -544,61 +553,61 @@ class Curator:
     def set_index_prev(self):
         if self.show_settings == 0:
             self.ind -= 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
         elif self.show_settings == 1:
             self.ind -= 1
             counter = 0
-            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.num_neurons:
                 self.ind -= 1
-                self.ind = self.ind % self.numneurons
+                self.ind = self.ind % self.num_neurons
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         elif self.show_settings == 2:
             self.ind -= 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.num_neurons:
                 self.ind -= 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         else:
             self.ind -= 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.num_neurons:
                 self.ind -= 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
     def set_index_next(self):
         if self.show_settings == 0:
             self.ind += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
         elif self.show_settings == 1:
             self.ind += 1
             counter = 0
-            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.num_neurons:
                 self.ind += 1
-                self.ind = self.ind % self.numneurons
+                self.ind = self.ind % self.num_neurons
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         elif self.show_settings == 2:
             self.ind += 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.num_neurons:
                 self.ind += 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         else:
             self.ind += 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.num_neurons:
                 self.ind += 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
     def set_index(self, index):
-        self.ind = index % self.numneurons
+        self.ind = index % self.num_neurons
 
     def update_curate(self):
         if self.curate.get(str(self.ind)) in ['keep','seen','trash']:
@@ -647,13 +656,16 @@ class Curator:
 
     def set_trace_icons(self):
         if self.timeseries is not None:
-            for ind in range(self.timeseries.shape[1]):
-                timeseries_view = pg.PlotWidget()
-                timeseries_view.setBackground('w')
-                timeseries_view.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])), pen=pg.mkPen(color=(31, 119, 180), width=5))
-                icon = QIcon(timeseries_view.grab())
-                item = QListWidgetItem(icon, str(ind))
-                self.trace_grid.addItem(item)
+            for index in range(self.timeseries.shape[1]):
+                self.plot_timeseries_to_trace_grid(index)
+
+    def plot_timeseries_to_trace_grid(self, index):
+        timeseries_view = pg.PlotWidget()
+        timeseries_view.setBackground('w')
+        timeseries_view.plot((self.timeseries[:,index]-np.min(self.timeseries[:,index]))/(np.max(self.timeseries[:,index])-np.min(self.timeseries[:,index])), pen=pg.mkPen(color=(31, 119, 180), width=5))
+        icon = QIcon(timeseries_view.grab())
+        item = QListWidgetItem(icon, str(index))
+        self.trace_grid.addItem(item)
     
     def update_trace_icons(self):
         for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
@@ -706,3 +718,17 @@ class Curator:
         mft = MultiFileTiff(folder_path)
         self.viewer.window.close()
         Curator(mft=mft, spool = self.s, timeseries = self.timeseries, window = self.window)
+
+    def add_roi(self, position, t):
+        self.s.add_thread_post_hoc(position, t)
+
+        self.e.save_threads()
+        self.e.quantify()
+        self.timeseries = self.e.timeseries
+        self.e.save_timeseries()
+
+        self.num_neurons += 1
+        self.update_ims()
+        self.update_figures()
+        self.plot_timeseries_to_trace_grid(self.num_neurons - 1)
+        self.update_timeseries()
