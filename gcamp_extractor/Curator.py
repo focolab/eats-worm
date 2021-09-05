@@ -201,7 +201,19 @@ class Curator:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
-            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=.1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
+            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=.1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
+
+            self.last_selected = set()
+            def handle_selection(event):
+                if self.other_rois.mode == 'select':
+                    selected = self.other_rois.selected_data
+                    if selected != self.last_selected:
+                        self.last_selected = selected
+                        if selected != set():
+                            #print(self.other_rois.selected_data)
+                            pass
+            self.other_rois.events.highlight.connect(handle_selection)
+
             self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
 
         # initialize load buttons
