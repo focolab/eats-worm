@@ -334,13 +334,17 @@ class Curator:
         self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.trace_grid.setViewMode(QListWidget.IconMode)
         self.trace_grid.setIconSize(QSize(288, 96))
-        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
+        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(self.trace_grid.currentRow()))
+        self.trace_grid.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.trace_grid.itemChanged.connect(self.update_label)
         self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
         self.trace_grid_context_menu = QMenu(self.trace_grid)
         keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
         self.trace_grid_context_menu.addAction(keep_all_action)
         trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
         self.trace_grid_context_menu.addAction(trash_all_action)
+        add_label_action = QAction('Add label', self.trace_grid, triggered = self.label_selected)
+        self.trace_grid_context_menu.addAction(add_label_action)
         self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
         self.set_trace_icons()
         self.viewer.window.add_dock_widget(self.trace_grid)
@@ -516,7 +520,7 @@ class Curator:
             pass
 
     def keep_all_selected(self, label):
-        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='keep'
         self.update_buttons()
@@ -524,11 +528,22 @@ class Curator:
 
 
     def trash_all_selected(self, label):
-        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='trash'
         self.update_buttons()
         self.update_trace_icons()
+
+    def label_selected(self, label):
+        selected_icons = self.trace_grid.selectedItems()
+        if len(selected_icons) == 1:
+            self.trace_grid.editItem(selected_icons[0])
+
+    def update_label(self, labeled_item):
+        index = self.trace_grid.indexFromItem(labeled_item).row()
+        if 'labels' not in self.curate:
+            self.curate['labels'] = {}
+        self.curate['labels'][str(index)] = labeled_item.text()
 
     def update_buttons(self):
         if self.curate.get(str(self.ind))=='keep':
@@ -666,22 +681,26 @@ class Curator:
         timeseries_view.setBackground('w')
         timeseries_view.plot((self.timeseries[:,index]-np.min(self.timeseries[:,index]))/(np.max(self.timeseries[:,index])-np.min(self.timeseries[:,index])), pen=pg.mkPen(color=(31, 119, 180), width=5))
         icon = QIcon(timeseries_view.grab())
-        item = QListWidgetItem(icon, str(index))
+        label = self.curate.get('labels', {}).get(str(index), str(index))
+        item = QListWidgetItem(icon, label)
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
         self.trace_grid.addItem(item)
     
     def update_trace_icons(self):
-        for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
+        for index in range(self.trace_grid.count()):
+            trace_icon = self.trace_grid.item(index)
+
             if self.show_settings == 0:
                 trace_icon.setHidden(False)
 
             elif self.show_settings == 1:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) in ['keep','trash'])
+                trace_icon.setHidden(self.curate.get(str(index)) in ['keep','trash'])
 
             elif self.show_settings == 2:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'keep')
+                trace_icon.setHidden(self.curate.get(str(index)) != 'keep')
 
             else:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'trash')
+                trace_icon.setHidden(self.curate.get(str(index)) != 'trash')
 
     def go_to_trace(self, index):
         self.set_index(index)
