@@ -15,6 +15,7 @@ from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
 from fastcluster import linkage
 import scipy.cluster
+import napari
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -334,6 +335,89 @@ class Extractor:
         print('\n')
 
 
+def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, mode='mid'):
+    """2D motion correction
+
+    Currently using only the central Z-plane, which seems suspect
+
+    Parameters:
+    -----------
+    mft : MultiFileTiff
+    t_max : int
+        Only evaluate the first `t_max` timepoints
+    suppress_output : Bool
+    mode : str
+        'mid' or 'mip' to use the middle z-plane or MIP to compute offsets
+
+    Returns:
+    -------
+    offsets : list
+        List of Z,Y,X offsets (Z always zero)
+    """
+
+    if t_max == -1:
+        t_max = 1000000
+
+    ix_mid = mft.frames[int(len(mft.frames)/2)]
+    if mode == 'mip':
+        previous_frame = np.amax(mft.get_t(0), axis=0)
+    else:
+        previous_frame = mft.get_tbyf(0, ix_mid)
+    offsets = [np.asarray([0, 0, 0])]
+    for i in range(1, t_max):
+        try:
+            if mode == 'mip':
+                this_frame = np.amax(mft.get_t(i), axis=0)
+            else:
+                this_frame = mft.get_tbyf(i, ix_mid)
+            offset = np.hstack([[0], ird.translation(previous_frame, this_frame)['tvec']])
+            offsets.append(offset)
+            previous_frame = this_frame
+            if not suppress_output:
+                print('offset [%3i]: [%8.3f %8.3f %8.3f]' % (i, *offset))
+        except:
+            break
+    return offsets
+
+def view_moco_offsets(mft=None, offsets=None, t_max=-1):
+    """view raw MIP and MOCO MIP in napari"""
+    pad = 1
+
+    if offsets is None:
+        offsets = compute_moco_offsets(mft=mft, t_max=t_max)
+    df_offsets = pd.DataFrame(np.cumsum(offsets, axis=0), columns=['Z', 'Y', 'X'])
+    numt = len(offsets)
+    di, dj = mft.sizexy
+    offsets_cum = np.vstack(([0, 0, 0], np.cumsum(offsets, axis=0)))
+
+    full_stack = np.zeros(shape=(numt, di*2+pad, dj))
+    for i in range(numt):
+        i_shift = np.rint(offsets_cum[i][1]).astype(int)
+        j_shift = np.rint(offsets_cum[i][2]).astype(int)
+        print('moco %i: %i %i' % (i, i_shift, j_shift))
+
+        this_im = np.zeros(shape=(di*2+pad, dj))+1000
+        this_im[0:di, 0:dj] = np.amax(mft.get_t(i), axis=0)
+        this_im[di+pad:, 0:dj] = np.roll(np.roll(this_im[0:di, 0:dj]*1, i_shift, axis=0), j_shift, axis=1)
+        full_stack[i] = this_im
+
+    v = napari.Viewer()
+    v_im = v.add_image(full_stack, name='moco')
+    napari.run()
+
+# def plot_moco_offsets(self):
+#     df = self.spool.to_dataframe(dims=self.dims)
+#     # ip = df['prov']
+#     print(df.head(30))
+#     print(self.df_moco_offsets.head(30))
+#     import matplotlib
+#     import matplotlib.pyplot as plt
+#     pp = self.df_moco_offsets.plot(figsize=(8, 4))
+#     plt.suptitle(self.im.root)
+#     plt.xlabel('volume, T')
+#     plt.ylabel('pixel offset')
+#     plt.show()
+
 
 class BlobThreadTracker_alpha():
     """peakfinding and tracking
@@ -383,7 +467,6 @@ class BlobThreadTracker_alpha():
         if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
             self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
-
     def calc_blob_threads(self):
         """
         calculates blob threads
@@ -393,6 +476,12 @@ class BlobThreadTracker_alpha():
         spool: (Spool)
         """
         self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
+
+        # doing MOCO up front
+        if self.register:
+            moco_offsets = compute_moco_offsets(mft=self.im, t_max=self.t, suppress_output=True)
+        else:
+            moco_offsets = [0, 0, 0]*self.t
 
         for i in range(self.t):
             im1 = self.im.get_t()
@@ -453,23 +542,19 @@ class BlobThreadTracker_alpha():
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
-            if self.register and i!=0:
-                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+            # if self.register and i!=0:
+            #     _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+            #     _off = np.insert(_off, 0,0)
+            #     self.spool.reel(peaks,self.im.anisotropy, offset=_off_new)
+            # else:
+            #     self.spool.reel(peaks,self.im.anisotropy)
 
-                _off = np.insert(_off, 0,0)
-                #peaks = peaks+ _off
-                #print(_off)
-            #print(peaks)
-                self.spool.reel(peaks,self.im.anisotropy, offset=_off)
-            else:
-                self.spool.reel(peaks,self.im.anisotropy)
-            
+            self.spool.reel(peaks, self.im.anisotropy, offset=moco_offsets[i])
+
             if not self.suppress_output:
                 print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
         print('\nInfilling...')
         self.spool.infill()
-        
-        
         
         imshape = tuple([len(self.frames)]) + self.im.sizexy
         def collided(positions, imshape, window = 3):
