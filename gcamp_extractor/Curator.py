@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from .Extractor import *
 from .multifiletiff import *
 from .Threads import *
-from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
+from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
 
@@ -239,9 +239,6 @@ class Curator:
         self.z_minus_one_view = self.get_imageview()
         self.z_minus_one_view.view.setXLink(self.z_view.view)
         self.z_minus_one_view.view.setYLink(self.z_view.view)
-        self.z_subim = self.get_imageview()
-        self.z_plus_one_subim = self.get_imageview()
-        self.z_minus_one_subim = self.get_imageview()
         self.ortho_1_view = self.get_imageview()
         self.ortho_2_view = self.get_imageview()
         self.timeseries_view = pg.PlotWidget()
@@ -257,6 +254,26 @@ class Curator:
         ### Series label
         self.series_label = QLabel()
         self.viewer.window.add_dock_widget(self.series_label, area='right')
+
+        ### Grid showing all extracted timeseries
+        self.trace_grid = QListWidget()
+        self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.trace_grid.setViewMode(QListWidget.IconMode)
+        self.trace_grid.setResizeMode(QListView.Adjust)
+        self.trace_grid.setIconSize(QSize(288, 96))
+        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(self.trace_grid.currentRow()))
+        self.trace_grid.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.trace_grid.itemChanged.connect(self.update_label)
+        self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.trace_grid_context_menu = QMenu(self.trace_grid)
+        keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
+        self.trace_grid_context_menu.addAction(keep_all_action)
+        trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
+        self.trace_grid_context_menu.addAction(trash_all_action)
+        add_label_action = QAction('Add label', self.trace_grid, triggered = self.label_selected)
+        self.trace_grid_context_menu.addAction(add_label_action)
+        self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
+        self.set_trace_icons()
 
         ### figure grid
         image_grid_container = QWidget()
@@ -333,26 +350,6 @@ class Curator:
         bnext.clicked.connect(lambda:self.next())
         self.viewer.window.add_dock_widget([bprev, bnext], area='right')
 
-        ### Grid showing all extracted timeseries
-        self.trace_grid = QListWidget()
-        self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.trace_grid.setViewMode(QListWidget.IconMode)
-        self.trace_grid.setIconSize(QSize(288, 96))
-        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(self.trace_grid.currentRow()))
-        self.trace_grid.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.trace_grid.itemChanged.connect(self.update_label)
-        self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.trace_grid_context_menu = QMenu(self.trace_grid)
-        keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
-        self.trace_grid_context_menu.addAction(keep_all_action)
-        trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
-        self.trace_grid_context_menu.addAction(trash_all_action)
-        add_label_action = QAction('Add label', self.trace_grid, triggered = self.label_selected)
-        self.trace_grid_context_menu.addAction(add_label_action)
-        self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
-        self.set_trace_icons()
-        self.viewer.window.add_dock_widget(self.trace_grid)
-
         ### Update buttons in case of previous curation
         self.update_buttons()
         napari.run()
@@ -366,9 +363,6 @@ class Curator:
             self.im = np.ones((1, 1))
             self.im_plus_one = np.ones((1, 1))
             self.im_minus_one = np.ones((1, 1))
-            self.subim, self.offset = np.ones((1, 1)), 0
-            self.subim_plus_one = np.ones((1, 1))
-            self.subim_minus_one = np.ones((1, 1))
     
         else:
             f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
@@ -384,9 +378,6 @@ class Curator:
                 self.im_minus_one = np.zeros(self.im.shape)
             else:
                 self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
-            self.subim, self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-            self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-            self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
     
     def get_im_display(self, im):
         return (im - self.min)/(self.max - self.min)
@@ -400,15 +391,13 @@ class Curator:
             self.image_grid.addWidget(self.load_image_button, 1, 0)
             self.z_view.setVisible(False)
         self.image_grid.addWidget(self.z_minus_one_view, 2, 0)
-        self.image_grid.addWidget(self.z_plus_one_subim, 0, 1)
-        self.image_grid.addWidget(self.z_subim, 1, 1)
-        self.image_grid.addWidget(self.z_minus_one_subim, 2, 1)
-        self.image_grid.addWidget(self.timeseries_view, 1, 2)
-        self.image_grid.addWidget(self.ortho_1_view, 0, 2)
-        self.image_grid.addWidget(self.ortho_2_view, 2, 2)
+        self.image_grid.addWidget(self.timeseries_view, 0, 1)
+        self.image_grid.addWidget(self.ortho_1_view, 1, 1)
+        self.image_grid.addWidget(self.ortho_2_view, 2, 1)
+        self.image_grid.addWidget(self.trace_grid, 0, 2, 3, 1)
         self.image_grid.setColumnStretch(0, 2)
         self.image_grid.setColumnStretch(1, 1)
-        self.image_grid.setColumnStretch(2, 2)
+        self.image_grid.setColumnStretch(2, 1)
     
     def update_figures(self):
         if self.tf:
@@ -454,13 +443,6 @@ class Curator:
                 self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
                 self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
             self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
-
-            #plotting for single point
-            self.update_imageview(self.z_subim, self.get_im_display(self.subim), "Parent Z")
-            self.update_imageview(self.z_plus_one_subim, self.get_im_display(self.subim_plus_one), "Z + 1")
-            self.update_imageview(self.z_minus_one_subim, self.get_im_display(self.subim_minus_one), "Z - 1")
-
-            self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
 
         if self.timeseries is not None:
             self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(round(self.s.threads[self.ind].get_position_t(self.t)[0])))
@@ -665,7 +647,6 @@ class Curator:
             self.montage_view.setVisible(True)
             self.image_grid.setColumnStretch(1, 0)
             self.image_grid.setColumnStretch(2, 0)
-            # self.montage_view.setVisible(True)
 
         elif 2 == last_setting:
             self.montage_view.setVisible(False)
