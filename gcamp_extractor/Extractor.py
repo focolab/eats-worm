@@ -344,7 +344,7 @@ class Extractor:
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
-                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), self.im.get_tbyf(i,self.frames[int(len(self.frames)/2)]))['tvec']
 
                 _off = np.insert(_off, 0,0)
                 #peaks = peaks+ _off
