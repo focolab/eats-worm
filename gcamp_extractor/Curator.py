@@ -205,15 +205,17 @@ class Curator:
             self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=.1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
 
             self.last_selected = set()
-            def handle_selection(event):
+            def handle_select(event):
                 if self.other_rois.mode == 'select':
                     selected = self.other_rois.selected_data
                     if selected != self.last_selected:
                         self.last_selected = selected
                         if selected != set():
-                            #print(self.other_rois.selected_data)
-                            pass
-            self.other_rois.events.highlight.connect(handle_selection)
+                            for trace_icon in self.trace_grid.selectedItems():
+                                trace_icon.setSelected(False)
+                            for thread_index in selected:
+                                self.trace_grid.item(thread_index).setSelected(True)
+            self.other_rois.events.highlight.connect(handle_select)
 
             def handle_add(event):
                 if self.other_rois.mode == 'add':
@@ -331,7 +333,7 @@ class Curator:
         self.trace_grid = QListWidget()
         self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.trace_grid.setViewMode(QListWidget.IconMode)
-        self.trace_grid.setIconSize(QSize(96, 96))
+        self.trace_grid.setIconSize(QSize(288, 96))
         self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
         self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
         self.trace_grid_context_menu = QMenu(self.trace_grid)
