@@ -17,6 +17,8 @@ from fastcluster import linkage
 import scipy.cluster
 import napari
 
+from skimage.registration import phase_cross_correlation
+
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
     'numz':20,
@@ -355,14 +357,22 @@ def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, mode='mid'):
         List of Z,Y,X offsets (Z always zero)
     """
 
+    med_filter = 0
+
+
     if t_max == -1:
         t_max = 1000000
 
     ix_mid = mft.frames[int(len(mft.frames)/2)]
+
+    ## set first frame
     if mode == 'mip':
         previous_frame = np.amax(mft.get_t(0), axis=0)
     else:
         previous_frame = mft.get_tbyf(0, ix_mid)
+    if med_filter > 0:
+        previous_frame = medFilter2d(previous_frame, med_filter)
+
     offsets = [np.asarray([0, 0, 0])]
     for i in range(1, t_max):
         try:
@@ -370,13 +380,23 @@ def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, mode='mid'):
                 this_frame = np.amax(mft.get_t(i), axis=0)
             else:
                 this_frame = mft.get_tbyf(i, ix_mid)
-            offset = np.hstack([[0], ird.translation(previous_frame, this_frame)['tvec']])
-            offsets.append(offset)
-            previous_frame = this_frame
-            if not suppress_output:
-                print('offset [%3i]: [%8.3f %8.3f %8.3f]' % (i, *offset))
+            if med_filter > 0:
+                this_frame = medFilter2d(this_frame, med_filter)
         except:
             break
+
+        ### ird algo
+        result = ird.translation(previous_frame, this_frame, filter_pcorr=3)
+        offsets.append(np.hstack([[0], result['tvec']]))
+
+        # ### skimage
+        # result = phase_cross_correlation(previous_frame, this_frame, upsample_factor=10)
+        # offsets.append(np.hstack([[0], *result[0]]))
+
+        previous_frame = this_frame
+        if not suppress_output:
+            print('offset [%3i]: [%8.3f %8.3f %8.3f]' % (i, *offsets[-1]))
+
     return offsets
 
 def view_moco_offsets(mft=None, offsets=None, t_max=-1):
@@ -384,8 +404,10 @@ def view_moco_offsets(mft=None, offsets=None, t_max=-1):
     pad = 1
 
     if offsets is None:
-        offsets = compute_moco_offsets(mft=mft, t_max=t_max)
+        offsets = compute_moco_offsets(mft=mft, t_max=t_max, suppress_output=False, mode='mid')
+
     df_offsets = pd.DataFrame(np.cumsum(offsets, axis=0), columns=['Z', 'Y', 'X'])
+
     numt = len(offsets)
     di, dj = mft.sizexy
     offsets_cum = np.vstack(([0, 0, 0], np.cumsum(offsets, axis=0)))
