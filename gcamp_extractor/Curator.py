@@ -718,7 +718,7 @@ class Curator:
 
     def plot_on_imageview(self, image_view, x, y, color):
         plot_item = image_view.getView()
-        plot_item.scatterPlot(x, y, symbolSize=10, pen=QPen(color, .1), brush=QBrush(color))
+        plot_item.scatterPlot(x, y, symbolSize=3, pen=QPen(color, .1), brush=QBrush(color))
     
     def plot_on_montageview(self, positions, color):
         x_size, y_size = self.tf.get_t(self.t).shape[-2:]
@@ -727,7 +727,7 @@ class Curator:
         y = positions[:,2]
         self.plot_on_imageview(self.montage_view, z * x_size + x, -y + y_size, color)
         for z in range(1, self.num_frames):
-            self.montage_view.view.addLine(x = z * x_size)
+            self.montage_view.getView().plot([z * x_size] * y_size, range(y_size), pen='y')
 
     def load_image_folder(self):
         folder_path = QFileDialog.getExistingDirectory()
