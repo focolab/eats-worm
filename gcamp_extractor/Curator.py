@@ -638,15 +638,13 @@ class Curator:
 
         ## clear image grid and reassign
         if 2 == self.showmip:
-            i = self.image_grid.count() - 1
+            i = self.image_grid.count() - 2
             while(i >= 0):
                 grid_item = self.image_grid.itemAt(i).widget()
                 grid_item.setParent(None)
                 i -=1
-            self.image_grid.addWidget(self.montage_view, 0, 0)
+            self.image_grid.addWidget(self.montage_view, 0, 0, 3, 2)
             self.montage_view.setVisible(True)
-            self.image_grid.setColumnStretch(1, 0)
-            self.image_grid.setColumnStretch(2, 0)
 
         elif 2 == last_setting:
             self.montage_view.setVisible(False)
