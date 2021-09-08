@@ -14,6 +14,7 @@ def mkdir(path):
 import glob
 import json
 import imreg_dft as ird
+from scipy.ndimage import rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
 from fastcluster import linkage
@@ -244,12 +245,16 @@ class Extractor:
         except: self.predict = True
         try:
             self.algorithm = kwargs['algorithm']
-            self.template_made = type(self.algorithm_params['template']) != bool
         except:
             self.algorithm = 'template'
-            self.template_made = False
-        try: self.algorithm_params = kwargs['algorithm_params']
-        except: self.algorithm_params = {}
+        try:
+            self.algorithm_params = kwargs['algorithm_params']
+        except:
+            self.algorithm_params = {}
+        try:
+            self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
+        except:
+            self.algorithm_params['templates_made'] = False
 
         mkdir(self.output_dir+'extractor-objects')
         
@@ -303,7 +308,7 @@ class Extractor:
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             elif self.algorithm == 'template':
-                if not self.template_made:
+                if not self.algorithm_params['templates_made']:
                     expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
@@ -314,18 +319,20 @@ class Extractor:
                         peaks //= self.anisotropy
                     chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.anisotropy])
                     avg_3d_chunk = np.mean(chunks)
-                    templates = []
-                    quantiles = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
+                    self.templates = []
+                    quantiles = self.algorithm_params.get('quantiles', [0.5])
+                    rotations = self.algorithm_params.get('rotations', [0])
                     for quantile in quantiles:
-                        try:
-                            templates.append(BlobTemplate(data=np.quantile(chunks, quantile, axis=0), scale=self.anisotropy, blobs='blobs'))
-                        except:
-                            pass
-                    print("Total number of computed templates: ",len(templates))
-                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')
-                    self.template_made = True
+                        for rotation in rotations:
+                            try:
+                                data = rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2))
+                                self.templates.append(BlobTemplate(data=data, scale=self.anisotropy, blobs='blobs'))
+                            except:
+                                pass
+                    print("Total number of computed templates: ", len(self.templates))
+                    self.algorithm_params['templates_made'] = True
                 peaks = None
-                for template in templates:
+                for template in self.templates:
                     template_peaks = peak_filter_2(data=im1,params={'template': template.data, 'threshold': 0.5})
                     if peaks is None:
                         peaks = template_peaks
