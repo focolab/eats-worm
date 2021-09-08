@@ -438,11 +438,14 @@ class Curator:
                 pass
             elif self.pointstate==1:
                 self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.blue)
+                self.plot_on_montageview(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]), Qt.blue)
             elif self.pointstate==2:
                 self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
                 self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
                 self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+                self.plot_on_montageview(self.s.get_positions_t(self.t), Qt.blue)
             self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
+            self.plot_on_montageview(np.array([self.s.threads[self.ind].get_position_t(self.t)]), Qt.red)
 
         if self.timeseries is not None:
             self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(round(self.s.threads[self.ind].get_position_t(self.t)[0])))
@@ -717,6 +720,15 @@ class Curator:
         plot_item = image_view.getView()
         plot_item.scatterPlot(x, y, symbolSize=10, pen=QPen(color, .1), brush=QBrush(color))
     
+    def plot_on_montageview(self, positions, color):
+        x_size, y_size = self.tf.get_t(self.t).shape[-2:]
+        z = positions[:,0]
+        x = positions[:,1]
+        y = positions[:,2]
+        self.plot_on_imageview(self.montage_view, z * x_size + x, -y + y_size, color)
+        for z in range(1, self.num_frames):
+            self.montage_view.view.addLine(x = z * x_size)
+
     def load_image_folder(self):
         folder_path = QFileDialog.getExistingDirectory()
         mft = MultiFileTiff(folder_path)
