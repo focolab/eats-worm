@@ -87,8 +87,10 @@ class FilterSweeper:
             im1_unfiltered = copy.deepcopy(im1)
             stacks.append(im1_unfiltered)
         viewer = napari.Viewer(ndisplay=3)
-        viewer.add_image(np.array(stacks), name="worm", blending='additive', scale=self.e.anisotropy)
+        worm = viewer.add_image(np.array(stacks), name="worm", blending='additive', scale=self.e.anisotropy)
 
+
+        @worm.events.data.connect
         @magicgui(
             auto_call=True,
             median_index={"widget_type": Slider, "min": 0, "max": 2},
@@ -98,10 +100,12 @@ class FilterSweeper:
             sigma_x={"widget_type": FloatSlider, "max": 6},
             sigma_y={"widget_type": FloatSlider, "max": 6},
             sigma_z={"widget_type": FloatSlider, "max": 6},
+            parent_layer={'bind': worm},
+            event={'bind': None}
         )
-        def filter(layer: Image, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> napari.types.ImageData:
+        def filter(event: None, parent_layer: Image, median_index: int = self.median_index, width_x: int = (self.width_x_val - 1) // 2, width_y: int = (self.width_y_val - 1) // 2, width_z: int = (self.width_z_val - 1) // 2, sigma_x: float = self.sigma_x, sigma_y: float = self.sigma_y, sigma_z: float = self.sigma_z) -> napari.types.ImageData:
             """Apply a gaussian blur to ``layer``."""
-            if layer:
+            if parent_layer:
                 # todo: the order used here does not match the documentation in sefgunctions. change either order or documentation in segfunctions
                 filtered = []
                 self.median_index = median_index
@@ -118,25 +122,33 @@ class FilterSweeper:
                 return np.array(filtered)
 
         viewer.window.add_dock_widget(filter)
+        filter_result = viewer.layers['filter result']
 
+        @filter_result.events.data.connect
         @magicgui(
             auto_call=True,
             quantile={"widget_type": FloatSlider, "min": 0.5, "max": 1},
+            parent_layer={'bind': filter_result},
+            event={'bind': None}
         )
-        def threshold(layer: Image, quantile: float = self.quantile) -> napari.types.ImageData:
+        def threshold(event: None, parent_layer: Image, quantile: float = self.quantile) -> napari.types.ImageData:
             self.quantile = quantile
-            filtered = viewer.layers["filter result"].data
-            return filtered > np.quantile(layer.data, self.quantile)
+            filtered = parent_layer.data
+            return filtered > np.quantile(filtered, self.quantile)
 
         viewer.window.add_dock_widget(threshold)
+        threshold_result = viewer.layers['threshold result']
 
+        @threshold_result.events.data.connect
         @magicgui(
             auto_call=True,
             num_peaks={"widget_type": Slider, "min": 1, "max": 302},
             min_distance={"widget_type": Slider, "min": 1, "max": self.e.numz * self.e.anisotropy[0]},
+            parent_layer={'bind': threshold_result},
+            event={'bind': None}
         )
-        def find_peaks(layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance) -> napari.types.ImageData:
-            if layer:
+        def find_peaks(event: None, parent_layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance) -> napari.types.ImageData:
+            if parent_layer:
                 self.num_peaks = num_peaks
                 self.min_distance = min_distance
                 peaks = []
@@ -156,6 +168,7 @@ class FilterSweeper:
 
         self.last_min_distance = None
 
+        @threshold_result.events.data.connect
         @magicgui(
             auto_call=True,
             num_peaks={"widget_type": Slider, "min": 1, "max": 302},
@@ -163,13 +176,15 @@ class FilterSweeper:
             template_threshold={"widget_type": FloatSlider, "min": -1, "max": 1},
             erosions={"widget_type": Slider, "min": 0, "max": 20},
             spacing={"widget_type": Slider, "min": 1, "max": self.e.numz * self.e.anisotropy[0]},
+            parent_layer={'bind': threshold_result},
+            event={'bind': None}
         )
-        def find_peaks_template(layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance, template_threshold: float = .5, erosions: int = 3, spacing: int = 9) -> napari.types.ImageData:
+        def find_peaks_template(event: None, parent_layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance, template_threshold: float = .5, erosions: int = 3, spacing: int = 9) -> napari.types.ImageData:
             if not 'segmented' in viewer.layers:
                 viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented", blending='additive', scale=self.e.anisotropy, visible=False)
                 viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented thresholded", blending='additive', scale=self.e.anisotropy, visible=False)
                 viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="eroded", blending='additive', scale=self.e.anisotropy, visible=False)
-            if layer:
+            if parent_layer:
                 self.num_peaks = num_peaks
                 self.min_distance = min_distance
                 peaks = []
@@ -183,7 +198,7 @@ class FilterSweeper:
                     expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
                     try:
-                        peaks = np.rint(self.e.peakfinding_params["template_peaks"]).astype(int)
+                        peaks = np.rint(self.e.algorithm_params["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
                         peaks //= self.e.anisotropy
