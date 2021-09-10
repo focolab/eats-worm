@@ -19,6 +19,8 @@ from gcamp_extractor import Extractor
 from gcamp_extractor import FilterSweeper
 from gcamp_extractor import Curator
 from gcamp_extractor import Spool
+from gcamp_extractor import compute_moco_offsets
+from gcamp_extractor import view_moco_offsets
 
 # # class node_filtersweeper(Task):
 # #     about = 'filtersweeper'
@@ -31,23 +33,26 @@ from gcamp_extractor import Spool
 
 
 class node_MFT(Node):
-    about = 'load MFT'
     def main(self, data=None, params=None):
         return dict(mft=MultiFileTiff(**params, output_dir=self.loc))
 
+class node_MOCO(Node):
+    def main(self, data=None, params=None):
+        self.stash = dict(mft=data['mft'])
+        return dict(moco_offsets=compute_moco_offsets(mft=data['mft'], **params))
+    def inspect(self):
+        view_moco_offsets(mft=self.stash['mft'], offsets=self.data['moco_offsets'])
+
 class node_findpeaks(Node):
-    about = 'timeseries peakfinding'
     def main(self, data=None, params=None):
         btt = BlobThreadTracker_alpha(mft=data['mft'], params=params)
         return dict(spool=btt.calc_blob_threads())
 
 class node_quantify(Node):
-    about = 'timeseries quantification'
     def main(self, data=None, params=None):
         return dict(timeseries=quantify(mft=data['mft'], spool=data['spool']))
 
 class node_curate(Node):
-    about = 'curation'
     def main(self, data=None, params=None):
         cc = Curator(mft=data['mft'], spool=data['spool'], timeseries=data['timeseries'])
         return dict()
@@ -56,10 +61,11 @@ def make_gce_pipeline(datarun_folder='my_datarun'):
     """make Nodes (incl wiring) and the Pipeline"""
     defaults = dict(frozen=False)
     pn_A = node_MFT(ID='load_MFT', task_params=dict(), save_data=False, **defaults)
+    pn_A2 = node_MOCO(ID='MOCO', task_params=dict(), parents=pn_A, save_data=False, **defaults)
     pn_B = node_findpeaks(ID='findpeaks', parents=pn_A, save_data=True, **defaults)
     pn_C = node_quantify(ID='quantify', parents={'mft':pn_A, 'spool':pn_B}, save_data=True, **defaults)
     pn_D = node_curate(ID='curate', parents={'mft':pn_A, 'spool':pn_B, 'timeseries':pn_C}, save_data=False, **defaults)
-    return Pipeline(nodes=[pn_A, pn_B, pn_C, pn_D], datarun_folder=datarun_folder)
+    return Pipeline(nodes=[pn_A, pn_A2, pn_B, pn_C, pn_D], datarun_folder=datarun_folder)
 
 if __name__ == "__main__":
 
@@ -120,6 +126,7 @@ if __name__ == "__main__":
 
     pipe.id2node['load_MFT'].task_params = params_mft
     pipe.id2node['findpeaks'].task_params = params_pf
+    pipe.id2node['MOCO'].task_params = dict(t_max=100)
 
     xx = BFDGUI(p=pipe).start()
     print(pipe.id2node['findpeaks'].data['spool'].to_dataframe(dims=['Z', 'Y', 'X']))
