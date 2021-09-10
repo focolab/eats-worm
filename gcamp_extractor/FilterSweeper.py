@@ -181,6 +181,7 @@ class FilterSweeper:
         )
         def find_peaks_template(event: None, parent_layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance, template_threshold: float = .5, erosions: int = 3, spacing: int = 9) -> napari.types.ImageData:
             if not 'segmented' in viewer.layers:
+                viewer.add_points(None, name="template peaks", blending='additive', scale=self.e.anisotropy, visible=False, face_color='cyan', size=1)
                 viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented", blending='additive', scale=self.e.anisotropy, visible=False)
                 viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented thresholded", blending='additive', scale=self.e.anisotropy, visible=False)
                 viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="eroded", blending='additive', scale=self.e.anisotropy, visible=False)
@@ -202,6 +203,8 @@ class FilterSweeper:
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
                         peaks //= self.e.anisotropy
+                        self.e.algorithm_params["template_peaks"] = peaks
+                    viewer.layers['template peaks'].data = peaks
                     chunks, blobs = peakfinder(data=stack, peaks=peaks, pad=[self.e.anisotropy[0]//dim for dim in self.e.anisotropy])
                     avg_3d_chunk = np.mean(chunks, axis=0)
                     self.template = BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')
