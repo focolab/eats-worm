@@ -182,9 +182,10 @@ class FilterSweeper:
         def find_peaks_template(event: None, parent_layer: Image, num_peaks: int = 50, min_distance: int = self.min_distance, template_threshold: float = .5, erosions: int = 3, spacing: int = 9) -> napari.types.ImageData:
             if not 'segmented' in viewer.layers:
                 viewer.add_points(None, name="template peaks", blending='additive', scale=self.e.anisotropy, visible=False, face_color='cyan', size=1)
-                viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented", blending='additive', scale=self.e.anisotropy, visible=False)
-                viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="segmented thresholded", blending='additive', scale=self.e.anisotropy, visible=False)
-                viewer.add_image(np.zeros(viewer.layers['filter result'].data.shape), name="eroded", blending='additive', scale=self.e.anisotropy, visible=False)
+                viewer.add_image(np.zeros(parent_layer.data.shape), name="templates", blending='additive', scale=self.e.anisotropy, visible=False)
+                viewer.add_image(np.zeros(parent_layer.data.shape), name="segmented", blending='additive', scale=self.e.anisotropy, visible=False)
+                viewer.add_image(np.zeros(parent_layer.data.shape), name="segmented thresholded", blending='additive', scale=self.e.anisotropy, visible=False)
+                viewer.add_image(np.zeros(parent_layer.data.shape), name="eroded", blending='additive', scale=self.e.anisotropy, visible=False)
             if parent_layer:
                 self.num_peaks = num_peaks
                 self.min_distance = min_distance
@@ -203,42 +204,81 @@ class FilterSweeper:
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
                         peaks //= self.e.anisotropy
-                        self.e.algorithm_params["template_peaks"] = peaks
+                        self.template_peaks = peaks
                     viewer.layers['template peaks'].data = peaks
-                    chunks, blobs = peakfinder(data=stack, peaks=peaks, pad=[self.e.anisotropy[0]//dim for dim in self.e.anisotropy])
+                    chunks, blobs = peakfinder(data=stack, peaks=peaks, pad=[1, 25, 25])
                     avg_3d_chunk = np.mean(chunks, axis=0)
-                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')
+                    self.templates = [BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')]
+                    quantiles = self.e.algorithm_params.get('quantiles', [0.5])
+                    rotations = self.e.algorithm_params.get('rotations', [0])
+                    for quantile in quantiles:
+                        for rotation in rotations:
+                            try:
+                                data = scipy.ndimage.rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2))
+                                self.templates.append(BlobTemplate(data=data, scale=self.e.anisotropy, blobs='blobs'))
+                            except:
+                                pass
+
+                    # peaks = None
+                    # for template in self.templates:
+                    #     template_peaks = peak_filter_2(data=im1,params={'template': template.data, 'threshold': 0.5})
+                    #     if peaks is None:
+                    #         peaks = template_peaks
+                    #     else:
+                    #         peaks = np.concatenate((peaks, template_peaks))
+
+                    viewer.layers['templates'].data = np.array([template.data for template in self.templates]).reshape((self.templates[0].data.shape[0], len(self.templates) * self.templates[0].data.shape[1], self.templates[0].data.shape[2]))
                     self.last_min_distance = min_distance
 
-                # the template match result needs padding to match the original data dimensions
-                res = skimage.feature.match_template(stack, self.template.data)
-                pad = [int((x-1)/2) for x in self.template.data.shape]
-                res = np.pad(res, tuple(zip(pad, pad)))
-                viewer.layers['segmented'].data = res
-                filtered = res*np.array(res>template_threshold)
-                viewer.layers['segmented thresholded'].data = filtered
-                footprint = np.zeros((3,3,3))
-                footprint[1,:,1] = 1
-                footprint[1,1,:] = 1
-                eroded = np.copy(filtered)
-                for i in range(erosions):
-                    eroded = skimage.morphology.erosion(eroded, selem=footprint)
-                viewer.layers['eroded'].data = eroded
-                labeled_features, num_features = scipy.ndimage.label(eroded)
-                centers = []
-                for feature in range(num_features):
-                    center = scipy.ndimage.center_of_mass(eroded, labels=labeled_features, index=feature)
-                    centers.append(list(center))
+                peaks = None
+                for template in self.templates:
 
-                centers = np.array(centers)
-                centers = np.rint(centers[~np.isnan(centers).any(axis=1)]).astype(int)
-                intensities = eroded[tuple(centers.T)]
-                # Highest peak first
-                idx_maxsort = np.argsort(-intensities)
-                centers = centers[idx_maxsort]
+                    # the template match result needs padding to match the original data dimensions
+                    res = skimage.feature.match_template(stack, template.data)
+                    pad = [int((x-1)/2) for x in template.data.shape]
+                    res = np.pad(res, tuple(zip(pad, pad)))
+                    filtered = res*np.array(res>template_threshold)
+                    footprint = np.zeros((3,3,3))
+                    footprint[1,:,1] = 1
+                    footprint[1,1,:] = 1
+                    eroded = np.copy(filtered)
+                    for i in range(erosions):
+                        eroded = skimage.morphology.erosion(eroded, selem=footprint)
+                    labeled_features, num_features = scipy.ndimage.label(eroded)
+                    centers = []
+                    for feature in range(num_features):
+                        center = scipy.ndimage.center_of_mass(eroded, labels=labeled_features, index=feature)
+                        centers.append(list(center))
 
-                centers = ensure_spacing(centers, spacing=spacing)
-                peaks = np.rint(centers).astype(int)
+                    centers = np.array(centers)
+                    centers = np.rint(centers[~np.isnan(centers).any(axis=1)]).astype(int)
+                    intensities = eroded[tuple(centers.T)]
+                    # Highest peak first
+                    idx_maxsort = np.argsort(-intensities)
+                    centers = centers[idx_maxsort]
+
+                    centers = ensure_spacing(centers, spacing=spacing)
+                    template_peaks = np.rint(centers).astype(int)
+
+                    if peaks is None:
+                        peaks = template_peaks
+                        viewer.layers['segmented'].data = res
+                        viewer.layers['segmented thresholded'].data = filtered
+                        viewer.layers['eroded'].data = eroded
+                    else:
+                        peaks = np.concatenate((peaks, template_peaks))
+                        viewer.layers['segmented'].data = np.maximum(res, viewer.layers['segmented'].data)
+                        viewer.layers['segmented thresholded'].data = np.maximum(filtered, viewer.layers['segmented thresholded'].data)
+                        viewer.layers['eroded'].data = np.maximum(eroded, viewer.layers['eroded'].data)
+
+                peak_mask = np.zeros(im1.shape, dtype=bool)
+                peak_mask[tuple(peaks.T)] = True
+                peak_masked = im1 * peak_mask
+                expanded_im = np.repeat(peak_masked, self.e.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
+                peaks = peak_local_max(expanded_im, min_distance=13)
+                peaks //= self.e.anisotropy
 
                 stack_peak_mask = np.zeros(stack.shape, dtype=bool)
                 stack_peak_mask[tuple(peaks.T)] = True
