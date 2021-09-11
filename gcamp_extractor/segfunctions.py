@@ -416,6 +416,11 @@ class BlobTemplate(object):
             profiles[dim] = [x_px, x_um, val]
 
             # gaussian fit (in pixel and micron units)
+            # special case zero padding
+            if len(x_px) == 1:
+                x_px = np.asarray([x_px[0]]*3)
+                val = np.asarray([val]*3)
+                            
             popt = self._gauss_fitter_1D(x_px, val)
             cols = ['amplitude', 'mean_px', 'std_px']
             fd = dict(zip(cols, popt))
