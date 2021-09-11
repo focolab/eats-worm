@@ -318,7 +318,7 @@ class Extractor:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                         peaks //= self.anisotropy
                     chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
-                    avg_3d_chunk = np.mean(chunks)
+                    avg_3d_chunk = np.mean(chunks, axis=0)
                     self.templates = [BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')]
                     quantiles = self.algorithm_params.get('quantiles', [0.5])
                     rotations = self.algorithm_params.get('rotations', [0])
