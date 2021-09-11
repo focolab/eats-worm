@@ -318,22 +318,20 @@ class Extractor:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                         peaks //= self.anisotropy
                     chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
-                    avg_3d_chunk = np.mean(chunks, axis=0)
-                    self.templates = [BlobTemplate(data=avg_3d_chunk, scale=self.anisotropy, blobs='blobs')]
+                    self.templates = [np.mean(chunks, axis=0)]
                     quantiles = self.algorithm_params.get('quantiles', [0.5])
                     rotations = self.algorithm_params.get('rotations', [0])
                     for quantile in quantiles:
                         for rotation in rotations:
                             try:
-                                data = rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2))
-                                self.templates.append(BlobTemplate(data=data, scale=self.anisotropy, blobs='blobs'))
+                                self.templates.append(rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2)))
                             except:
                                 pass
                     print("Total number of computed templates: ", len(self.templates))
                     self.algorithm_params['templates_made'] = True
                 peaks = None
                 for template in self.templates:
-                    template_peaks = peak_filter_2(data=im1,params={'template': template.data, 'threshold': 0.5})
+                    template_peaks = peak_filter_2(data=im1, params={'template': template, 'threshold': 0.5})
                     if peaks is None:
                         peaks = template_peaks
                     else:
