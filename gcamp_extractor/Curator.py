@@ -136,7 +136,7 @@ class Curator:
         max of image data (for setting ranges)
 
     """
-    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100):
+    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100, labels={}):
         if e:
             self.s = e.spool
             self.timeseries = e.timeseries
@@ -168,6 +168,7 @@ class Curator:
             self.curate = {}
             self.ind = 0
             self.curate['0']='seen'
+            self.curate['labels'] = labels
 
 
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
