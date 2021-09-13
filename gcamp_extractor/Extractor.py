@@ -344,6 +344,8 @@ class Extractor:
                 expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
                 peaks = peak_local_max(expanded_im, min_distance=13)
                 peaks //= self.anisotropy
+            elif self.algorithm == 'curated':
+                peaks = np.array(self.algorithm_params['peaks'])
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
