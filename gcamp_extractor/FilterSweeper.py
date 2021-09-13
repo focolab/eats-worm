@@ -4,7 +4,7 @@ from magicgui.widgets import FloatSlider, Slider
 import napari
 from napari.layers import Image
 from napari.types import LayerDataTuple
-from .segfunctions import *
+from improc.segfunctions import *
 import skimage.data
 import skimage.filters
 from skimage.feature import peak_local_max

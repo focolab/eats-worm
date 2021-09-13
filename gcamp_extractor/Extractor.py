@@ -7,7 +7,7 @@ from .Threads import *
 import pickle
 import os
 from .multifiletiff import *
-from .segfunctions import *
+from improc.segfunctions import *
 def mkdir(path):
     try: os.mkdir(path)
     except: pass
