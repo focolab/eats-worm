@@ -262,7 +262,7 @@ class Extractor:
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""
-        x = BlobThreadTracker_alpha(mft=self.im, params=self.blobthreadtracker_params)
+        x = BlobThreadTracker(mft=self.im, params=self.blobthreadtracker_params)
         self.spool = x.calc_blob_threads()
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
@@ -326,7 +326,7 @@ class Extractor:
 
 
 
-class BlobThreadTracker_alpha():
+class BlobThreadTracker():
     """peakfinding and tracking
 
     The aim of this class is to have the current peakfinding and tracking
