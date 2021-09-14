@@ -26,6 +26,7 @@ setuptools.setup(
           'napari[all]',
           'pyqtgraph',
           'magicgui',
+          'pandas',
           'scikit-image'
       ], 
     dependency_links=['https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft'],
