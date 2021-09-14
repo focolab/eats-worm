@@ -1,6 +1,7 @@
 import atexit
 import json
 import napari
+import os
 import numpy as np
 import pyqtgraph as pg
 
@@ -157,7 +158,7 @@ class Curator:
         self.num_neurons = len(self.s.threads) if self.s else 0
         self.num_frames = len(self.tf.frames) if self.tf else 0
 
-        self.path = self.tf.output_dir + 'extractor-objects/curate.json' if self.tf else None
+        self.path = os.path.join(self.tf.output_dir, 'curate.json') if self.tf else None
         self.ind = 0
         try:
             with open(self.path) as f:

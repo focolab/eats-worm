@@ -33,8 +33,6 @@ default_arguments = {
     'anisotropy':(7,1,1),
     'blob_merge_dist_thresh':6.8,
     'remove_blobs_dist':20,
-    'mip_movie':True,
-    'marker_movie':True,
     'infill':True,
     'suppress_output':False,
     'regen':False,
@@ -58,7 +56,6 @@ def default_quant_function(im, positions, frames):
     activity: list
         list of quantifications corresponding to the positions specified
     """
-    
     timeseries = []
     for i in range(len(positions)):
         center = positions[i]
@@ -74,7 +71,48 @@ def default_quant_function(im, positions, frames):
         masked.sort()
         timeseries.append(np.mean(masked[-20:]))
     return timeseries
-    
+
+def quantify(mft=None, spool=None, quant_function=default_quant_function, suppress_output=False):
+    """
+    generates timeseries based on calculated threads. 
+
+    Parameters
+    ----------
+    quant_function : function
+        function that takes in a list of positions/pixel indices, and returns a
+        list of floats that describe neuronal activity. A default
+        quantification function is included. It takes the 10 brightest pixels
+        in a 6x6 square around the position and averages them. 
+
+        Parameters
+        ----------
+        im : numpy array
+            an N (=3) dimensional numpy array of an image volume taken at some time point
+        positions : list
+            a list of positions/pixel indices of found centers
+
+        Returns
+        -------
+        activity : list
+            list of floats representing neuronal activity. should be returned in the same order as positions, i.e. activity[0] corresponds to positions[0]
+
+    """
+    mft.t = 0
+    num_threads = len(spool.threads)
+    num_t = spool.t
+
+    timeseries = np.zeros((num_t,len(spool.threads)))
+    for i in range(num_t):
+        timeseries[i] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in range(len(spool.threads))], mft.frames)
+
+        if not suppress_output:
+            print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
+
+    print('\r')
+
+    return timeseries
+
+
 def load_extractor(path):
     """
     Function for loading an existing extractor object
@@ -136,6 +174,7 @@ def load_extractor(path):
     return e
 
 
+
 class Extractor:
     """
     Timeseries extractor for GCaMP neuroimaging of paralyzed C. elegans. 
@@ -185,7 +224,7 @@ class Extractor:
 
     """
 
-    def __init__(self,*args, **kwargs):
+    def __init__(self, *args, **kwargs):
 
         ### Specifying all parameters, and filling in initial values if they weren't passed
         if len(args)!=0:
@@ -196,111 +235,165 @@ class Extractor:
         else:
             print('did not pass root directory')
             return 0
-        #self.root = kwargs['root']
-        if self.root[-1] != '/':
-            self.root += '/'
-        try:
-            self.output_dir = kwargs['output_dir']
-            if self.output_dir[-1] != '/':
-                self.output_dir += '/'
-        except:
-            self.output_dir = self.root
-        try:self.numz = kwargs['numz']
-        except:self.numz = 10
-        try:self.numc = kwargs['numc']
-        except:self.numc = 1
-        try:self.frames= kwargs['frames']
-        except:self.frames = list(range(self.numz))
-        try:self.offset= kwargs['offset']
-        except:self.offset = 0
-        try:self.t = kwargs['t']
-        except:self.t = 0
+
+        self.output_dir = os.path.join(kwargs.get('output_dir', self.root), 'extractor-objects')
+        os.makedirs(self.output_dir, exist_ok=True)
+        self.numz = kwargs.get('numz', 10)
+        self.numc = kwargs.get('numc', 1)
+        self.frames= kwargs.get('frames', list(range(self.numz)))
+        self.offset = kwargs.get('offset', 0)
+        self.anisotropy = kwargs.get('anisotropy', (6,1,1))
+        self.mip_movie = kwargs.get('mip_movie', True)
+        self.marker_movie = kwargs.get('marker_movie', True)
+        _regen_mft = kwargs.get('regen_mft')
+        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
+        self.im.save()
+        self.im.t = 0
+        self.blobthreadtracker_params = {k: v for k, v in kwargs.items() if k not in vars(self)}
+        self.t = kwargs.get('t', 0)
+
+        ### Dump a record of input parameters
+        if kwargs.get('regen'):
+            pass
+        else:
+            kwargs['regen']=True
+            with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
+                json.dump(kwargs, json_file)
+
+    def calc_blob_threads(self):
+        """peakfinding and tracking"""
+        x = BlobThreadTracker(mft=self.im, params=self.blobthreadtracker_params)
+        self.spool = x.calc_blob_threads()
+        print('Saving blob timeseries as numpy object...')
+        self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
+
+    def quantify(self, quant_function=default_quant_function):
+        """generates timeseries based on calculated threads"""
+        self.timeseries = quantify(mft=self.im, spool=self.spool)
+        self.save_timeseries()
+
+    def save_timeseries(self):
+        print('Saving timeseries as text file...')
+        np.savetxt(os.path.join(self.output_dir, 'timeseries.txt'), self.timeseries)
+
+    def results_as_dataframe(self):
+        ## TODO: dims should be a class attribute or accessible somewhere
+        dims = ['Z', 'Y', 'X']
+        df = self.spool.to_dataframe(dims=dims)
+        df['gce_quant'] = self.timeseries.T.ravel()
+        return df
+
+    def save_dataframe(self):
+        csv = os.path.join(self.output_dir, 'spool.csv')
+        print('Export threads+quant:', csv)
+        df = self.results_as_dataframe()
+        df.to_csv(csv, float_format='%6g')
+
+    def save_MIP(self, fname = ''):
+
+        # if passed with no argument, save with default
+        if fname == '':
+            fname = os.path.join(self.output_dir, 'MIP.tif')
+        
+        # if just filename specified, save in extractor objects with the filename 
+        elif '/' not in fname and '\\' not in fname:
+            fname = os.path.join(self.output_dir, fname)
 
 
-        try:self.gaussian= kwargs['gaussian']
-        except:self.gaussian = (25,4,3,1)
-        try:self.median= kwargs['median']
-        except:self.median = 3
-        try:self.quantile= kwargs['quantile']
-        except:self.quantile = 0.99
-        try:self.reg_peak_dist= kwargs['reg_peak_dist']
-        except:self.reg_peak_dist = 40
-        try:self.anisotropy= kwargs['anisotropy']
-        except:self.anisotropy = (6,1,1)
-        try:self.blob_merge_dist_thresh= kwargs['blob_merge_dist_thresh']
-        except:self.blob_merge_dist_thresh = 6
-        try:self.remove_blobs_dist= kwargs['remove_blobs_dist']
-        except:self.remove_blobs_dist = 20
-        try:self.mip_movie= kwargs['mip_movie']
-        except:self.mip_movie = True
-        try:self.marker_movie= kwargs['marker_movie']
-        except:self.marker_movie = True
-        try:self.suppress_output= kwargs['suppress_output']
-        except:self.suppress_output = False
-        try:self.incomplete = kwargs['incomplete']
-        except:self.incomplete = False 
-        try: self.register = kwargs['register_frames']
-        except: self.register = False
-        try: self.predict = kwargs['predict']
-        except: self.predict = True
-        try:
-            self.algorithm = kwargs['algorithm']
-        except:
-            self.algorithm = 'template'
-        try:
-            self.algorithm_params = kwargs['algorithm_params']
-        except:
-            self.algorithm_params = {}
+        # if the filename passed is a directory: 
+        if os.path.isdir(fname):
+            fname = os.path.join(fname, 'MIP.tif')
+        # if filename isn't a directory but ends in .tif
+        elif fname[-4:] == '.tif':
+            pass #save filename as is
+        elif fname[-5:] == '.tiff':
+            pass
+
+        # if filename isn't a directory and doesn't end in .tif, append .tif to filename
+        else:
+            fname = fname + '.tif'
+
+        _t = self.im.t
+        self.im.t = 0
+        _output = np.zeros(tuple([self.t]) + self.im.sizexy, dtype = np.uint16)
+        
+        with tiff.TiffWriter(fname,bigtiff = True) as tif:
+            for i in range(self.t):
+                tif.save(np.max(self.im.get_t(), axis = 0))
+                print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
+        print('\n')
+
+
+
+class BlobThreadTracker():
+    """peakfinding and tracking
+
+    The aim of this class is to have the current peakfinding and tracking
+    scheme(s) implemented in a self contained manner, so that Extractor can
+    stay lean and mean.
+
+    This is WIP and should be further split into peakfinding/tracking/MOCO/etc.
+
+    """
+    def __init__(self, mft=None, params=None):
+        """
+
+        parameters:
+        -----------
+        mft : (MultiFileTiff)
+        params : (dict)
+            ALL of the parameters specific to peakfinding, tracking etc
+        """
+        ## datasource
+        self.im = mft
+        self.frames = self.im.frames
+
+        ## peakfinding/spooling parameters
+        self.gaussian = params.get('gaussian', (25,4,3,1))
+        self.median = params.get('median', 3)
+        self.quantile = params.get('quantile', 0.99)
+        self.reg_peak_dist = params.get('reg_peak_dist', 40)
+        self.blob_merge_dist_thresh = params.get('blob_merge_dist_thresh', 6)
+        self.remove_blobs_dist = params.get('remove_blobs_dist', 20)
+        self.suppress_output = params.get('suppress_output', False)
+        self.register = params.get('register_frames', False)
+        self.predict = params.get('predict', True)
+        self.algorithm = params.get('algorithm', 'template')
+        self.algorithm_params = params.get('algorithm_params', {})
         try:
             self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
         except:
             self.algorithm_params['templates_made'] = False
 
-        mkdir(self.output_dir+'extractor-objects')
-        
-        _regen_mft = kwargs.get('regen_mft')
-        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
-        self.im.save()
-        #self.im.set_frames(self.frames)
-        #e.imself.im.numz = self.numz
-        self.im.t = 0
-        
+        # self.t is a time index cutoff for partial analysis
+        self.t = params.get('t', 0)
+        if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
+            self.t=(self.im.numframes-self.im.offset)//self.im.numz
 
-        if self.t==0 or self.t>(self.im.numframes-self.offset)//self.im.numz:
-            self.t=(self.im.numframes-self.offset)//self.im.numz
-
-        self.spool = Spool(self.blob_merge_dist_thresh, max_t = self.t,predict = self.predict)
-        self.timeseries = []
-
-        if kwargs.get('regen'):
-            pass
-        else:
-            mkdir(self.output_dir+'extractor-objects')
-            kwargs['regen']=True
-            with open(self.output_dir + 'extractor-objects/params.json', 'w') as json_file:
-                json.dump(kwargs, json_file)
 
     def calc_blob_threads(self):
         """
         calculates blob threads
 
-        Parameters
-        ----------
-        infill : bool
-            whether or not to infill the 
+        returns
+        -------
+        spool: (Spool)
         """
+        self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
+
         for i in range(self.t):
             im1 = self.im.get_t()
             im1 = medFilter2d(im1, self.median)
-            im1 = gaussian3d(im1,self.gaussian)
-            im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
+            im1 = gaussian3d(im1, self.gaussian)
+            im1 = np.array(im1 * np.array(im1 > np.quantile(im1, self.quantile)))
             if self.algorithm == 'skimage':
-                expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 try:
                     peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
-                    peaks //= self.anisotropy
+                    peaks //= self.im.anisotropy
                 except:
                     print("No peak_local_max params supplied; falling back to default inference.")
                     peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
@@ -309,14 +402,14 @@ class Extractor:
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             elif self.algorithm == 'template':
                 if not self.algorithm_params['templates_made']:
-                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
-                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                    expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                     try:
-                        peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
+                        peaks = np.rint(self.algorithm_params["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
-                        peaks //= self.anisotropy
+                        peaks //= self.im.anisotropy
                     chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
                     self.templates = [np.mean(chunks, axis=0)]
                     quantiles = self.algorithm_params.get('quantiles', [0.5])
@@ -339,11 +432,11 @@ class Extractor:
                 peak_mask = np.zeros(im1.shape, dtype=bool)
                 peak_mask[tuple(peaks.T)] = True
                 peak_masked = im1 * peak_mask
-                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 peaks = peak_local_max(expanded_im, min_distance=13)
-                peaks //= self.anisotropy
+                peaks //= self.im.anisotropy
             elif self.algorithm == 'curated':
                 peaks = np.array(self.algorithm_params['peaks'])
             else:
@@ -357,9 +450,9 @@ class Extractor:
                 #peaks = peaks+ _off
                 #print(_off)
             #print(peaks)
-                self.spool.reel(peaks,self.anisotropy, offset=_off)
+                self.spool.reel(peaks,self.im.anisotropy, offset=_off)
             else:
-                self.spool.reel(peaks,self.anisotropy)
+                self.spool.reel(peaks,self.im.anisotropy)
             
             if not self.suppress_output:
                 print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
@@ -390,7 +483,7 @@ class Extractor:
             #    if p[i] < window:
             #        return True
             #    elif s[i]-p[i] < window:
-             #       return True
+            #       return True
 
         print('Removing bad threads')
         self.remove_bad_threads()
@@ -406,101 +499,9 @@ class Extractor:
             for item in destroy:
                 self.spool.threads.pop(item)
 
-
         self._merge_within_z()
-
-
         self.spool.make_allthreads()
-        print('Saving blob timeseries as numpy object...')
-        mkdir(self.output_dir+'extractor-objects')
-        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
-        pickle.dump(self.spool, file_pi)
-        file_pi.close()
-
-    def quantify(self, quant_function=default_quant_function):
-        """
-        generates timeseries based on calculated threads. 
-
-        Parameters
-        ----------
-        quant_function : function
-            function that takes in a list of positions/pixel indices, and returns a list of floats that describe neuronal activity. A default quantification function is included. It takes the 10 brightest pixels in a 6x6 square around the position and averages them. 
-
-            Parameters
-            ----------
-            im : numpy array
-                an N (=3) dimensional numpy array of an image volume taken at some time point
-            positions : list
-                a list of positions/pixel indices of found centers
-
-            Returns
-            -------
-            activity : list
-                list of floats representing neuronal activity. should be returned in the same order as positions, i.e. activity[0] corresponds to positions[0]
-
-        """
-        self.im.t = 0
-        self.timeseries = np.zeros((self.t,len(self.spool.threads)))
-        for i in range(self.t):
-            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
-            
-            if not self.suppress_output:
-                print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
-
-
-        mkdir(self.output_dir + 'extractor-objects')
-        np.savetxt(self.output_dir+'extractor-objects/timeseries.txt',self.timeseries)
-        print('\nSaved timeseries as text file...')
-    
-    def save_threads(self):
-        print('Saving blob threads as pickle object...')
-        mkdir(self.output_dir+'extractor-objects')
-        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
-        pickle.dump(self.spool, file_pi)
-        file_pi.close()
-
-
-    def save_timeseries(self):
-        print('Saving blob threads as pickle object...')
-        mkdir(self.output_dir+'extractor-objects')
-        file_pi = open(self.output_dir + 'extractor-objects/threads.obj', 'wb')
-        pickle.dump(self.spool, file_pi)
-        file_pi.close()
-
-    def save_MIP(self, fname = ''):
-
-        # if passed with no argument, save with default
-        if fname == '':
-            fname = self.output_dir + "/extractor-objects/MIP.tif"
-        
-        # if just filename specified, save in extractor objects with the filename 
-        elif '/' not in fname and '\\' not in fname:
-            fname = self.output_dir + '/extractor-objects/' + fname
-
-
-        # if the filename passed is a directory: 
-        if os.path.isdir(fname):
-            fname = os.path.join(fname, 'MIP.tif')
-        # if filename isn't a directory but ends in .tif
-        elif fname[-4:] == '.tif':
-            pass #save filename as is
-        elif fname[-5:] == '.tiff':
-            pass
-
-        # if filename isn't a directory and doesn't end in .tif, append .tif to filename
-        else:
-            fname = fname + '.tif'
-
-        _t = self.im.t
-        self.im.t = 0
-        _output = np.zeros(tuple([self.t]) + self.im.sizexy, dtype = np.uint16)
-        
-        with tiff.TiffWriter(fname,bigtiff = True) as tif:
-            for i in range(self.t):
-                tif.save(np.max(self.im.get_t(), axis = 0))
-                print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
-
-        print('\n')
+        return self.spool
 
     def remove_bad_threads(self):
         if self.t > 1:
@@ -513,7 +514,7 @@ class Extractor:
                 zd[i] = np.abs(dvec[0:self.t,0]).max()
 
             ans = d > self.remove_blobs_dist
-            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
+            ans = ans + (zd > self.remove_blobs_dist/self.im.anisotropy[0])
         
             throw_ndx = np.where(ans)[0]
             throw_ndx = list(throw_ndx)
@@ -648,6 +649,4 @@ class Extractor:
         seriated_dist[b,a] = seriated_dist[a,b]
         
         return seriated_dist, res_order, res_linkage
-
-
 
