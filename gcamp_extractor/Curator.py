@@ -7,7 +7,7 @@ import pyqtgraph as pg
 from .Extractor import *
 from .multifiletiff import *
 from .Threads import *
-from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
+from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
 
@@ -41,7 +41,7 @@ def subaxis(im, position, window = 100):
     """
 
     z,y,x = position
-    z = int(z)
+    z = round(z)
     xmin,xmax = int(x-window//2),int(x+window//2)
     ymin,ymax = int(y-window//2),int(y+window//2)
 
@@ -136,22 +136,25 @@ class Curator:
         max of image data (for setting ranges)
 
     """
-    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100):
+    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100, labels={}):
         if e:
             self.s = e.spool
             self.timeseries = e.timeseries
             self.tf = e.im
             self.tmax = e.t
+            self.scale = e.anisotropy
         else:
             self.tf = mft
             self.s = spool
             self.timeseries = timeseries
             self.tmax = None
+            self.scale = (15, 1, 1)
         if self.tf:
             self.tf.t = 0
+        self.e = e
         self.window = window
         ## num neurons
-        self.numneurons = len(self.s.threads) if self.s else 0
+        self.num_neurons = len(self.s.threads) if self.s else 0
         self.num_frames = len(self.tf.frames) if self.tf else 0
 
         self.path = self.tf.output_dir + 'extractor-objects/curate.json' if self.tf else None
@@ -165,6 +168,7 @@ class Curator:
             self.curate = {}
             self.ind = 0
             self.curate['0']='seen'
+            self.curate['labels'] = labels
 
 
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
@@ -195,13 +199,34 @@ class Curator:
 
         ### initialize napari viewer
         self.viewer = napari.Viewer(ndisplay=3)
-        self.scale = [5, 1, 1]
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
-            self.viewer.add_points(np.empty((0, 3)), face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
-            self.viewer.add_points(np.empty((0, 3)), face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
+            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
+
+            self.last_selected = set()
+            def handle_select(event):
+                if self.other_rois.mode == 'select':
+                    selected = self.other_rois.selected_data
+                    if selected != self.last_selected:
+                        self.last_selected = selected
+                        if selected != set():
+                            for trace_icon in self.trace_grid.selectedItems():
+                                trace_icon.setSelected(False)
+                            for thread_index in selected:
+                                self.trace_grid.item(thread_index).setSelected(True)
+            self.other_rois.events.highlight.connect(handle_select)
+
+            def handle_add(event):
+                if self.other_rois.mode == 'add':
+                    data = self.other_rois.data
+                    if data.size:
+                        if not (self.s.get_positions_t(self.t) == data[-1]).all(axis=1).any():
+                            self.add_roi(data[-1], self.t)
+            self.other_rois.events.data.connect(handle_add)
+
+            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
 
         # initialize load buttons
         self.load_image_button = QPushButton("Load image folder")
@@ -210,10 +235,11 @@ class Curator:
         ### initialize views for images
         self.z_view = self.get_imageview()
         self.z_plus_one_view = self.get_imageview()
+        self.z_plus_one_view.view.setXLink(self.z_view.view)
+        self.z_plus_one_view.view.setYLink(self.z_view.view)
         self.z_minus_one_view = self.get_imageview()
-        self.z_subim = self.get_imageview()
-        self.z_plus_one_subim = self.get_imageview()
-        self.z_minus_one_subim = self.get_imageview()
+        self.z_minus_one_view.view.setXLink(self.z_view.view)
+        self.z_minus_one_view.view.setYLink(self.z_view.view)
         self.ortho_1_view = self.get_imageview()
         self.ortho_2_view = self.get_imageview()
         self.timeseries_view = pg.PlotWidget()
@@ -229,6 +255,26 @@ class Curator:
         ### Series label
         self.series_label = QLabel()
         self.viewer.window.add_dock_widget(self.series_label, area='right')
+
+        ### Grid showing all extracted timeseries
+        self.trace_grid = QListWidget()
+        self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.trace_grid.setViewMode(QListWidget.IconMode)
+        self.trace_grid.setResizeMode(QListView.Adjust)
+        self.trace_grid.setIconSize(QSize(288, 96))
+        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(self.trace_grid.currentRow()))
+        self.trace_grid.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.trace_grid.itemChanged.connect(self.update_label)
+        self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.trace_grid_context_menu = QMenu(self.trace_grid)
+        keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
+        self.trace_grid_context_menu.addAction(keep_all_action)
+        trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
+        self.trace_grid_context_menu.addAction(trash_all_action)
+        add_label_action = QAction('Add label', self.trace_grid, triggered = self.label_selected)
+        self.trace_grid_context_menu.addAction(add_label_action)
+        self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
+        self.set_trace_icons()
 
         ### figure grid
         image_grid_container = QWidget()
@@ -305,22 +351,6 @@ class Curator:
         bnext.clicked.connect(lambda:self.next())
         self.viewer.window.add_dock_widget([bprev, bnext], area='right')
 
-        ### Grid showing all extracted timeseries
-        self.trace_grid = QListWidget()
-        self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.trace_grid.setViewMode(QListWidget.IconMode)
-        self.trace_grid.setIconSize(QSize(96, 96))
-        self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(int(self.trace_grid.currentItem().text())))
-        self.trace_grid.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.trace_grid_context_menu = QMenu(self.trace_grid)
-        keep_all_action = QAction('Keep selected', self.trace_grid, triggered = self.keep_all_selected)
-        self.trace_grid_context_menu.addAction(keep_all_action)
-        trash_all_action = QAction('Trash selected', self.trace_grid, triggered = self.trash_all_selected)
-        self.trace_grid_context_menu.addAction(trash_all_action)
-        self.trace_grid.customContextMenuRequested[QPoint].connect(self.show_trace_grid_context_menu)
-        self.set_trace_icons()
-        self.viewer.window.add_dock_widget(self.trace_grid)
-
         ### Update buttons in case of previous curation
         self.update_buttons()
         napari.run()
@@ -334,9 +364,6 @@ class Curator:
             self.im = np.ones((1, 1))
             self.im_plus_one = np.ones((1, 1))
             self.im_minus_one = np.ones((1, 1))
-            self.subim, self.offset = np.ones((1, 1)), 0
-            self.subim_plus_one = np.ones((1, 1))
-            self.subim_minus_one = np.ones((1, 1))
     
         else:
             f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
@@ -352,9 +379,6 @@ class Curator:
                 self.im_minus_one = np.zeros(self.im.shape)
             else:
                 self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
-            self.subim, self.offset = subaxis(self.im, self.s.threads[self.ind].get_position_t(self.t), self.window)
-            self.subim_plus_one, _ = subaxis(self.im_plus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
-            self.subim_minus_one, _ = subaxis(self.im_minus_one, self.s.threads[self.ind].get_position_t(self.t), self.window)
     
     def get_im_display(self, im):
         return (im - self.min)/(self.max - self.min)
@@ -368,15 +392,13 @@ class Curator:
             self.image_grid.addWidget(self.load_image_button, 1, 0)
             self.z_view.setVisible(False)
         self.image_grid.addWidget(self.z_minus_one_view, 2, 0)
-        self.image_grid.addWidget(self.z_plus_one_subim, 0, 1)
-        self.image_grid.addWidget(self.z_subim, 1, 1)
-        self.image_grid.addWidget(self.z_minus_one_subim, 2, 1)
-        self.image_grid.addWidget(self.timeseries_view, 1, 2)
-        self.image_grid.addWidget(self.ortho_1_view, 0, 2)
-        self.image_grid.addWidget(self.ortho_2_view, 2, 2)
+        self.image_grid.addWidget(self.timeseries_view, 0, 1)
+        self.image_grid.addWidget(self.ortho_1_view, 1, 1)
+        self.image_grid.addWidget(self.ortho_2_view, 2, 1)
+        self.image_grid.addWidget(self.trace_grid, 0, 2, 3, 1)
         self.image_grid.setColumnStretch(0, 2)
         self.image_grid.setColumnStretch(1, 1)
-        self.image_grid.setColumnStretch(2, 2)
+        self.image_grid.setColumnStretch(2, 1)
     
     def update_figures(self):
         if self.tf:
@@ -388,7 +410,7 @@ class Curator:
         if self.s:
             self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
             if self.pointstate==0:
-                self.viewer.layers.data = np.empty((0, 3))
+                self.viewer.layers['other rois'].data = np.empty((0, 3))
             elif self.pointstate==1:
                 self.viewer.layers['other rois'].data = self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])
             elif self.pointstate==2:
@@ -417,21 +439,17 @@ class Curator:
                 pass
             elif self.pointstate==1:
                 self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.blue)
+                self.plot_on_montageview(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]), Qt.blue)
             elif self.pointstate==2:
                 self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
                 self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
                 self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
+                self.plot_on_montageview(self.s.get_positions_t(self.t), Qt.blue)
             self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
-
-            #plotting for single point
-            self.update_imageview(self.z_subim, self.get_im_display(self.subim), "Parent Z")
-            self.update_imageview(self.z_plus_one_subim, self.get_im_display(self.subim_plus_one), "Z + 1")
-            self.update_imageview(self.z_minus_one_subim, self.get_im_display(self.subim_minus_one), "Z - 1")
-
-            self.plot_on_imageview(self.z_subim, [self.window/2+self.offset[0]], [self.window/2+self.offset[1]], Qt.red)
+            self.plot_on_montageview(np.array([self.s.threads[self.ind].get_position_t(self.t)]), Qt.red)
 
         if self.timeseries is not None:
-            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])))
+            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(round(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
     def update_timeseries(self):
         self.timeseries_view.clear()
@@ -492,7 +510,7 @@ class Curator:
             pass
 
     def keep_all_selected(self, label):
-        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='keep'
         self.update_buttons()
@@ -500,11 +518,22 @@ class Curator:
 
 
     def trash_all_selected(self, label):
-        selected_trace_indices = [icon.text() for icon in self.trace_grid.selectedItems()]
+        selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='trash'
         self.update_buttons()
         self.update_trace_icons()
+
+    def label_selected(self, label):
+        selected_icons = self.trace_grid.selectedItems()
+        if len(selected_icons) == 1:
+            self.trace_grid.editItem(selected_icons[0])
+
+    def update_label(self, labeled_item):
+        index = self.trace_grid.indexFromItem(labeled_item).row()
+        if 'labels' not in self.curate:
+            self.curate['labels'] = {}
+        self.curate['labels'][str(index)] = labeled_item.text()
 
     def update_buttons(self):
         if self.curate.get(str(self.ind))=='keep':
@@ -531,61 +560,61 @@ class Curator:
     def set_index_prev(self):
         if self.show_settings == 0:
             self.ind -= 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
         elif self.show_settings == 1:
             self.ind -= 1
             counter = 0
-            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.num_neurons:
                 self.ind -= 1
-                self.ind = self.ind % self.numneurons
+                self.ind = self.ind % self.num_neurons
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         elif self.show_settings == 2:
             self.ind -= 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.num_neurons:
                 self.ind -= 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         else:
             self.ind -= 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.num_neurons:
                 self.ind -= 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
     def set_index_next(self):
         if self.show_settings == 0:
             self.ind += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
         elif self.show_settings == 1:
             self.ind += 1
             counter = 0
-            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) in ['keep','trash'] and counter != self.num_neurons:
                 self.ind += 1
-                self.ind = self.ind % self.numneurons
+                self.ind = self.ind % self.num_neurons
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         elif self.show_settings == 2:
             self.ind += 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['keep'] and counter != self.num_neurons:
                 self.ind += 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
         else:
             self.ind += 1
             counter = 0
-            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.numneurons:
+            while self.curate.get(str(self.ind)) not in ['trash'] and counter != self.num_neurons:
                 self.ind += 1
                 counter += 1
-            self.ind = self.ind % self.numneurons
+            self.ind = self.ind % self.num_neurons
 
     def set_index(self, index):
-        self.ind = index % self.numneurons
+        self.ind = index % self.num_neurons
 
     def update_curate(self):
         if self.curate.get(str(self.ind)) in ['keep','seen','trash']:
@@ -613,16 +642,13 @@ class Curator:
 
         ## clear image grid and reassign
         if 2 == self.showmip:
-            i = self.image_grid.count() - 1
+            i = self.image_grid.count() - 2
             while(i >= 0):
                 grid_item = self.image_grid.itemAt(i).widget()
                 grid_item.setParent(None)
                 i -=1
-            self.image_grid.addWidget(self.montage_view, 0, 0)
+            self.image_grid.addWidget(self.montage_view, 0, 0, 3, 2)
             self.montage_view.setVisible(True)
-            self.image_grid.setColumnStretch(1, 0)
-            self.image_grid.setColumnStretch(2, 0)
-            # self.montage_view.setVisible(True)
 
         elif 2 == last_setting:
             self.montage_view.setVisible(False)
@@ -634,27 +660,34 @@ class Curator:
 
     def set_trace_icons(self):
         if self.timeseries is not None:
-            for ind in range(self.timeseries.shape[1]):
-                timeseries_view = pg.PlotWidget()
-                timeseries_view.setBackground('w')
-                timeseries_view.plot((self.timeseries[:,ind]-np.min(self.timeseries[:,ind]))/(np.max(self.timeseries[:,ind])-np.min(self.timeseries[:,ind])), pen=pg.mkPen(color=(31, 119, 180), width=5))
-                icon = QIcon(timeseries_view.grab())
-                item = QListWidgetItem(icon, str(ind))
-                self.trace_grid.addItem(item)
+            for index in range(self.timeseries.shape[1]):
+                self.plot_timeseries_to_trace_grid(index)
+
+    def plot_timeseries_to_trace_grid(self, index):
+        timeseries_view = pg.PlotWidget()
+        timeseries_view.setBackground('w')
+        timeseries_view.plot((self.timeseries[:,index]-np.min(self.timeseries[:,index]))/(np.max(self.timeseries[:,index])-np.min(self.timeseries[:,index])), pen=pg.mkPen(color=(31, 119, 180), width=5))
+        icon = QIcon(timeseries_view.grab())
+        label = self.curate.get('labels', {}).get(str(index), str(index))
+        item = QListWidgetItem(icon, label)
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
+        self.trace_grid.addItem(item)
     
     def update_trace_icons(self):
-        for trace_icon in [self.trace_grid.item(index) for index in range(self.trace_grid.count())]:
+        for index in range(self.trace_grid.count()):
+            trace_icon = self.trace_grid.item(index)
+
             if self.show_settings == 0:
                 trace_icon.setHidden(False)
 
             elif self.show_settings == 1:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) in ['keep','trash'])
+                trace_icon.setHidden(self.curate.get(str(index)) in ['keep','trash'])
 
             elif self.show_settings == 2:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'keep')
+                trace_icon.setHidden(self.curate.get(str(index)) != 'keep')
 
             else:
-                trace_icon.setHidden(self.curate.get(trace_icon.text()) != 'trash')
+                trace_icon.setHidden(self.curate.get(str(index)) != 'trash')
 
     def go_to_trace(self, index):
         self.set_index(index)
@@ -686,10 +719,33 @@ class Curator:
 
     def plot_on_imageview(self, image_view, x, y, color):
         plot_item = image_view.getView()
-        plot_item.scatterPlot(x, y, symbolSize=10, pen=QPen(color, .1), brush=QBrush(color))
+        plot_item.scatterPlot(x, y, symbolSize=3, pen=QPen(color, .1), brush=QBrush(color))
     
+    def plot_on_montageview(self, positions, color):
+        x_size, y_size = self.tf.get_t(self.t).shape[-2:]
+        z = positions[:,0]
+        x = positions[:,1]
+        y = positions[:,2]
+        self.plot_on_imageview(self.montage_view, z * x_size + x, -y + y_size, color)
+        for z in range(1, self.num_frames):
+            self.montage_view.getView().plot([z * x_size] * y_size, range(y_size), pen='y')
+
     def load_image_folder(self):
         folder_path = QFileDialog.getExistingDirectory()
         mft = MultiFileTiff(folder_path)
         self.viewer.window.close()
         Curator(mft=mft, spool = self.s, timeseries = self.timeseries, window = self.window)
+
+    def add_roi(self, position, t):
+        self.s.add_thread_post_hoc(position, t)
+
+        self.e.save_threads()
+        self.e.quantify()
+        self.timeseries = self.e.timeseries
+        self.e.save_timeseries()
+
+        self.num_neurons += 1
+        self.update_ims()
+        self.update_figures()
+        self.plot_timeseries_to_trace_grid(self.num_neurons - 1)
+        self.update_timeseries()

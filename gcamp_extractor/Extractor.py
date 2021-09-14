@@ -7,13 +7,14 @@ from .Threads import *
 import pickle
 import os
 from .multifiletiff import *
-from .segfunctions import *
+from improc.segfunctions import *
 def mkdir(path):
     try: os.mkdir(path)
     except: pass
 import glob
 import json
 import imreg_dft as ird
+from scipy.ndimage import rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
 from fastcluster import linkage
@@ -37,9 +38,11 @@ default_arguments = {
     'infill':True,
     'suppress_output':False,
     'regen':False,
+    'algorithm': 'template',
+    'algorithm_params': {},
 }
 
-def default_quant_function(im, positions):
+def default_quant_function(im, positions, frames):
     """
     Default quantification function, to be used in conjunction with the Extractor class. Takes the 10 brightest pixels in a 6x6 square around the specified position 
 
@@ -62,12 +65,14 @@ def default_quant_function(im, positions):
         z,y,x = [],[],[]
         for i in range(-3,4):
             for j in range(-3,4):
-                z.append(int(center[0]))
-                y.append(int(center[1] + j))
-                x.append(int(center[2] + i))
+                for k in range(-1,2):
+                    if 0 <= round(center[0] + k) < len(frames): 
+                        z.append(round(center[0] + k))
+                        y.append(round(center[1] + j))
+                        x.append(round(center[2] + i))
         masked = im[z,y,x]
         masked.sort()
-        timeseries.append(np.mean(masked[-10:]))
+        timeseries.append(np.mean(masked[-20:]))
     return timeseries
     
 def load_extractor(path):
@@ -237,12 +242,20 @@ class Extractor:
         try: self.register = kwargs['register_frames']
         except: self.register = False
         try: self.predict = kwargs['predict']
-        except: self.predict = True 
-        try: self.skimage = kwargs['skimage']
-        except: self.skimage = False
+        except: self.predict = True
+        try:
+            self.algorithm = kwargs['algorithm']
+        except:
+            self.algorithm = 'template'
+        try:
+            self.algorithm_params = kwargs['algorithm_params']
+        except:
+            self.algorithm_params = {}
+        try:
+            self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
+        except:
+            self.algorithm_params['templates_made'] = False
 
-
-        self.threed = kwargs.get('3d')
         mkdir(self.output_dir+'extractor-objects')
         
         _regen_mft = kwargs.get('regen_mft')
@@ -281,7 +294,7 @@ class Extractor:
             im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
             im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
-            if self.skimage:
+            if self.algorithm == 'skimage':
                 expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
                 expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
                 expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
@@ -291,15 +304,54 @@ class Extractor:
                 except:
                     print("No peak_local_max params supplied; falling back to default inference.")
                     peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
-            elif self.threed:
+            elif self.algorithm == 'threed':
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+            elif self.algorithm == 'template':
+                if not self.algorithm_params['templates_made']:
+                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                    try:
+                        peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
+                    except:
+                        peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
+                        peaks //= self.anisotropy
+                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
+                    self.templates = [np.mean(chunks, axis=0)]
+                    quantiles = self.algorithm_params.get('quantiles', [0.5])
+                    rotations = self.algorithm_params.get('rotations', [0])
+                    for quantile in quantiles:
+                        for rotation in rotations:
+                            try:
+                                self.templates.append(rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2)))
+                            except:
+                                pass
+                    print("Total number of computed templates: ", len(self.templates))
+                    self.algorithm_params['templates_made'] = True
+                peaks = None
+                for template in self.templates:
+                    template_peaks = peak_filter_2(data=im1, params={'template': template, 'threshold': 0.5})
+                    if peaks is None:
+                        peaks = template_peaks
+                    else:
+                        peaks = np.concatenate((peaks, template_peaks))
+                peak_mask = np.zeros(im1.shape, dtype=bool)
+                peak_mask[tuple(peaks.T)] = True
+                peak_masked = im1 * peak_mask
+                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                peaks = peak_local_max(expanded_im, min_distance=13)
+                peaks //= self.anisotropy
+            elif self.algorithm == 'curated':
+                peaks = np.array(self.algorithm_params['peaks'])
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
-                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), self.im.get_tbyf(i,self.frames[int(len(self.frames)/2)]))['tvec']
 
                 _off = np.insert(_off, 0,0)
                 #peaks = peaks+ _off
@@ -319,13 +371,13 @@ class Extractor:
         imshape = tuple([len(self.frames)]) + self.im.sizexy
         def collided(positions, imshape, window = 3):
             for i in [1,2]:
-                if np.sum(positions[:,i].astype(int) < window) != 0:
+                if np.sum(np.rint(positions[:,i]).astype(int) < window) != 0:
                     return True
 
-                if np.sum(imshape[i] - positions[:,i].astype(int) < window+1) != 0:
+                if np.sum(imshape[i] - np.rint(positions[:,i]).astype(int) < window+1) != 0:
                     return True
 
-            if np.sum(positions[:,0].astype(int)<0) != 0 or np.sum(positions[:,0].astype(int) > imshape[0]-1) != 0:
+            if np.sum(np.rint(positions[:,0]).astype(int)<0) != 0 or np.sum(np.rint(positions[:,0]).astype(int) > imshape[0]-1) != 0:
                 return True
 
             #if positions[0] < 0 or int(positions[0]) == imshape[0]:
@@ -390,7 +442,7 @@ class Extractor:
         self.im.t = 0
         self.timeseries = np.zeros((self.t,len(self.spool.threads)))
         for i in range(self.t):
-            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))])
+            self.timeseries[i] = quant_function(self.im.get_t(),[self.spool.threads[j].get_position_t(i) for j in range(len(self.spool.threads))], self.frames)
             
             if not self.suppress_output:
                 print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
@@ -451,25 +503,26 @@ class Extractor:
         print('\n')
 
     def remove_bad_threads(self):
-        d = np.zeros(len(self.spool.threads))
-        zd = np.zeros(len(self.spool.threads))
-        orig = len(self.spool.threads)
-        for i in range(len(self.spool.threads)):
-            dvec = np.diff(self.spool.threads[i].positions, axis = 0)
-            d[i] = np.abs(dvec).max()
-            zd[i] = np.abs(dvec[0:self.t,0]).max()
+        if self.t > 1:
+            d = np.zeros(len(self.spool.threads))
+            zd = np.zeros(len(self.spool.threads))
+            orig = len(self.spool.threads)
+            for i in range(len(self.spool.threads)):
+                dvec = np.diff(self.spool.threads[i].positions, axis = 0)
+                d[i] = np.abs(dvec).max()
+                zd[i] = np.abs(dvec[0:self.t,0]).max()
 
-        ans = d > self.remove_blobs_dist
-        ans = ans + (zd > self.remove_blobs_dist/2.5)
-    
-        throw_ndx = np.where(ans)[0]
-        throw_ndx = list(throw_ndx)
+            ans = d > self.remove_blobs_dist
+            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
+        
+            throw_ndx = np.where(ans)[0]
+            throw_ndx = list(throw_ndx)
 
-        throw_ndx.sort(reverse = True)
+            throw_ndx.sort(reverse = True)
 
-        for ndx in throw_ndx:
-            self.spool.threads.pop(int(ndx))
-        print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
+            for ndx in throw_ndx:
+                self.spool.threads.pop(int(ndx))
+            print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
 
 
     def _merge_within_z(self):
@@ -541,7 +594,7 @@ class Extractor:
 
         # iterate over threads, append index to threads_by_z
         for i in range(len(self.spool.threads)):
-            z = int(self.spool.threads[i].positions[0,0])
+            z = round(self.spool.threads[i].positions[0,0])
             # ndx = np.where(np.array(self.frames) == z)[0][0]
 
             threads_by_z[z].append(i)
