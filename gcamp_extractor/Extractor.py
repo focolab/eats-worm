@@ -241,7 +241,7 @@ class Extractor:
         self.numz = kwargs.get('numz', 10)
         self.numc = kwargs.get('numc', 1)
         self.frames= kwargs.get('frames', list(range(self.numz)))
-        self.offset = kwargs.get('offset', 0),
+        self.offset = kwargs.get('offset', 0)
         self.t = kwargs.get('t', 0)
 
         self.gaussian = kwargs.get('gaussian', (25,4,3,1))
@@ -258,11 +258,7 @@ class Extractor:
         self.register = kwargs.get('register_frames', False)
         self.predict = kwargs.get('predict', True)
         self.algorithm = kwargs.get('algorithm', 'template')
-        self.algorithm_params = kwargs.get('algorithm_params', {})
-        try:
-            self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
-        except:
-            self.algorithm_params['templates_made'] = False        
+        self.algorithm_params = kwargs.get('algorithm_params', {})  
         _regen_mft = kwargs.get('regen_mft')
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
@@ -278,7 +274,7 @@ class Extractor:
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""
-        x = BlobThreadTracker_alpha(mft=self.im, params=self.pf_params)
+        x = BlobThreadTracker_alpha(mft=self.im, params=vars(self))
         self.spool = x.calc_blob_threads()
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
@@ -376,14 +372,12 @@ class BlobThreadTracker_alpha():
         self.incomplete = params.get('incomplete', False)
         self.register = params.get('register_frames', False)
         self.predict = params.get('predict', True)
-        self.skimage = params.get('skimage', False)
-        self.threed = params.get('3d', None)
+        self.algorithm = params.get('algorithm', 'template')
+        self.algorithm_params = params.get('algorithm_params', {})
         try:
-            self.template = params['template']
-            self.template_made = type(self.template) != bool
+            self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
         except:
-            self.template = False
-            self.template_made = False
+            self.algorithm_params['templates_made'] = False
 
         # self.t is a time index cutoff for partial analysis
         self.t = params.get('t', 0)
@@ -407,9 +401,9 @@ class BlobThreadTracker_alpha():
             im1 = gaussian3d(im1,self.gaussian)
             im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
             if self.algorithm == 'skimage':
-                expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 try:
                     peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
                     peaks //= self.im.anisotropy
@@ -421,14 +415,14 @@ class BlobThreadTracker_alpha():
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
             elif self.algorithm == 'template':
                 if not self.algorithm_params['templates_made']:
-                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
-                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                    expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                     try:
                         peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
-                        peaks //= self.anisotropy
+                        peaks //= self.im.anisotropy
                     chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
                     self.templates = [np.mean(chunks, axis=0)]
                     quantiles = self.algorithm_params.get('quantiles', [0.5])
@@ -451,11 +445,11 @@ class BlobThreadTracker_alpha():
                 peak_mask = np.zeros(im1.shape, dtype=bool)
                 peak_mask[tuple(peaks.T)] = True
                 peak_masked = im1 * peak_mask
-                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
+                expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 peaks = peak_local_max(expanded_im, min_distance=13)
-                peaks //= self.anisotropy
+                peaks //= self.im.anisotropy
             elif self.algorithm == 'curated':
                 peaks = np.array(self.algorithm_params['peaks'])
             else:
@@ -533,7 +527,7 @@ class BlobThreadTracker_alpha():
                 zd[i] = np.abs(dvec[0:self.t,0]).max()
 
             ans = d > self.remove_blobs_dist
-            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
+            ans = ans + (zd > self.remove_blobs_dist/self.im.anisotropy[0])
         
             throw_ndx = np.where(ans)[0]
             throw_ndx = list(throw_ndx)
