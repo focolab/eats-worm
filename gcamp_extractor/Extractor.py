@@ -242,27 +242,15 @@ class Extractor:
         self.numc = kwargs.get('numc', 1)
         self.frames= kwargs.get('frames', list(range(self.numz)))
         self.offset = kwargs.get('offset', 0)
-        self.t = kwargs.get('t', 0)
-
-        self.gaussian = kwargs.get('gaussian', (25,4,3,1))
-        self.median = kwargs.get('median', 3)
-        self.quantile = kwargs.get('quantile', 0.99)
-        self.reg_peak_dist = kwargs.get('reg_peak_dist', 40)
         self.anisotropy = kwargs.get('anisotropy', (6,1,1))
-        self.blob_merge_dist_thresh = kwargs.get('blob_merge_dist_thresh', 6)
-        self.remove_blobs_dist = kwargs.get('remove_blobs_dist', 20)
         self.mip_movie = kwargs.get('mip_movie', True)
         self.marker_movie = kwargs.get('marker_movie', True)
-        self.suppress_output = kwargs.get('suppress_output', False)
-        self.incomplete = kwargs.get('incomplete', False)
-        self.register = kwargs.get('register_frames', False)
-        self.predict = kwargs.get('predict', True)
-        self.algorithm = kwargs.get('algorithm', 'template')
-        self.algorithm_params = kwargs.get('algorithm_params', {})  
         _regen_mft = kwargs.get('regen_mft')
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         self.im.t = 0
+        self.blobthreadtracker_params = {k: v for k, v in kwargs.items() if k not in vars(self)}
+        self.t = kwargs.get('t', 0)
 
         ### Dump a record of input parameters
         if kwargs.get('regen'):
@@ -274,7 +262,7 @@ class Extractor:
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""
-        x = BlobThreadTracker_alpha(mft=self.im, params=vars(self))
+        x = BlobThreadTracker_alpha(mft=self.im, params=self.blobthreadtracker_params)
         self.spool = x.calc_blob_threads()
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
@@ -369,7 +357,6 @@ class BlobThreadTracker_alpha():
         self.blob_merge_dist_thresh = params.get('blob_merge_dist_thresh', 6)
         self.remove_blobs_dist = params.get('remove_blobs_dist', 20)
         self.suppress_output = params.get('suppress_output', False)
-        self.incomplete = params.get('incomplete', False)
         self.register = params.get('register_frames', False)
         self.predict = params.get('predict', True)
         self.algorithm = params.get('algorithm', 'template')
@@ -398,8 +385,8 @@ class BlobThreadTracker_alpha():
         for i in range(self.t):
             im1 = self.im.get_t()
             im1 = medFilter2d(im1, self.median)
-            im1 = gaussian3d(im1,self.gaussian)
-            im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
+            im1 = gaussian3d(im1, self.gaussian)
+            im1 = np.array(im1 * np.array(im1 > np.quantile(im1, self.quantile)))
             if self.algorithm == 'skimage':
                 expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
@@ -419,7 +406,7 @@ class BlobThreadTracker_alpha():
                     expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                     try:
-                        peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
+                        peaks = np.rint(self.algorithm_params["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                         peaks //= self.im.anisotropy
