@@ -214,6 +214,16 @@ class Spool:
                 for j in reversed(range(self.threads[i].t[0])):
                     inferred = inferred - self.dvec[j]
                     self.threads[i].infill(inferred)
+
+    def exfill(self):
+        for i in range(len(self.threads)):
+            if self.threads[i].t[-1]==self.maxt - 1:
+                pass
+            else:
+                inferred = self.threads[i].get_position_t(self.threads[i].t[-1])
+                for j in range(self.threads[i].t[-1] + 1, self.maxt):
+                    inferred = inferred + self.dvec[j-1]
+                    self.threads[i].exfill(inferred)
     
     def make_allthreads(self):
         # initialize numpy array based on how many timepoints and number of threads
@@ -222,6 +232,14 @@ class Spool:
         # fill in everything
         for i in range(len(self.threads)):
             self.allthreads[:,3*i:3*i+3] = self.threads[i].positions
+
+    # handle manual addition of new roi to completed spool
+    def add_thread_post_hoc(self, position, t):
+        self.threads.append(Thread(position, t=t, maxt = self.maxt))
+        self.infill()
+        self.exfill()
+        self.update_positions()
+        self.make_allthreads()
 
     def get_positions_t(self,t):
         if self.allthreads is not None:
@@ -351,6 +369,10 @@ class Thread:
         self.t.insert(0,self.t[0]-1)
         self.positions[self.t[0]] = np.array(position)
         #self.positions.insert(0,position)
+
+    def exfill(self, position):
+        self.t.append(self.t[-1]+1)
+        self.positions[self.t[-1]] = np.array(position)
 
     def get_position_t(self, t = 0):
         """

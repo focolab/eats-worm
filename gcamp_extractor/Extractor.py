@@ -7,10 +7,14 @@ from .Threads import *
 import pickle
 import os
 from .multifiletiff import *
-from .segfunctions import *
+from improc.segfunctions import *
+def mkdir(path):
+    try: os.mkdir(path)
+    except: pass
 import glob
 import json
 import imreg_dft as ird
+from scipy.ndimage import rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
 from fastcluster import linkage
@@ -32,6 +36,8 @@ default_arguments = {
     'infill':True,
     'suppress_output':False,
     'regen':False,
+    'algorithm': 'template',
+    'algorithm_params': {},
 }
 
 def default_quant_function(im, positions, frames):
@@ -230,35 +236,35 @@ class Extractor:
             print('did not pass root directory')
             return 0
 
-        ### set up output_dir
-        if kwargs.get('output_dir') is None:
-            self.output_dir = os.path.join(self.root, 'extractor-objects')
-        else:
-            self.output_dir = os.path.join(kwargs['output_dir'], 'extractor-objects')
+        self.output_dir = os.path.join(kwargs.get('output_dir', self.root), 'extractor-objects')
         os.makedirs(self.output_dir, exist_ok=True)
+        self.numz = kwargs.get('numz', 10)
+        self.numc = kwargs.get('numc', 1)
+        self.frames= kwargs.get('frames', list(range(self.numz)))
+        self.offset = kwargs.get('offset', 0),
+        self.t = kwargs.get('t', 0)
 
-        ### Make a dictionary of only the peakfinding parameters
-        ### TODO: Extractor should require a pf_params dict
-        pf_keys_all = [
-            'gaussian', 'median', 'quantile', 'reg_peak_dist',
-            'blob_merge_dist_thresh', 'remove_blobs_dist', 'suppress_output',
-            'incomplete', 'register_frames', 'predict', 'skimage', 't',
-            'template', 'template_made', '3d'
-            ]
-        pf_keys = [k for k in pf_keys_all if k in list(kwargs.keys())]
-        self.pf_params = {k:kwargs[k] for k in pf_keys}
-
-        ### Build MultiFileTiff
-        ### TODO: Extractor should require a mft_params dict
-        mft_params = dict(
-            numz = kwargs.get('numz', 10),
-            numc = kwargs.get('numc', 1),
-            frames = kwargs.get('frames', list(range(kwargs.get('numz', 10)))),
-            offset = kwargs.get('offset', 0),
-            _regen_mft = kwargs.get('regen_mft'),
-            anisotropy = kwargs.get('anisotropy')
-        )
-        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, **mft_params)
+        self.gaussian = kwargs.get('gaussian', (25,4,3,1))
+        self.median = kwargs.get('median', 3)
+        self.quantile = kwargs.get('quantile', 0.99)
+        self.reg_peak_dist = kwargs.get('reg_peak_dist', 40)
+        self.anisotropy = kwargs.get('anisotropy', (6,1,1))
+        self.blob_merge_dist_thresh = kwargs.get('blob_merge_dist_thresh', 6)
+        self.remove_blobs_dist = kwargs.get('remove_blobs_dist', 20)
+        self.mip_movie = kwargs.get('mip_movie', True)
+        self.marker_movie = kwargs.get('marker_movie', True)
+        self.suppress_output = kwargs.get('suppress_output', False)
+        self.incomplete = kwargs.get('incomplete', False)
+        self.register = kwargs.get('register_frames', False)
+        self.predict = kwargs.get('predict', True)
+        self.algorithm = kwargs.get('algorithm', 'template')
+        self.algorithm_params = kwargs.get('algorithm_params', {})
+        try:
+            self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
+        except:
+            self.algorithm_params['templates_made'] = False        
+        _regen_mft = kwargs.get('regen_mft')
+        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         self.im.t = 0
 
@@ -274,6 +280,7 @@ class Extractor:
         """peakfinding and tracking"""
         x = BlobThreadTracker_alpha(mft=self.im, params=self.pf_params)
         self.spool = x.calc_blob_threads()
+        print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
 
     def quantify(self, quant_function=default_quant_function):
@@ -282,7 +289,7 @@ class Extractor:
         self.save_timeseries()
 
     def save_timeseries(self):
-        print('Saving blob timeseries as text file...')
+        print('Saving timeseries as text file...')
         np.savetxt(os.path.join(self.output_dir, 'timeseries.txt'), self.timeseries)
 
     def results_as_dataframe(self):
@@ -399,44 +406,44 @@ class BlobThreadTracker_alpha():
             im1 = medFilter2d(im1, self.median)
             im1 = gaussian3d(im1,self.gaussian)
             im1 = np.array(im1 * np.array(im1 > np.quantile(im1,self.quantile)))
-            if self.skimage:
-                expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+            if self.algorithm == 'skimage':
+                expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
                 try:
                     peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
                     peaks //= self.im.anisotropy
                 except:
                     print("No peak_local_max params supplied; falling back to default inference.")
                     peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
-            elif self.threed:
+            elif self.algorithm == 'threed':
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
-            elif self.template:
-                if not self.template_made:
-                    expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
-                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+            elif self.algorithm == 'template':
+                if not self.algorithm_params['templates_made']:
+                    expanded_im = np.repeat(im1, self.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
                     try:
                         peaks = np.rint(self.peakfinding_params["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
-                        peaks //= self.im.anisotropy
-                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[11//dim for dim in self.im.anisotropy])
-                    avg_3d_chunk = np.mean(chunks)
-                    templates = []
-                    quantiles = [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875]
+                        peaks //= self.anisotropy
+                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
+                    self.templates = [np.mean(chunks, axis=0)]
+                    quantiles = self.algorithm_params.get('quantiles', [0.5])
+                    rotations = self.algorithm_params.get('rotations', [0])
                     for quantile in quantiles:
-                        try:
-                            templates.append(BlobTemplate(data=np.quantile(chunks, quantile, axis=0), scale=self.im.anisotropy, blobs='blobs'))
-                        except:
-                            pass
-                    print("Total number of computed templates: ",len(templates))
-                    self.template = BlobTemplate(data=avg_3d_chunk, scale=self.im.anisotropy, blobs='blobs')
-                    self.template_made = True
+                        for rotation in rotations:
+                            try:
+                                self.templates.append(rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2)))
+                            except:
+                                pass
+                    print("Total number of computed templates: ", len(self.templates))
+                    self.algorithm_params['templates_made'] = True
                 peaks = None
-                for template in templates:
-                    template_peaks = peak_filter_2(data=im1,params={'template': template.data, 'threshold': 0.5})
+                for template in self.templates:
+                    template_peaks = peak_filter_2(data=im1, params={'template': template, 'threshold': 0.5})
                     if peaks is None:
                         peaks = template_peaks
                     else:
@@ -444,17 +451,19 @@ class BlobThreadTracker_alpha():
                 peak_mask = np.zeros(im1.shape, dtype=bool)
                 peak_mask[tuple(peaks.T)] = True
                 peak_masked = im1 * peak_mask
-                expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                expanded_im = np.repeat(peak_masked, self.anisotropy[0], axis=0)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[1], axis=1)
+                expanded_im = np.repeat(expanded_im, self.anisotropy[2], axis=2)
                 peaks = peak_local_max(expanded_im, min_distance=13)
-                peaks //= self.im.anisotropy
+                peaks //= self.anisotropy
+            elif self.algorithm == 'curated':
+                peaks = np.array(self.algorithm_params['peaks'])
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
-                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), im1[int(len(self.frames)/2)])['tvec']
+                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), self.im.get_tbyf(i,self.frames[int(len(self.frames)/2)]))['tvec']
 
                 _off = np.insert(_off, 0,0)
                 #peaks = peaks+ _off
@@ -524,7 +533,7 @@ class BlobThreadTracker_alpha():
                 zd[i] = np.abs(dvec[0:self.t,0]).max()
 
             ans = d > self.remove_blobs_dist
-            ans = ans + (zd > self.remove_blobs_dist/self.im.anisotropy[0])
+            ans = ans + (zd > self.remove_blobs_dist/self.anisotropy[0])
         
             throw_ndx = np.where(ans)[0]
             throw_ndx = list(throw_ndx)
