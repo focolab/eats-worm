@@ -317,7 +317,7 @@ class Extractor:
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                         peaks //= self.anisotropy
-                    chunks, blobs = peakfinder(data=im1, peaks=peaks, pad=[1, 25, 25])
+                    chunks = get_bounded_chunks(data=im1, peaks=peaks, pad=[1, 25, 25])
                     self.templates = [np.mean(chunks, axis=0)]
                     quantiles = self.algorithm_params.get('quantiles', [0.5])
                     rotations = self.algorithm_params.get('rotations', [0])
