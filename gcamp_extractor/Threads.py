@@ -1,3 +1,7 @@
+
+import os
+import pickle
+import pandas as pd
 import numpy as np
 import pdb
 import time
@@ -32,6 +36,23 @@ class Spool:
         self.t = None
         self.dvec = np.zeros((self.maxt-1,3))
         self.allthreads = None
+
+    def export(self, f):
+        print('Saving spool as pickle object...')
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        file_pi = open(f, 'wb')
+        pickle.dump(self, file_pi)
+        file_pi.close()
+
+    @classmethod
+    def load(cls, f):
+        if not f:
+            raise Exception('pickle file (f) is required')
+        print('Loading spool from pickle object...')
+        with open(f,'rb') as fopen:
+            x = pickle.load(fopen)
+        return x
+
     def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
 
         # if no threads already exist, add all incoming points to new threads them and positions tracker
@@ -241,6 +262,28 @@ class Spool:
         
         return _a[_a[:,0]==z]
 
+    def to_dataframe(self, dims):
+        """package results to a dataframe
+
+        parameters
+        ----------
+        dims (list): Required to specify dimension order e.g. ['Z', 'Y', 'X']
+
+        returns
+        -------
+        df_out (pandas.DataFrame):
+        """
+        dd = {True:'detected', False:'infilled'}
+
+        all_dataframes = []
+        for ix, th in enumerate(self.threads):
+            df = pd.DataFrame(data=th.positions, columns=dims)
+            df['T'] = th.t
+            df['prov'] = [dd[k] for k in th.found]
+            df['blob_ix'] = [ix]*len(df)
+            all_dataframes.append(df)
+        df_out = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
+        return df_out
 
 
 class Thread:
