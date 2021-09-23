@@ -37,9 +37,7 @@ class Spool:
         self.dvec = np.zeros((self.maxt-1,3))
         self.allthreads = None
 
-    def export(self, f=None):
-        if not f:
-            raise Exception('output file (f) is required')
+    def export(self, f):
         print('Saving spool as pickle object...')
         os.makedirs(os.path.dirname(f), exist_ok=True)
         file_pi = open(f, 'wb')
@@ -214,6 +212,16 @@ class Spool:
                 for j in reversed(range(self.threads[i].t[0])):
                     inferred = inferred - self.dvec[j]
                     self.threads[i].infill(inferred)
+
+    def exfill(self):
+        for i in range(len(self.threads)):
+            if self.threads[i].t[-1]==self.maxt - 1:
+                pass
+            else:
+                inferred = self.threads[i].get_position_t(self.threads[i].t[-1])
+                for j in range(self.threads[i].t[-1] + 1, self.maxt):
+                    inferred = inferred + self.dvec[j-1]
+                    self.threads[i].exfill(inferred)
     
     def make_allthreads(self):
         # initialize numpy array based on how many timepoints and number of threads
@@ -222,6 +230,14 @@ class Spool:
         # fill in everything
         for i in range(len(self.threads)):
             self.allthreads[:,3*i:3*i+3] = self.threads[i].positions
+
+    # handle manual addition of new roi to completed spool
+    def add_thread_post_hoc(self, position, t):
+        self.threads.append(Thread(position, t=t, maxt = self.maxt))
+        self.infill()
+        self.exfill()
+        self.update_positions()
+        self.make_allthreads()
 
     def get_positions_t(self,t):
         if self.allthreads is not None:
@@ -246,7 +262,7 @@ class Spool:
         
         return _a[_a[:,0]==z]
 
-    def to_dataframe(self, dims=None):
+    def to_dataframe(self, dims):
         """package results to a dataframe
 
         parameters
@@ -257,8 +273,6 @@ class Spool:
         -------
         df_out (pandas.DataFrame):
         """
-        if dims is None:
-            raise Exception('need to pass dims e.g. [\'Z\', \'Y\', \'X\']')
         dd = {True:'detected', False:'infilled'}
 
         all_dataframes = []
@@ -351,6 +365,10 @@ class Thread:
         self.t.insert(0,self.t[0]-1)
         self.positions[self.t[0]] = np.array(position)
         #self.positions.insert(0,position)
+
+    def exfill(self, position):
+        self.t.append(self.t[-1]+1)
+        self.positions[self.t[-1]] = np.array(position)
 
     def get_position_t(self, t = 0):
         """
