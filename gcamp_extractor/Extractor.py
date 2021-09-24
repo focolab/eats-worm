@@ -14,7 +14,7 @@ def mkdir(path):
 import glob
 import json
 import imreg_dft as ird
-from scipy.ndimage import rotate
+from scipy.ndimage import generate_binary_structure, binary_dilation, rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
 from fastcluster import linkage
@@ -42,7 +42,7 @@ default_arguments = {
 
 def default_quant_function(im, positions, frames):
     """
-    Default quantification function, to be used in conjunction with the Extractor class. Takes the 10 brightest pixels in a 6x6 square around the specified position 
+    Default quantification function, to be used in conjunction with the Extractor class. Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position 
 
     Parameters
     ----------
@@ -70,6 +70,59 @@ def default_quant_function(im, positions, frames):
         masked = im[z,y,x]
         masked.sort()
         timeseries.append(np.mean(masked[-20:]))
+    return timeseries
+
+def background_subtraction_quant_function(im, positions, frames):
+    """
+    Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
+
+    Parameters
+    ----------
+    im : numpy array
+        numpy array representing image volume data at a particular time point
+    positions : list
+        a list of positions/pixel coordinates to be quantified
+    
+    Returns
+    -------
+    activity: list
+        list of quantifications corresponding to the positions specified
+    """
+    positions = np.rint(np.copy(positions)).astype(int)
+    bounding_pad = 20
+    timeseries = []
+    max_z = len(frames) - 1
+    max_x = im.shape[1] - 1
+    max_y = im.shape[2] - 1
+    pos_z, pos_x, pos_y = positions.T
+
+    pos_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
+    background_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
+    other_pos_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
+
+    for i in range(len(positions)):
+        z_slice = slice(max(0, pos_z[i] - 1), min(max_z + 1, pos_z[i] + 2))
+        x_slice = slice(max(0, pos_x[i] - 3), min(max_x + 1, pos_x[i] + 4))
+        y_slice = slice(max(0, pos_y[i] - 3), min(max_y + 1, pos_y[i] + 4))
+        pos_masks[i, z_slice, x_slice, y_slice] = True
+        z_slice = slice(max(0, pos_z[i] - 1), min(max_z + 1, pos_z[i] + 2))
+        x_slice = slice(max(0, pos_x[i] - 30), min(max_x + 1, pos_x[i] + 31))
+        y_slice = slice(max(0, pos_y[i] - 30), min(max_y + 1, pos_y[i] + 31))
+        background_masks[i, z_slice, x_slice, y_slice] = True
+        x_slice = slice(max(0, pos_x[i] - 15), min(max_x + 1, pos_x[i] + 16))
+        y_slice = slice(max(0, pos_y[i] - 15), min(max_y + 1, pos_y[i] + 16))
+        other_pos_masks[:i, z_slice, x_slice, y_slice] = True
+        if i + 1< len(positions):
+            other_pos_masks[i + 1:, z_slice, x_slice, y_slice] = True
+    pos_masks *= ~other_pos_masks
+    background_masks *= ~pos_masks
+    background_masks *= ~other_pos_masks
+
+    for i in range(len(positions)):
+        roi_intensities = im[pos_masks[i]]
+        roi_intensities.sort()
+        background_intensities = im[background_masks[i]]
+        timeseries.append((np.mean(roi_intensities[-20:]) - np.mean(background_intensities)) / np.mean(background_intensities))
     return timeseries
 
 def quantify(mft=None, spool=None, quant_function=default_quant_function, suppress_output=False):
@@ -269,7 +322,7 @@ class Extractor:
 
     def quantify(self, quant_function=default_quant_function):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool)
+        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function)
         self.save_timeseries()
 
     def save_timeseries(self):
