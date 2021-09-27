@@ -1,26 +1,49 @@
-import numpy as np
 import os
-from improc.segfunctions import medFilter2d, gaussian2d
+import numpy as np
 import imreg_dft as ird
-
+import cv2
 import napari
-
 from skimage.registration import phase_cross_correlation
 
+def compute_moco_offset(frame1, frame2, median=0, gaussian=0, method='ird', ird_filter_pcorr=0, upsample_factor=0):
+    """filter and then compute offset between a pair of (2D) images 
 
+    Parameters
+    ----------
+    median: (int) 2D median filter width (odd)
+    gaussian: (float) standard deviation, in pixels, for 2D gaussian blur
+    method : (str) 'ird' or 'skimage
+    ird_filter_pcorr : (int) only applied for 'ird' case
+    upsample_factor : (int) only applied for 'skimage' case
+    """
+    # using cv2 functions directly (improc functions do not handle 2D)
+    if median > 0:
+        frame1 = cv2.medianBlur(frame1, median)
+        frame2 = cv2.medianBlur(frame2, median)
+    if gaussian > 0:
+        kw = np.ceil(gaussian*6+1).astype(int)  # kernel width
+        frame1 = cv2.GaussianBlur(frame1, (kw, kw), gaussian)
+        frame2 = cv2.GaussianBlur(frame2, (kw, kw), gaussian)
+    if method == 'ird':
+        result = ird.translation(frame1, frame2, filter_pcorr=ird_filter_pcorr)
+        offset = np.hstack([[0], result['tvec']])
+    elif method == 'skimage':
+        result = phase_cross_correlation(frame1, frame2, upsample_factor=upsample_factor)
+        offset = np.hstack([[0], *result[0]])
+    return offset
 
-
-def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, 
+def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, mode_2D='mid',
     filter_params=None, method='ird', ird_filter_pcorr=0, upsample_factor=0):
-    """2D motion correction
+    """2D motion correction for a whole recording
 
     Parameters:
     -----------
     mft : (MultiFileTiff)
     t_max : (int) Only evaluate the first `t_max` timepoints
     suppress_output : (Bool)
+    mode_2D: (str) 'mid' or 'mip' for midplane or MIP, respectively
     filter_params : (dict) passed to get_moco_im()
-    method : (str) 'ird' or 'skimage
+    method : (str) 'ird' or 'skimage'
     ird_filter_pcorr : (int) only applied for 'ird' case
     upsample_factor : (int) only applied for 'skimage' case
 
@@ -28,66 +51,38 @@ def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True,
     -------
     offsets : (list) List of Z,Y,X offsets (Z always zero)
     """
-
-    defaults = dict(mode_2D='mid', median=0, gaussian=0)
+    defaults = dict(median=0, gaussian=0)
     if isinstance(filter_params, dict):
         defaults.update(filter_params)
     else:
         filter_params = defaults
-    upsample_factor = 0
     if t_max == -1:
         t_max = 1000000
+    ix_mid = mft.frames[int(len(mft.frames)/2)]
 
-    previous_frame = get_moco_im(mft=mft, t=0, **filter_params)
+    # first frame
+    if mode_2D == 'mip':
+        previous_frame = np.amax(mft.get_t(0), axis=0)
+    else:
+        previous_frame = mft.get_tbyf(0, ix_mid)
+
     offsets = [np.asarray([0, 0, 0])]
     for i in range(1, t_max):
         try:
-            this_frame = get_moco_im(mft=mft, t=i, **filter_params)
+            if mode_2D == 'mip':
+                this_frame = np.amax(mft.get_t(i), axis=0)
+            else:
+                this_frame = mft.get_tbyf(i, ix_mid)
         except:
             break
-        if method == 'ird':
-            result = ird.translation(previous_frame, this_frame, filter_pcorr=ird_filter_pcorr)
-            offsets.append(np.hstack([[0], result['tvec']]))
-        elif method == 'skimage':
-            result = phase_cross_correlation(previous_frame, this_frame, upsample_factor=upsample_factor)
-            offsets.append(np.hstack([[0], *result[0]]))
+        
+        dxdy = compute_moco_offset(previous_frame, this_frame, **filter_params,
+            method=method,  ird_filter_pcorr=ird_filter_pcorr, upsample_factor=upsample_factor)
+        offsets.append(dxdy)
         previous_frame = this_frame
         if not suppress_output:
             print('offset [%3i]: [%8.3f %8.3f %8.3f]' % (i, *offsets[-1]))
     return np.array(offsets)
-
-def get_moco_im(mft, t, mode_2D='mid', median=0, gaussian=0):
-    """helper to fetch and filter an image for moco comparison
-
-    A volume is "compressed" to 2D either by taking the middle z-plane
-    (`mode='mid'`) or taking a MIP (`mode='mip'`). Then, 2D median and gaussian
-    filtering (both optional) are applied.
-
-    parameters
-    ----------
-    mft: (MultiFileTiff)
-    t: (int) timepoint
-    mode_2D: (str) 'mid' (default) or 'mip' to use middle z-plane or MIP
-    median: (int) 2D median filter width (odd)
-    gaussian: (float) standard deviation, in pixels, for 2D gaussian blur
-
-    Returns:
-    --------
-    im (2D ndarray): image
-    """
-    ix_mid = mft.frames[int(len(mft.frames)/2)]
-    if mode_2D == 'mip':
-        im = np.amax(mft.get_t(t), axis=0)
-    else:
-        im = mft.get_tbyf(t, ix_mid)
-
-    if median > 0:
-        im = medFilter2d(im, median)
-    if gaussian > 0:
-        im = gaussian2d(im, (gaussian, np.ceil(gaussian*2+1))) # sigma and kernel size
-
-    return im
-
 
 def view_moco_offsets(mft, offsets):
     """view raw MIP and MOCO MIP in napari"""
@@ -115,19 +110,6 @@ def view_moco_offsets(mft, offsets):
         tracks.append([1, i, di//2, dj//2])
 
     v = napari.Viewer()
-    v_im = v.add_image(full_stack, name='moco')
+    v_im = v.add_image(full_stack, name='moco', gamma=0.5)
     v_tr = v.add_tracks(tracks,  name='track')
     napari.run()
-
-# def plot_moco_offsets(self):
-#     df = self.spool.to_dataframe(dims=self.dims)
-#     # ip = df['prov']
-#     print(df.head(30))
-#     print(self.df_moco_offsets.head(30))
-#     import matplotlib
-#     import matplotlib.pyplot as plt
-#     pp = self.df_moco_offsets.plot(figsize=(8, 4))
-#     plt.suptitle(self.im.root)
-#     plt.xlabel('volume, T')
-#     plt.ylabel('pixel offset')
-#     plt.show()
