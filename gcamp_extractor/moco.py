@@ -7,7 +7,7 @@ import imreg_dft as ird
 from skimage.registration import phase_cross_correlation
 from improc.ImageProcessor import gaussian_2d, template_moco
 
-def compute_moco_offset(frame1, frame2, median=0, gaussian=0, method='ird', ird_filter_pcorr=0, upsample_factor=0):
+def compute_moco_offset(frame1, frame2, quantile=0, median=0, gaussian=0, method='ird', ird_filter_pcorr=0, upsample_factor=0):
     """filter and then compute offset between a pair of (2D) images 
 
     TODO: This could be split this into filter and moco functions, but
@@ -15,6 +15,7 @@ def compute_moco_offset(frame1, frame2, median=0, gaussian=0, method='ird', ird_
 
     Parameters
     ----------
+    quantile: (float) quantile threshold filter
     median: (int) 2D median filter width (odd)
     gaussian: (float) standard deviation, in pixels, for 2D gaussian blur
     method : (str) 'ird', 'skimage', or 'ipRLD'
@@ -56,6 +57,9 @@ def compute_moco_offset(frame1, frame2, median=0, gaussian=0, method='ird', ird_
 
     # using cv2 functions directly (improc functions do not handle 2D)
     t00 = time.time()
+    if quantile > 0:
+        frame1 = np.array(frame1 * np.array(frame1 > np.quantile(frame1, quantile)))
+        frame2 = np.array(frame2 * np.array(frame2 > np.quantile(frame2, quantile)))
     if median > 0:
         frame1 = cv2.medianBlur(frame1, median)
         frame2 = cv2.medianBlur(frame2, median)
@@ -75,7 +79,7 @@ def compute_moco_offset(frame1, frame2, median=0, gaussian=0, method='ird', ird_
 
     return offset
 
-def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, mode_2D='mid',
+def compute_moco_offsets(mft=None, stride=1, t_max=-1, suppress_output=True, mode_2D='mid',
     filter_params=None, method='ird', ird_filter_pcorr=0, upsample_factor=0):
     """2D motion correction for a whole recording
 
@@ -103,47 +107,66 @@ def compute_moco_offsets(mft=None, t_max=-1, suppress_output=True, mode_2D='mid'
         t_max = 1000000
     ix_mid = mft.frames[int(len(mft.frames)/2)]
 
-    offsets = [np.asarray([0, 0, 0])]
-    for i in range(1, t_max):
+    offsets = np.asarray([0, 0, 0])
+    for i in range(stride, t_max, stride):
         try:
             #t00 = time.time()
             if mode_2D == 'mip':
-                prev_frame = np.amax(mft.get_t(i-1), axis=0)
+                prev_frame = np.amax(mft.get_t(i-stride), axis=0)
                 this_frame = np.amax(mft.get_t(i), axis=0)
             else:
-                prev_frame = mft.get_tbyf(i-1, ix_mid)
+                prev_frame = mft.get_tbyf(i-stride, ix_mid)
                 this_frame = mft.get_tbyf(i, ix_mid)
             #t01 = time.time()
             #print('frame fetch time:', (t01-t00)*1000)
         except:
             break
+
         dxdy = compute_moco_offset(prev_frame, this_frame, **filter_params,
             method=method,  ird_filter_pcorr=ird_filter_pcorr, upsample_factor=upsample_factor)
-        offsets.append(np.hstack([[0], dxdy]))
+
+        arr = np.array([[0, dxdy[0]/stride, dxdy[1]/stride]]*stride)
+
+        # print('---striding---')
+        # print(i, stride)
+        # print(offsets.shape)
+        # print(arr.shape)
+
+        offsets = np.vstack([offsets, arr])
+
         if not suppress_output:
             print('offset [%3i]: [%8.3f %8.3f %8.3f]' % (i, *offsets[-1]))
     return np.array(offsets)
 
-def view_moco_offsets(mft, offsets):
-    """view raw MIP and MOCO MIP in napari"""
+def view_moco_offsets(mft, offsets, mode='mid'):
+    """view MOCO correction in napari
+
+    top panel: raw image
+    middle panel: corrected image
+    bottom panel: T=0 image as reference
+    """
     pad = 1
-
-    #df_offsets = pd.DataFrame(np.cumsum(offsets, axis=0), columns=['Z', 'Y', 'X'])
-
+    ix_mid = mft.frames[int(len(mft.frames)/2)]
     numt = len(offsets)
     di, dj = mft.sizexy
     offsets_cum = np.vstack(([0, 0, 0], np.cumsum(offsets, axis=0)))
 
     tracks = []
-    full_stack = np.zeros(shape=(numt, di*2+pad, dj))
+    full_stack = np.zeros(shape=(numt, 3*di+2*pad, dj))
     for i in range(numt):
         i_shift = np.rint(offsets_cum[i][1]).astype(int)
         j_shift = np.rint(offsets_cum[i][2]).astype(int)
         #print('moco %i: %i %i' % (i, i_shift, j_shift))
 
-        this_im = np.zeros(shape=(di*2+pad, dj))+1000
-        this_im[0:di, 0:dj] = np.amax(mft.get_t(i), axis=0)
-        this_im[di+pad:, 0:dj] = np.roll(np.roll(this_im[0:di, 0:dj]*1, i_shift, axis=0), j_shift, axis=1)
+        this_im = np.zeros(shape=(3*di+2*pad, dj))+1000
+        if mode == 'mip':
+            this_im[0:di, 0:dj] = np.amax(mft.get_t(i), axis=0)
+        elif mode == 'mid':
+            this_im[0:di, 0:dj] = mft.get_tbyf(i, ix_mid)
+        if i == 0:
+            frame0 = this_im[0:di, 0:dj]*1
+        this_im[di+pad:2*di+pad, 0:dj] = np.roll(np.roll(this_im[0:di, 0:dj]*1, i_shift, axis=0), j_shift, axis=1)
+        this_im[2*di+2*pad:, 0:dj] = frame0
         full_stack[i] = this_im
 
         tracks.append([0, i, di//2-i_shift, dj//2-j_shift])
