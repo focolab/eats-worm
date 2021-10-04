@@ -109,8 +109,8 @@ def background_subtraction_quant_function(im, positions, frames):
         x_slice = slice(max(0, pos_x[i] - 30), min(max_x + 1, pos_x[i] + 31))
         y_slice = slice(max(0, pos_y[i] - 30), min(max_y + 1, pos_y[i] + 31))
         background_masks[i, z_slice, x_slice, y_slice] = True
-        x_slice = slice(max(0, pos_x[i] - 15), min(max_x + 1, pos_x[i] + 16))
-        y_slice = slice(max(0, pos_y[i] - 15), min(max_y + 1, pos_y[i] + 16))
+        x_slice = slice(max(0, pos_x[i] - 10), min(max_x + 1, pos_x[i] + 11))
+        y_slice = slice(max(0, pos_y[i] - 10), min(max_y + 1, pos_y[i] + 11))
         other_pos_masks[:i, z_slice, x_slice, y_slice] = True
         if i + 1< len(positions):
             other_pos_masks[i + 1:, z_slice, x_slice, y_slice] = True
