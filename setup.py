@@ -20,7 +20,7 @@ setuptools.setup(
           'tifffile>=0.15.1',
           'opencv-python-headless>=4.1.0.25',
           'matplotlib>=2.1.0',
-          'improc @ git+https://github.com/focolab/image-processing',
+          'improc @ git+ssh://git@github.com/focolab/image-processing',
           'imreg_dft',
           'fastcluster',
           'napari[all]',
