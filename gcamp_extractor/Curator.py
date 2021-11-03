@@ -150,6 +150,8 @@ class Curator:
             self.timeseries = timeseries
             self.tmax = None
             self.scale = (15, 1, 1)
+            if mft:
+                self.scale = mft.anisotropy
         if self.tf:
             self.tf.t = 0
         self.e = e
