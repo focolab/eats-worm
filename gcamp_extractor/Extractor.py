@@ -13,10 +13,10 @@ def mkdir(path):
     except: pass
 import glob
 import json
-import imreg_dft as ird
 from scipy.ndimage import generate_binary_structure, binary_dilation, rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
+from skimage.registration import phase_cross_correlation
 from fastcluster import linkage
 import scipy.cluster
 
@@ -497,7 +497,7 @@ class BlobThreadTracker():
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
-                _off = ird.translation(self.im.get_tbyf(i-1,self.frames[int(len(self.frames)/2)]), self.im.get_tbyf(i,self.frames[int(len(self.frames)/2)]))['tvec']
+                _off = phase_cross_correlation(self.im.get_t(i-1), self.im.get_t(i), upsample_factor=100)[0][1:]
 
                 _off = np.insert(_off, 0,0)
                 #peaks = peaks+ _off
