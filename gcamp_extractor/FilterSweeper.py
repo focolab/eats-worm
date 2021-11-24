@@ -35,32 +35,32 @@ class FilterSweeper:
     def __init__(self, e):
         self.e = e
         try:
-            if len(e.gaussian) == 4:
-                self.width_x_val = self.width_y_val = e.gaussian[0]
-                self.width_z_val =e.gaussian[2]
-                self.sigma_x = self.sigma_y = e.gaussian[1]
-                self.sigma_z = e.gaussian[3]
-            elif len(e.gaussian) == 6: 
-                self.width_x_val = e.gaussian[0]
-                self.width_y_val = e.gaussian[1]
-                self.width_z_val = e.gaussian[4]
-                self.sigma_x = e.gaussian[2]
-                self.sigma_y = e.gaussian[3]
-                self.sigma_z = e.gaussian[5]
+            if len(e.blobthreadtracker_params['gaussian']) == 4:
+                self.width_x_val = self.width_y_val = e.blobthreadtracker_params['gaussian'][0]
+                self.width_z_val =e.blobthreadtracker_params['gaussian'][2]
+                self.sigma_x = self.sigma_y = e.blobthreadtracker_params['gaussian'][1]
+                self.sigma_z = e.blobthreadtracker_params['gaussian'][3]
+            elif len(e.blobthreadtracker_params['gaussian']) == 6: 
+                self.width_x_val = e.blobthreadtracker_params['gaussian'][0]
+                self.width_y_val = e.blobthreadtracker_params['gaussian'][1]
+                self.width_z_val = e.blobthreadtracker_params['gaussian'][4]
+                self.sigma_x = e.blobthreadtracker_params['gaussian'][2]
+                self.sigma_y = e.blobthreadtracker_params['gaussian'][3]
+                self.sigma_z = e.blobthreadtracker_params['gaussian'][5]
         except:
             self.width_x_val = 1
             self.width_y_val = 1
             self.width_z_val = 1
-            self.sigma_x = e.gaussian[2]
-            self.sigma_y = e.gaussian[3]
-            self.sigma_z = e.gaussian[5]
+            self.sigma_x = e.blobthreadtracker_params['gaussian'][2]
+            self.sigma_y = e.blobthreadtracker_params['gaussian'][3]
+            self.sigma_z = e.blobthreadtracker_params['gaussian'][5]
         try:
-            self.quantile = e.quantile
+            self.quantile = e.blobthreadtracker_params['quantile']
         except:
             self.quantile = 0.99
         self.median_sizes = [1, 3, 5]
         try:
-            self.median_index = self.median_sizes.index(e.median)
+            self.median_index = self.median_sizes.index(e.blobthreadtracker_params['median'])
         except:
             self.median_index = 1
         try:
@@ -169,7 +169,7 @@ class FilterSweeper:
 
         self.last_min_distance = None
 
-        if self.e.algorithm == 'template':
+        if self.e.blobthreadtracker_params['algorithm'] == 'template':
 
             @threshold_result.events.data.connect
             @magicgui(
@@ -193,7 +193,7 @@ class FilterSweeper:
                     expanded_im = np.repeat(expanded_im, self.e.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.e.anisotropy[2], axis=2)
                     try:
-                        peaks = np.rint(self.e.algorithm_params["template_peaks"]).astype(int)
+                        peaks = np.rint(self.e.blobthreadtracker_params['algorithm_params']["template_peaks"]).astype(int)
                     except:
                         peaks = peak_local_max(expanded_im, min_distance=min_distance, num_peaks=num_peaks)
                         peaks //= self.e.anisotropy
@@ -215,16 +215,16 @@ class FilterSweeper:
                 processed = filtered * thresholded
                 stack = processed[0]
                 peaks = viewer.layers['template centers'].data
-                chunks, blobs = peakfinder(data=stack, peaks=peaks, pad=[1, 25, 25])
-                avg_3d_chunk = np.mean(chunks, axis=0)
-                self.templates = [BlobTemplate(data=avg_3d_chunk, scale=self.e.anisotropy, blobs='blobs')]
-                quantiles = self.e.algorithm_params.get('quantiles', [0.5])
-                rotations = self.e.algorithm_params.get('rotations', [0])
+                chunks = get_bounded_chunks(data=im1, peaks=peaks, pad=[1, 25, 25])
+                chunk_shapes = [chunk.shape for chunk in chunks]
+                max_chunk_shape = (max([chunk_shape[0] for chunk_shape in chunk_shapes]), max([chunk_shape[1] for chunk_shape in chunk_shapes]), max([chunk_shape[2] for chunk_shape in chunk_shapes]))
+                self.templates = [np.mean(np.array([chunk for chunk in chunks if chunk.shape == max_chunk_shape]), axis=0)]
+                quantiles = self.e.blobthreadtracker_params['algorithm_params'].get('quantiles', [0.5])
+                rotations = self.e.blobthreadtracker_params['algorithm_params'].get('rotations', [0])
                 for quantile in quantiles:
                     for rotation in rotations:
                         try:
-                            data = scipy.ndimage.rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2))
-                            self.templates.append(BlobTemplate(data=data, scale=self.e.anisotropy, blobs='blobs'))
+                            self.templates.append(scipy.ndimage.rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2)))
                         except:
                             pass
 
@@ -243,11 +243,12 @@ class FilterSweeper:
                 parent_layer={'bind': threshold_result},
                 event={'bind': None}
             )
-            def find_peaks_template(event: None, parent_layer: Image, template_threshold: float = .5, erosions: int = 3, spacing: int = 9) -> napari.types.ImageData:
+            def find_peaks_template(event: None, parent_layer: Image, template_threshold: float = .5, erosions: int = 0, spacing: int = 9) -> napari.types.ImageData:
                 if not 'segmented' in viewer.layers:
                     viewer.add_image(np.zeros(parent_layer.data.shape), name="segmented", blending='additive', scale=self.e.anisotropy, visible=False)
                     viewer.add_image(np.zeros(parent_layer.data.shape), name="segmented thresholded", blending='additive', scale=self.e.anisotropy, visible=False)
                     viewer.add_image(np.zeros(parent_layer.data.shape), name="eroded", blending='additive', scale=self.e.anisotropy, visible=False)
+                    viewer.add_points(np.empty((0, 3)), name="found peaks", blending='additive', scale=self.e.anisotropy, visible=False)
                 if parent_layer:
                     filtered = viewer.layers["filter result"].data
                     thresholded = viewer.layers["threshold result"].data
@@ -258,8 +259,8 @@ class FilterSweeper:
                     for template in self.templates:
 
                         # the template match result needs padding to match the original data dimensions
-                        res = skimage.feature.match_template(stack, template.data)
-                        pad = [int((x-1)/2) for x in template.data.shape]
+                        res = skimage.feature.match_template(stack, template)
+                        pad = [int((x-1)/2) for x in template.shape]
                         res = np.pad(res, tuple(zip(pad, pad)))
                         filtered = res*np.array(res>template_threshold)
                         footprint = np.zeros((3,3,3))
@@ -304,6 +305,8 @@ class FilterSweeper:
                     peaks = peak_local_max(expanded_im, min_distance=13)
                     peaks //= self.e.anisotropy
 
+                    self.peaks_data = peaks
+
                     stack_peak_mask = np.zeros(stack.shape, dtype=bool)
                     stack_peak_mask[tuple(peaks.T)] = True
                     return stack_peak_mask
@@ -331,4 +334,5 @@ class FilterSweeper:
 
         final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, self.min_distance)}
         self.gaussian, self.median, self.skimage = final_params["gaussian"], final_params["median"], final_params["peaks"]
+        self.e.algorithm_params['peaks'] = self.peaks_data
         print("final parameters from sweep: ", final_params)
