@@ -73,7 +73,7 @@ class Spool:
             #try:
 
             # if doing dft registration, there's an offset in the arguments for reel. offset predictions by that amount
-            self.predictions = self.predictions + offset
+            self.predictions = self.predictions - offset
 
             # if doing some anisotropy processing, need to offset positions by the anisotropy factor
             for i in range(len(anisotropy)):
