@@ -192,6 +192,8 @@ class Curator:
         ## maximum t
         if not self.tmax:
             self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
+        
+        self.neurs_to_add = 0
 
         self.restart()
         atexit.register(self.log_curate)
@@ -495,6 +497,7 @@ class Curator:
         self.update_trace_icons()
 
     def log_curate(self):
+        self.do_hacks()
         self.curate['last'] = self.ind
         with open(self.path, 'w') as fp:
             json.dump(self.curate, fp)
@@ -743,12 +746,13 @@ class Curator:
         self.s.add_thread_post_hoc(position, t)
 
         self.e.save_threads()
+
+        self.neurs_to_add += 1
+
+    # handle any rois added manually
+    def do_hacks(self):
         self.e.quantify()
         self.timeseries = self.e.timeseries
         self.e.save_timeseries()
 
-        self.num_neurons += 1
-        self.update_ims()
-        self.update_figures()
-        self.plot_timeseries_to_trace_grid(self.num_neurons - 1)
-        self.update_timeseries()
+        self.num_neurons += self.neurs_to_add
