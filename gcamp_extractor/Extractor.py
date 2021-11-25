@@ -493,22 +493,26 @@ class BlobThreadTracker():
                 peaks = peak_local_max(expanded_im, min_distance=13)
                 peaks //= self.im.anisotropy
             elif self.algorithm == 'curated':
-                peaks = np.array(self.algorithm_params['peaks'])
+                if 0 == i:
+                    peaks = np.array(self.algorithm_params['peaks'])
+                    self.last_peaks = peaks
+                else:
+                    peaks = self.last_peaks
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
             if self.register and i!=0:
-                _off = phase_cross_correlation(self.im.get_t(i-1), self.im.get_t(i), upsample_factor=100)[0][1:]
-
+                _off = phase_cross_correlation(self.last_im1, im1, upsample_factor=100)[0][1:]
                 _off = np.insert(_off, 0,0)
-                #peaks = peaks+ _off
-                #print(_off)
-            #print(peaks)
+                if self.algorithm == 'curated':
+                    self.last_peaks -= _off
                 self.spool.reel(peaks,self.im.anisotropy, offset=_off)
             else:
                 self.spool.reel(peaks,self.im.anisotropy)
-            
+
+            self.last_im1 = np.copy(im1)
+
             if not self.suppress_output:
                 print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
         print('\nInfilling...')
