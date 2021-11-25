@@ -464,7 +464,9 @@ class BlobThreadTracker():
                         peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
                         peaks //= self.im.anisotropy
                     chunks = get_bounded_chunks(data=im1, peaks=peaks, pad=[1, 25, 25])
-                    self.templates = [np.mean(chunks, axis=0)]
+                    chunk_shapes = [chunk.shape for chunk in chunks]
+                    max_chunk_shape = (max([chunk_shape[0] for chunk_shape in chunk_shapes]), max([chunk_shape[1] for chunk_shape in chunk_shapes]), max([chunk_shape[2] for chunk_shape in chunk_shapes]))
+                    self.templates = [np.mean(np.array([chunk for chunk in chunks if chunk.shape == max_chunk_shape]), axis=0)]
                     quantiles = self.algorithm_params.get('quantiles', [0.5])
                     rotations = self.algorithm_params.get('rotations', [0])
                     for quantile in quantiles:
