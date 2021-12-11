@@ -435,6 +435,13 @@ class BlobThreadTracker():
         """
         self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
 
+        # handle an ugly workaround for peak_local_max not supporting anisotropy. this stuff is only needed when
+        # using skimage or template matching, but putting it here allows us to avoid redoing the matmuls every iteration
+        expanded_shape = tuple([dim_len * ani for dim_len, ani in zip(self.im.get_t(0).shape, self.im.anisotropy)])
+        mask = np.zeros(expanded_shape)
+        mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
+        mask = np.logical_not(mask)
+
         for i in range(self.t):
             im1 = self.im.get_t()
             im1 = medFilter2d(im1, self.median)
@@ -444,6 +451,7 @@ class BlobThreadTracker():
                 expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                expanded_im *= mask
                 try:
                     peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
                     peaks //= self.im.anisotropy
@@ -458,6 +466,7 @@ class BlobThreadTracker():
                     expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                    expanded_im *= mask
                     try:
                         peaks = np.rint(self.algorithm_params["template_peaks"]).astype(int)
                     except:
@@ -490,6 +499,7 @@ class BlobThreadTracker():
                 expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                expanded_im *= mask
                 peaks = peak_local_max(expanded_im, min_distance=13)
                 peaks //= self.im.anisotropy
             elif self.algorithm == 'curated':
