@@ -751,8 +751,9 @@ class Curator:
 
     # handle any rois added manually
     def do_hacks(self):
-        self.e.quantify()
-        self.timeseries = self.e.timeseries
-        self.e.save_timeseries()
+        if self.neurs_to_add:
+            self.e.quantify()
+            self.timeseries = self.e.timeseries
+            self.e.save_timeseries()
 
-        self.num_neurons += self.neurs_to_add
+            self.num_neurons += self.neurs_to_add
