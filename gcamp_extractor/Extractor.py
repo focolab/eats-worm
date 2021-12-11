@@ -438,9 +438,8 @@ class BlobThreadTracker():
         # handle an ugly workaround for peak_local_max not supporting anisotropy. this stuff is only needed when
         # using skimage or template matching, but putting it here allows us to avoid redoing the matmuls every iteration
         expanded_shape = tuple([dim_len * ani for dim_len, ani in zip(self.im.get_t(0).shape, self.im.anisotropy)])
-        mask = np.zeros(expanded_shape)
+        mask = np.zeros(expanded_shape, dtype=np.uint16)
         mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
-        mask = np.logical_not(mask)
 
         for i in range(self.t):
             im1 = self.im.get_t()
