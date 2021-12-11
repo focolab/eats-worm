@@ -445,7 +445,8 @@ class BlobThreadTracker():
         for i in range(self.t):
             im1 = self.im.get_t()
             im1 = medFilter2d(im1, self.median)
-            im1 = gaussian3d(im1, self.gaussian)
+            if self.gaussian:
+                im1 = gaussian3d(im1, self.gaussian)
             im1 = np.array(im1 * np.array(im1 > np.quantile(im1, self.quantile)))
             if self.algorithm == 'skimage':
                 expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
