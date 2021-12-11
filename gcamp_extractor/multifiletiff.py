@@ -477,6 +477,8 @@ class MultiFileTiff():
     def sort_filenames(self):
         """
         sort filenames by index. written for compatibility between files with 'XXX-1.tif' and 'XXX-02.tif'
+        if a single file without an index like 'XXX.tif' is found, that file will be assumed to be the first in the series
+        if more than one such unindexed file is found, this method will break
         """
 
         ### Remove .tif or .ome.tif
@@ -490,14 +492,23 @@ class MultiFileTiff():
         elif self.filenames[0][-5:] == '.tiff':
             files = [self.filenames[i][:-5] for i in range(len(self.filenames))]
 
+        unindexed_file_found = False
         ndx = []
         for i in range(len(files)):
             for j in range(1,10):
                 if files[i][-j].isdigit():
                     pass
                 else:
-                    ndx.append(int(files[i][-j+1:]))
-                    break
+                    try:
+                        ndx.append(int(files[i][-j+1:]))
+                        break
+                    except Exception as e:
+                        if not unindexed_file_found:
+                            ndx.append(0)
+                            unindexed_file_found = True
+                            break
+                        else:
+                            raise e
         self.filenames = [x for _,x in sorted(zip(ndx,self.filenames))]
 
     def save(self, *args, **kwargs):
