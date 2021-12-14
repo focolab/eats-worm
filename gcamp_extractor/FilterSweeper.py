@@ -333,6 +333,6 @@ class FilterSweeper:
         napari.run()
 
         final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, self.min_distance)}
-        self.gaussian, self.median, self.skimage = final_params["gaussian"], final_params["median"], final_params["peaks"]
+        self.gaussian, self.median, self.e.algorithm_params["min_distance"], self.e.algorithm_params["num_peaks"] = final_params["gaussian"], final_params["median"], final_params["peaks"]["min_distance"], final_params["peaks"]["num_peaks"]
         self.e.algorithm_params['peaks'] = self.peaks_data
         print("final parameters from sweep: ", final_params)

@@ -452,12 +452,8 @@ class BlobThreadTracker():
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                 expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                 expanded_im *= mask
-                try:
-                    peaks = peak_local_max(expanded_im, min_distance=self.skimage[1], num_peaks=self.skimage[0])
-                    peaks //= self.im.anisotropy
-                except:
-                    print("No peak_local_max params supplied; falling back to default inference.")
-                    peaks = peak_local_max(expanded_im, min_distance=7, num_peaks=50)
+                peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
+                peaks //= self.im.anisotropy
             elif self.algorithm == 'threed':
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
@@ -470,7 +466,7 @@ class BlobThreadTracker():
                     try:
                         peaks = np.rint(self.algorithm_params["template_peaks"]).astype(int)
                     except:
-                        peaks = peak_local_max(expanded_im, min_distance=9, num_peaks=50)
+                        peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
                         peaks //= self.im.anisotropy
                     chunks = get_bounded_chunks(data=im1, peaks=peaks, pad=[1, 25, 25])
                     chunk_shapes = [chunk.shape for chunk in chunks]
