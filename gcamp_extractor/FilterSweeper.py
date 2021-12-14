@@ -35,7 +35,14 @@ class FilterSweeper:
     def __init__(self, e):
         self.e = e
         try:
-            if len(e.blobthreadtracker_params['gaussian']) == 4:
+            if not e.blobthreadtracker_params['gaussian']:
+                self.width_x_val = 1
+                self.width_y_val = 1
+                self.width_z_val = 1
+                self.sigma_x = 1
+                self.sigma_y = 1
+                self.sigma_z = 1
+            elif len(e.blobthreadtracker_params['gaussian']) == 4:
                 self.width_x_val = self.width_y_val = e.blobthreadtracker_params['gaussian'][0]
                 self.width_z_val =e.blobthreadtracker_params['gaussian'][2]
                 self.sigma_x = self.sigma_y = e.blobthreadtracker_params['gaussian'][1]
@@ -64,8 +71,8 @@ class FilterSweeper:
         except:
             self.median_index = 1
         try:
-            self.num_peaks = e.skimage[0]
-            self.min_distance = e.skimage[1]
+            self.num_peaks = e.blobthreadtracker_params['algorithm_params']['num_peaks']
+            self.min_distance = e.blobthreadtracker_params['algorithm_params']['min_distance']
         except:
             self.num_peaks = 50
             self.min_distance = 3
@@ -110,14 +117,17 @@ class FilterSweeper:
                 # todo: the order used here does not match the documentation in sefgunctions. change either order or documentation in segfunctions
                 filtered = []
                 self.median_index = median_index
-                self.width_x_val = 2 * width_x + 1
-                self.width_y_val = 2 * width_y + 1
-                self.width_z_val = 2 * width_z + 1
-                self.sigma_x = sigma_x
-                self.sigma_y = sigma_y
-                self.sigma_z = sigma_z
+                if 'gaussian' in self.e.blobthreadtracker_params:
+                    self.width_x_val = 2 * width_x + 1
+                    self.width_y_val = 2 * width_y + 1
+                    self.width_z_val = 2 * width_z + 1
+                    self.sigma_x = sigma_x
+                    self.sigma_y = sigma_y
+                    self.sigma_z = sigma_z
                 for stack in stacks:
-                    blurred = gaussian3d(copy.deepcopy(stack), (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z))
+                    blurred = copy.deepcopy(stack)
+                    if 'gaussian' in self.e.blobthreadtracker_params:
+                        blurred = gaussian3d(copy.deepcopy(stack), (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z))
                     median_filtered = medFilter2d(blurred, self.median_sizes[self.median_index])
                     filtered.append(median_filtered)
                 return np.array(filtered)
@@ -333,6 +343,6 @@ class FilterSweeper:
         napari.run()
 
         final_params = {"gaussian": (self.width_x_val, self.width_y_val, self.sigma_x, self.sigma_y, self.width_z_val, self.sigma_z), "median": self.median_sizes[self.median_index], "quantile": self.quantile, "peaks": (self.num_peaks, self.min_distance)}
-        self.gaussian, self.median, self.e.algorithm_params["min_distance"], self.e.algorithm_params["num_peaks"] = final_params["gaussian"], final_params["median"], final_params["peaks"]["min_distance"], final_params["peaks"]["num_peaks"]
-        self.e.algorithm_params['peaks'] = self.peaks_data
+        self.gaussian, self.median, self.e.blobthreadtracker_params["algorithm_params"]["min_distance"], self.e.blobthreadtracker_params["algorithm_params"]["num_peaks"] = final_params["gaussian"], final_params["median"], final_params["peaks"][1], final_params["peaks"][0]
+        self.e.blobthreadtracker_params['algorithm_params']['peaks'] = self.peaks_data
         print("final parameters from sweep: ", final_params)
