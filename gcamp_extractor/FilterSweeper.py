@@ -8,6 +8,7 @@ from improc.segfunctions import *
 import skimage.data
 import skimage.filters
 from skimage.feature import peak_local_max
+from skimage.filters import rank
 
 import scipy.ndimage
 from skimage._shared.coord import ensure_spacing
@@ -328,9 +329,31 @@ class FilterSweeper:
 
         else:
             viewer.window.add_dock_widget(find_peaks)
+            find_peaks_result = viewer.layers['find_peaks result']
             viewer.layers["find_peaks result"].colormap = "magenta"
             viewer.layers["find_peaks result"].blending = "additive"
             viewer.layers["find_peaks result"].scale = self.e.anisotropy
+
+            @find_peaks_result.events.data.connect
+            @magicgui(
+                auto_call=True,
+                min_filter_size={"widget_type": Slider, "min": 0, "max": 11},
+                parent_layer={'bind': find_peaks_result},
+                event={'bind': None}
+            )
+            def min_filter(event: None, parent_layer: Image, min_filter_size: int = 0) -> napari.types.ImageData:
+                threshed = np.copy(viewer.layers['threshold result'].data[0])
+                minned = threshed
+                if min_filter_size > 0:
+                    minned = rank.minimum(threshed, np.ones((1, min_filter_size, min_filter_size)))
+                peaks_mask = viewer.layers['find_peaks result'].data[0]
+                filtered = minned * viewer.layers['find_peaks result'].data[0]
+                return filtered
+            viewer.window.add_dock_widget(min_filter)
+            viewer.layers["min_filter result"].colormap = "green"
+            viewer.layers["min_filter result"].blending = "additive"
+            viewer.layers["min_filter result"].scale = self.e.anisotropy
+
         viewer.layers.events.changed.connect(lambda x: gui.refresh_choices("layer"))
         viewer.layers["threshold result"].colormap = "cyan"
         viewer.layers["threshold result"].blending = "additive"

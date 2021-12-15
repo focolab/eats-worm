@@ -16,6 +16,7 @@ import json
 from scipy.ndimage import generate_binary_structure, binary_dilation, rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
+from skimage.filters import rank
 from skimage.registration import phase_cross_correlation
 from fastcluster import linkage
 import scipy.cluster
@@ -454,6 +455,12 @@ class BlobThreadTracker():
                 expanded_im *= mask
                 peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
                 peaks //= self.im.anisotropy
+                min_filter_size = self.algorithm_params.get('min_filter', False)
+                if min_filter_size:
+                    min_filtered = rank.minimum(im1.astype(bool), np.ones((1, min_filter_size, min_filter_size)))
+                    peaks_mask = np.zeros(im1.shape, dtype=bool)
+                    peaks_mask[tuple(peaks.T)] = True
+                    peaks = np.array(np.nonzero(min_filtered * peaks_mask)).T
             elif self.algorithm == 'threed':
                 peaks = findpeaks3d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
