@@ -226,7 +226,7 @@ class Spool:
     # handle threads which are illegally close to one another (e.g. after infill)
     def manage_collisions(self, method='merge'):
         if self.allthreads is not None:
-            collisions = {}
+            collisions = []
             for t in range(self.maxt):
                 t_positions = self.allthreads[t]
                 t_positions = t_positions.reshape((-1, 3))
@@ -235,33 +235,38 @@ class Spool:
                 tril_mask = np.tril(np.ones(distances.shape, dtype=bool))
                 distances[tril_mask] = self.blob_dist_thresh + 1
                 collided = np.argwhere(distances < self.blob_dist_thresh)
+
                 for collision in collided:
-                    if collision[0] in collisions.keys() and collision[1] in collisions.keys():
-                        collisions[collision[0]] |= collisions[collision[1]]
-                        collisions.pop(collision[1])
-                    elif collision[0] in collisions.keys():
-                        collisions[collision[0]].add(collision[1])
-                    elif collision[1] in collisions.keys():
-                        collisions[collision[0]] = collisions[collision[1]]
-                        collisions[collision[0]].add(collision[1])
-                        collisions.pop(collision[1])
+                    first_roi_group, second_roi_group = None, None
+                    for collision_group in collisions:
+                        if collision[0] in collision_group:
+                            first_roi_group = collision_group
+                        if collision[1] in collision_group:
+                            second_roi_group = collision_group
+                    if first_roi_group and second_roi_group and first_roi_group != second_roi_group:
+                        first_roi_group |= second_roi_group
+                        collisions.remove(second_roi_group)
+                    elif first_roi_group:
+                        first_roi_group.add(collision[1])
+                    elif second_roi_group:
+                        second_roi_group.add(collision[0])
                     else:
-                        collisions[collision[0]] = set([collision[1]])
+                        collisions.append(set(collision.tolist()))
 
-            for i in collisions.keys():
+            threads_to_remove = set()
+            for collision_group in collisions:
+                collision_group = sorted(list(collision_group))
                 for t in range(self.maxt):
-                    position = self.threads[i].positions[t]
-                    for j in collisions[i]:
-                        position += self.threads[j].positions[t]
-                    position /= 1 + len(collisions[i])
-                    self.threads[i].positions[t] = position
+                    position = self.threads[collision_group[0]].positions[t]
+                    for thread in collision_group[1:]:
+                        position += self.threads[thread].positions[t]
+                        threads_to_remove.add(thread)
+                    position /= len(collision_group)
+                    self.threads[collision_group[0]].positions[t] = position
 
-            threads_to_remove = []
-            for val in collisions.values():
-                threads_to_remove.extend(list(val))
-            for i in sorted(threads_to_remove, reverse=True):
+            for i in sorted(list(threads_to_remove), reverse=True):
                 self.threads.pop(i)
-            print('Blob threads collided:', len(collisions.keys()) + len(collisions.values()), 'of', self.allthreads[t].reshape((-1, 3)).shape[0], '. Merged to ', len(collisions.keys()), 'distinct threads.')
+            print('Blob threads collided:', len(collisions) + len(threads_to_remove), 'of', self.allthreads[t].reshape((-1, 3)).shape[0], '. Merged to ', len(collisions), 'distinct threads.')
             self.update_positions()
             self.make_allthreads()
         else:
