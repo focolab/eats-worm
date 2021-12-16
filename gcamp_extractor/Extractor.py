@@ -573,7 +573,7 @@ class BlobThreadTracker():
 
         self._merge_within_z()
         self.spool.make_allthreads()
-        self.spool.manage_collisions()
+        self.spool.manage_collisions(method=self.algorithm_params.get('manage_collisions', None))
         return self.spool
 
     def remove_bad_threads(self):

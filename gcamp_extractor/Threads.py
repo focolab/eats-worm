@@ -225,52 +225,55 @@ class Spool:
 
     # handle threads which are illegally close to one another (e.g. after infill)
     def manage_collisions(self, method='merge'):
-        if self.allthreads is not None:
-            collisions = []
-            for t in range(self.maxt):
-                t_positions = self.allthreads[t]
-                t_positions = t_positions.reshape((-1, 3))
-                distances = scipy.spatial.distance.cdist(t_positions, t_positions, metric='euclidean')
-                # zero out diagonal and below to avoid identities and duplicates
-                tril_mask = np.tril(np.ones(distances.shape, dtype=bool))
-                distances[tril_mask] = self.blob_dist_thresh + 1
-                collided = np.argwhere(distances < self.blob_dist_thresh)
-
-                for collision in collided:
-                    first_roi_group, second_roi_group = None, None
-                    for collision_group in collisions:
-                        if collision[0] in collision_group:
-                            first_roi_group = collision_group
-                        if collision[1] in collision_group:
-                            second_roi_group = collision_group
-                    if first_roi_group and second_roi_group and first_roi_group != second_roi_group:
-                        first_roi_group |= second_roi_group
-                        collisions.remove(second_roi_group)
-                    elif first_roi_group:
-                        first_roi_group.add(collision[1])
-                    elif second_roi_group:
-                        second_roi_group.add(collision[0])
-                    else:
-                        collisions.append(set(collision.tolist()))
-
-            threads_to_remove = set()
-            for collision_group in collisions:
-                collision_group = sorted(list(collision_group))
+        if method is None:
+            pass
+        elif method == 'merge':
+            if self.allthreads is not None:
+                collisions = []
                 for t in range(self.maxt):
-                    position = self.threads[collision_group[0]].positions[t]
-                    for thread in collision_group[1:]:
-                        position += self.threads[thread].positions[t]
-                        threads_to_remove.add(thread)
-                    position /= len(collision_group)
-                    self.threads[collision_group[0]].positions[t] = position
+                    t_positions = self.allthreads[t]
+                    t_positions = t_positions.reshape((-1, 3))
+                    distances = scipy.spatial.distance.cdist(t_positions, t_positions, metric='euclidean')
+                    # zero out diagonal and below to avoid identities and duplicates
+                    tril_mask = np.tril(np.ones(distances.shape, dtype=bool))
+                    distances[tril_mask] = self.blob_dist_thresh + 1
+                    collided = np.argwhere(distances < self.blob_dist_thresh)
 
-            for i in sorted(list(threads_to_remove), reverse=True):
-                self.threads.pop(i)
-            print('Blob threads collided:', len(collisions) + len(threads_to_remove), 'of', self.allthreads[t].reshape((-1, 3)).shape[0], '. Merged to ', len(collisions), 'distinct threads.')
-            self.update_positions()
-            self.make_allthreads()
-        else:
-            print('Not managing collisions. make_allthreads() must be called before managing collisions.')
+                    for collision in collided:
+                        first_roi_group, second_roi_group = None, None
+                        for collision_group in collisions:
+                            if collision[0] in collision_group:
+                                first_roi_group = collision_group
+                            if collision[1] in collision_group:
+                                second_roi_group = collision_group
+                        if first_roi_group and second_roi_group and first_roi_group != second_roi_group:
+                            first_roi_group |= second_roi_group
+                            collisions.remove(second_roi_group)
+                        elif first_roi_group:
+                            first_roi_group.add(collision[1])
+                        elif second_roi_group:
+                            second_roi_group.add(collision[0])
+                        else:
+                            collisions.append(set(collision.tolist()))
+
+                threads_to_remove = set()
+                for collision_group in collisions:
+                    collision_group = sorted(list(collision_group))
+                    for t in range(self.maxt):
+                        position = self.threads[collision_group[0]].positions[t]
+                        for thread in collision_group[1:]:
+                            position += self.threads[thread].positions[t]
+                            threads_to_remove.add(thread)
+                        position /= len(collision_group)
+                        self.threads[collision_group[0]].positions[t] = position
+
+                for i in sorted(list(threads_to_remove), reverse=True):
+                    self.threads.pop(i)
+                print('Blob threads collided:', len(collisions) + len(threads_to_remove), 'of', self.allthreads[t].reshape((-1, 3)).shape[0], '. Merged to ', len(collisions), 'distinct threads.')
+                self.update_positions()
+                self.make_allthreads()
+            else:
+                print('Not managing collisions. make_allthreads() must be called before managing collisions.')
 
     def make_allthreads(self):
         # initialize numpy array based on how many timepoints and number of threads
