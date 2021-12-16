@@ -238,7 +238,7 @@ class Spool:
                 for collision in collided:
                     if collision[0] in collisions.keys() and collision[1] in collisions.keys():
                         collisions[collision[0]] |= collisions[collision[1]]
-                        collisions.pop[collision[1]]
+                        collisions.pop(collision[1])
                     elif collision[0] in collisions.keys():
                         collisions[collision[0]].add(collision[1])
                     elif collision[1] in collisions.keys():
