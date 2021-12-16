@@ -227,6 +227,37 @@ class Spool:
     def manage_collisions(self, method='merge'):
         if method is None:
             pass
+
+        # greedily prune illegally close threads, keeping the older thread
+        elif method == 'prune':
+            if self.allthreads is not None:
+                for t in range(self.maxt):
+                    t_positions = self.allthreads[t]
+                    t_positions = t_positions.reshape((-1, 3))
+                    distances = scipy.spatial.distance.cdist(t_positions, t_positions, metric='euclidean')
+                    # zero out diagonal and below to avoid identities and duplicates
+                    tril_mask = np.tril(np.ones(distances.shape, dtype=bool))
+                    distances[tril_mask] = self.blob_dist_thresh + 1
+                    collided = np.argwhere(distances < self.blob_dist_thresh)
+                    sorted_collided = collided[(np.argsort(distances[tuple(collided.T)], axis=None).T)]
+
+                    threads_to_remove = []
+                    for collision in sorted_collided:
+                        if distances[tuple(collision)] < self.blob_dist_thresh:
+                            earlier_thread, later_thread = sorted(collision)
+                            threads_to_remove.append(later_thread)
+                            distances[:,later_thread] = self.blob_dist_thresh + 1
+                            distances[later_thread, :] = self.blob_dist_thresh + 1
+
+                for i in sorted(threads_to_remove, reverse=True):
+                    self.threads.pop(i)
+                print('Blob threads collided:', np.unique(collided.flatten()).size, 'of', self.allthreads[t].reshape((-1, 3)).shape[0], '. Pruned to ', np.unique(collided.flatten()).size - len(threads_to_remove), 'distinct threads.')
+                self.update_positions()
+                self.make_allthreads()
+            else:
+                print('Not managing collisions. make_allthreads() must be called before managing collisions.')
+
+        # merge illegally close threads. too much merging right now; needs to be updated to be iterative
         elif method == 'merge':
             if self.allthreads is not None:
                 collisions = []
