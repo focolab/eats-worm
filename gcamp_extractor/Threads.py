@@ -343,7 +343,7 @@ class Spool:
         z = int(z)
         
         
-        return _a[_a[:,0]==z]
+        return _a[np.rint(_a[:,0])==z]
 
     def to_dataframe(self, dims):
         """package results to a dataframe
