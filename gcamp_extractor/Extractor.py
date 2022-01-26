@@ -126,7 +126,7 @@ def background_subtraction_quant_function(im, positions, frames):
         timeseries.append((np.mean(roi_intensities[-20:]) - np.mean(background_intensities)) / np.mean(background_intensities))
     return timeseries
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, suppress_output=False):
+def quantify(mft=None, spool=None, quant_function=default_quant_function, curation_filter='not trashed', suppress_output=False):
     """
     generates timeseries based on calculated threads. 
 
@@ -155,10 +155,26 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, suppre
     num_threads = len(spool.threads)
     num_t = spool.t
 
-    timeseries = np.zeros((num_t,len(spool.threads)))
-    for i in range(num_t):
-        timeseries[i] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in range(len(spool.threads))], mft.frames)
+    threads_to_quantify = range(len(spool.threads))
+    if curation_filter != 'all':
+        try:
+            output_dir = mft.output_dir.replace('//', '/')
+            with open(os.path.join(output_dir, 'curate.json')) as f:
+                curated_json = json.load(f)
+                if curation_filter == 'not trashed':
+                    trashed = [int(roi) for roi in curated_json.keys() if curated_json[roi] == 'trash']
+                    threads_to_quantify = [roi for roi in threads_to_quantify if roi not in trashed]
+                elif curation_filter == 'kept':
+                    kept = [int(roi) for roi in curated_json.keys() if curated_json[roi] == 'keep']
+                    threads_to_quantify = kept
+        except Exception as e:
+            print("Failed to parse curator log. Quantifying all threads. Encountered exception:")
+            print(e)
 
+    timeseries = np.empty((num_t,num_threads))
+    timeseries[:] = np.NaN
+    for i in range(num_t):
+        timeseries[i][threads_to_quantify] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in threads_to_quantify], mft.frames)
         if not suppress_output:
             print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
 
@@ -321,9 +337,9 @@ class Extractor:
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
 
-    def quantify(self, quant_function=default_quant_function):
+    def quantify(self, quant_function=default_quant_function, curation_filter='not trashed'):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function)
+        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, curation_filter=curation_filter)
         self.save_timeseries()
 
     def save_timeseries(self):
