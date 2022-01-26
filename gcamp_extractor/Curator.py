@@ -209,7 +209,7 @@ class Curator:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
-            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
+            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
 
             self.last_selected = set()
             def handle_select(event):
@@ -239,7 +239,7 @@ class Curator:
                             self.add_roi(data[-1], self.t)
             self.other_rois.events.data.connect(handle_add)
 
-            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=1, scale=self.scale, translate=[dim_scale / 2 + .5 for dim_scale in self.scale])
+            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=1, scale=self.scale)
 
         # initialize load buttons
         self.load_image_button = QPushButton("Load image folder")
