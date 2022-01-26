@@ -745,7 +745,8 @@ class Curator:
     def add_roi(self, position, t):
         self.s.add_thread_post_hoc(position, t)
 
-        self.e.save_threads()
+        print('Saving blob timeseries as numpy object...')
+        self.e.spool.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
 
         self.neurs_to_add += 1
 
