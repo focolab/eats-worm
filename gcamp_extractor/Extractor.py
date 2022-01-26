@@ -690,8 +690,8 @@ class BlobThreadTracker():
         if cur_index < N:
             return [cur_index]
         else:
-            left = int(Z[cur_index-N,0])
-            right = int(Z[cur_index-N,1])
+            left = round(Z[cur_index-N,0])
+            right = round(Z[cur_index-N,1])
             return (self._seriation(Z,N,left) + self._seriation(Z,N,right))
         
     def _compute_serial_matrix(self, dist_mat,method="ward"):
