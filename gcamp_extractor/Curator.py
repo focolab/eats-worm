@@ -7,6 +7,7 @@ import pyqtgraph as pg
 
 from .Extractor import *
 from .multifiletiff import *
+from napari.layers.points._points_constants import Mode
 from .Threads import *
 from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
@@ -219,7 +220,14 @@ class Curator:
                         if selected != set():
                             for trace_icon in self.trace_grid.selectedItems():
                                 trace_icon.setSelected(False)
-                            for thread_index in selected:
+                            # napari indices may not match thread indices depending on display mode
+                            thread_index = -1
+                            visible_threads = 0
+                            for napari_point_index in sorted(selected):
+                                while visible_threads <= napari_point_index:
+                                    thread_index += 1
+                                    if not self.trace_grid.item(thread_index).isHidden():
+                                        visible_threads += 1
                                 self.trace_grid.item(thread_index).setSelected(True)
             self.other_rois.events.highlight.connect(handle_select)
 
@@ -413,6 +421,13 @@ class Curator:
             self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
             self.update_imageview(self.montage_view, np.rot90(np.vstack(self.tf.get_t(self.t))), "Montage View")
         if self.s:
+            # swap to PAN_ZOOM to avoid highlighting points on recreation
+            last_roi_mode = self.viewer.layers['roi'].mode
+            last_other_rois_mode = self.viewer.layers['other rois'].mode
+            last_other_rois_selected_data = self.viewer.layers['other rois'].selected_data
+            self.viewer.layers['roi'].mode = Mode.PAN_ZOOM
+            self.viewer.layers['other rois'].mode = Mode.PAN_ZOOM
+
             self.viewer.layers['roi'].data = np.array([self.s.threads[self.ind].get_position_t(self.t)])
             if self.pointstate==0:
                 self.viewer.layers['other rois'].data = np.empty((0, 3))
@@ -433,6 +448,11 @@ class Curator:
                         elif self.show_settings ==1:
                             other_rois.append(roi)
                     self.viewer.layers['other rois'].data = np.array(other_rois)
+
+            self.viewer.layers['roi'].selected_data = {}
+            self.viewer.layers['other rois'].selected_data = last_other_rois_selected_data
+            self.viewer.layers['roi'].mode = last_roi_mode
+            self.viewer.layers['other rois'].mode = last_other_rois_mode
 
         self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
         self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
