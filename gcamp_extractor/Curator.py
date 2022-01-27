@@ -500,15 +500,13 @@ class Curator:
 
     def next(self):
         self.set_index_next()
-        self.update_ims()
-        self.update_figures()
-        self.update_timeseries()
-        self.update_buttons()
-        self.update_curate()
-        self.update_trace_icons()
+        self.update()
 
     def prev(self):
         self.set_index_prev()
+        self.update()
+    
+    def update(self):
         self.update_ims()
         self.update_figures()
         self.update_timeseries()
@@ -539,16 +537,14 @@ class Curator:
         selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='keep'
-        self.update_buttons()
-        self.update_trace_icons()
+        self.update()
 
 
     def trash_all_selected(self, label):
         selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='trash'
-        self.update_buttons()
-        self.update_trace_icons()
+        self.update()
 
     def label_selected(self, label):
         selected_icons = self.trace_grid.selectedItems()
@@ -655,7 +651,7 @@ class Curator:
             'All':2,
         }
         self.pointstate = d[label]
-        self.update_figures()
+        self.update()
 
     def update_mipstate(self, label):
         last_setting = self.showmip
@@ -717,11 +713,7 @@ class Curator:
 
     def go_to_trace(self, index):
         self.set_index(index)
-        self.update_ims()
-        self.update_figures()
-        self.update_timeseries()
-        self.update_buttons()
-        self.update_curate()
+        self.update()
 
     def show_trace_grid_context_menu(self):
         self.trace_grid_context_menu.exec_(QCursor.pos())
