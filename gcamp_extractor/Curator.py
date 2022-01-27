@@ -537,6 +537,8 @@ class Curator:
         selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='keep'
+        if self.show_settings != 0:
+            self.viewer.layers['other rois'].selected_data = {}
         self.update()
 
 
@@ -544,6 +546,8 @@ class Curator:
         selected_trace_indices = [self.trace_grid.indexFromItem(icon).row() for icon in self.trace_grid.selectedItems()]
         for index in selected_trace_indices:
             self.curate[str(index)]='trash'
+        if self.show_settings != 0:
+            self.viewer.layers['other rois'].selected_data = {}
         self.update()
 
     def label_selected(self, label):
