@@ -126,7 +126,52 @@ def background_subtraction_quant_function(im, positions, frames):
         timeseries.append((np.mean(roi_intensities[-20:]) - np.mean(background_intensities)) / np.mean(background_intensities))
     return timeseries
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, curation_filter='not trashed', suppress_output=False):
+# ported from wb-matlab
+def exp_curve_bleach_correction(timeseries):
+    baseline_method = 'min'
+    start_frames = np.rint(min(np.floor(0.1 * timeseries.shape[0]), 100)).astype(int)
+    end_frames = np.rint(min(np.floor(0.1 * timeseries.shape[0]), 100)).astype(int)
+    start_range = [0, start_frames]
+    end_range = [timeseries.shape[0] - end_frames, timeseries.shape[0]]
+
+    inp = np.arange(timeseries.shape[0])
+    ti = np.mean(start_range)
+    tf = np.mean(end_range)
+    tau = 1. / np.linspace(1/(2*(tf-ti)), 1/(.1*(tf-ti)), num=200)
+
+    bleach_curves = np.empty(timeseries.shape)
+    traces_bc = np.empty(timeseries.shape)
+    tau_best = np.empty((timeseries.shape[1]))
+
+    for i in range(timeseries.shape[1]):
+        yf = np.min(timeseries[:, i])
+        if baseline_method == 'min':
+            ti = np.argmin(timeseries[start_range[0]:start_range[1], i])
+            yi = timeseries[start_range[0]:start_range[1], i][ti]
+        else:
+            yi = np.mean(timeseries[start_range[0]:start_range[1], i])
+
+        intersect = 1
+        j = 0
+        while intersect == 1 and j < 100:
+            ex = np.exp(-(tf - ti) / tau[j])
+            k = (yf - yi * ex) / (1 - ex)
+            bleach_curves[:, i] = (yi - k) * np.exp(-inp/tau[j]) + k
+
+            tr=[start_range[1] + 200, end_range[0] - 1000]
+            if not np.any(timeseries[tr[0]:tr[1], i] - bleach_curves[tr[0]:tr[1], i] < 0):
+                intersect=0
+            j += 1
+
+        tau_best[i] = tau[j - 1]
+
+        bleach_curves[:, i] = (yi - k) * np.exp(-inp / tau_best[i]) + k
+        traces_bc[:, i] = timeseries[:, i] - bleach_curves[:, i]
+
+    tau = tau_best
+    return traces_bc
+
+def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False):
     """
     generates timeseries based on calculated threads. 
 
@@ -179,6 +224,10 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, curati
             print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
 
     print('\r')
+
+    if bleach_correction is not None:
+        print('Performing bleach correction using exponential curve relaxation method.')
+        timeseries = exp_curve_bleach_correction(timeseries)
 
     return timeseries
 
@@ -337,9 +386,9 @@ class Extractor:
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
 
-    def quantify(self, quant_function=default_quant_function, curation_filter='not trashed'):
+    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed'):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, curation_filter=curation_filter)
+        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter)
         self.save_timeseries()
 
     def save_timeseries(self):
