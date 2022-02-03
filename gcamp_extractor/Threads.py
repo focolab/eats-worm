@@ -327,7 +327,7 @@ class Spool:
         self.update_positions()
         self.make_allthreads()
 
-    def get_positions_t(self,t):
+    def get_positions_t(self,t,indices=None):
         if self.allthreads is not None:
 
             t = int(t)
@@ -335,15 +335,17 @@ class Spool:
             if t >= self.maxt:
                 return False
             elif t < 0: return False
-            return self.allthreads[t].reshape((-1,3))
+            if indices is None:
+                return self.allthreads[t].reshape((-1,3))
+            return self.allthreads[t].reshape((-1,3))[indices]
 
         else:
             print('Run make_allthreads first')
             return False
 
-    def get_positions_t_z(self,t,z):
+    def get_positions_t_z(self,t,z, indices=None):
         # get positions first
-        _a = self.get_positions_t(t)
+        _a = self.get_positions_t(t, indices)
 
         z = int(z)
         
