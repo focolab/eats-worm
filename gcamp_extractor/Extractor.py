@@ -73,7 +73,7 @@ def default_quant_function(im, positions, frames):
         timeseries.append(np.mean(masked[-20:]))
     return timeseries
 
-def background_subtraction_quant_function(im, positions, frames):
+def background_subtraction_quant_function(im, positions, frames, quant_radius=3, background_radius=30, other_pos_radius=None):
     """
     Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
 
@@ -90,7 +90,6 @@ def background_subtraction_quant_function(im, positions, frames):
         list of quantifications corresponding to the positions specified
     """
     positions = np.rint(np.copy(positions)).astype(int)
-    bounding_pad = 20
     timeseries = []
     max_z = len(frames) - 1
     max_x = im.shape[1] - 1
@@ -103,15 +102,17 @@ def background_subtraction_quant_function(im, positions, frames):
 
     for i in range(len(positions)):
         z_slice = slice(max(0, pos_z[i] - 1), min(max_z + 1, pos_z[i] + 2))
-        x_slice = slice(max(0, pos_x[i] - 3), min(max_x + 1, pos_x[i] + 4))
-        y_slice = slice(max(0, pos_y[i] - 3), min(max_y + 1, pos_y[i] + 4))
+        x_slice = slice(max(0, pos_x[i] - quant_radius), min(max_x + 1, pos_x[i] + quant_radius + 1))
+        y_slice = slice(max(0, pos_y[i] - quant_radius), min(max_y + 1, pos_y[i] + quant_radius + 1))
         pos_masks[i, z_slice, x_slice, y_slice] = True
         z_slice = slice(max(0, pos_z[i] - 1), min(max_z + 1, pos_z[i] + 2))
-        x_slice = slice(max(0, pos_x[i] - 30), min(max_x + 1, pos_x[i] + 31))
-        y_slice = slice(max(0, pos_y[i] - 30), min(max_y + 1, pos_y[i] + 31))
+        x_slice = slice(max(0, pos_x[i] - background_radius), min(max_x + 1, pos_x[i] + background_radius + 1))
+        y_slice = slice(max(0, pos_y[i] - background_radius), min(max_y + 1, pos_y[i] + background_radius + 1))
         background_masks[i, z_slice, x_slice, y_slice] = True
-        x_slice = slice(max(0, pos_x[i] - 10), min(max_x + 1, pos_x[i] + 11))
-        y_slice = slice(max(0, pos_y[i] - 10), min(max_y + 1, pos_y[i] + 11))
+        if not other_pos_radius:
+            other_pos_radius = quant_radius
+        x_slice = slice(max(0, pos_x[i] - other_pos_radius), min(max_x + 1, pos_x[i] + other_pos_radius + 1))
+        y_slice = slice(max(0, pos_y[i] - other_pos_radius), min(max_y + 1, pos_y[i] + other_pos_radius + 1))
         other_pos_masks[:i, z_slice, x_slice, y_slice] = True
         if i + 1< len(positions):
             other_pos_masks[i + 1:, z_slice, x_slice, y_slice] = True
