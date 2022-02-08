@@ -172,7 +172,7 @@ def exp_curve_bleach_correction(timeseries):
     tau = tau_best
     return traces_bc
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False):
+def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, **kwargs):
     """
     generates timeseries based on calculated threads. 
 
@@ -220,7 +220,7 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach
     timeseries = np.empty((num_t,num_threads))
     timeseries[:] = np.NaN
     for i in range(num_t):
-        timeseries[i][threads_to_quantify] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in threads_to_quantify], mft.frames)
+        timeseries[i][threads_to_quantify] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in threads_to_quantify], mft.frames, **kwargs)
         if not suppress_output:
             print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
 
@@ -387,9 +387,9 @@ class Extractor:
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
 
-    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all'):
+    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', **kwargs):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter)
+        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, **kwargs)
         self.save_timeseries()
 
     def save_timeseries(self):
