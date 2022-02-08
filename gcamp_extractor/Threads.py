@@ -192,7 +192,7 @@ class Spool:
 
 
         if self.predict:
-            for i in range(len(self.threads)-1):
+            for i in range(len(self.threads)):
                 self.predictions[i] = self.threads[i].get_position_mostrecent() + self.dvec[self.t-1]
                 
                 if len(self.threads[i].t) > 1:
