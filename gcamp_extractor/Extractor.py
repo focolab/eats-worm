@@ -387,7 +387,7 @@ class Extractor:
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
 
-    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed'):
+    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all'):
         """generates timeseries based on calculated threads"""
         self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter)
         self.save_timeseries()
