@@ -176,7 +176,7 @@ class Curator:
 
 
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
-        self.pointstate = 0
+        self.pointstate = 2
         self.show_settings = 0
         self.showmip = 0
 
@@ -329,7 +329,7 @@ class Curator:
 
         #### Axis for button for display
         points_button_group = [QRadioButton('Single'), QRadioButton('Same Z'), QRadioButton('All')]
-        points_button_group[0].setChecked(True)
+        points_button_group[2].setChecked(True)
         points_button_group[0].toggled.connect(lambda:self.update_pointstate(points_button_group[0].text()))
         points_button_group[1].toggled.connect(lambda:self.update_pointstate(points_button_group[1].text()))
         points_button_group[2].toggled.connect(lambda:self.update_pointstate(points_button_group[2].text()))
