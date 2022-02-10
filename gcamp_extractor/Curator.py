@@ -231,6 +231,9 @@ class Curator:
                                     if not self.trace_grid.item(thread_index).isHidden():
                                         visible_threads += 1
                                 self.trace_grid.item(thread_index).setSelected(True)
+                            if len(selected) == 1:
+                                self.go_to_trace(thread_index)
+
             self.other_rois.events.highlight.connect(handle_select)
 
             def handle_add(event):
