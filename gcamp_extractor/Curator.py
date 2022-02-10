@@ -274,6 +274,7 @@ class Curator:
         self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.trace_grid.setViewMode(QListWidget.IconMode)
         self.trace_grid.setResizeMode(QListView.Adjust)
+        self.trace_grid.setDragDropMode(QAbstractItemView.NoDragDrop)
         self.trace_grid.setIconSize(QSize(288, 96))
         self.trace_grid.itemDoubleClicked.connect(lambda:self.go_to_trace(self.trace_grid.currentRow()))
         self.trace_grid.setEditTriggers(QAbstractItemView.NoEditTriggers)
