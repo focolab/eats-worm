@@ -577,6 +577,16 @@ class BlobThreadTracker():
                     self.last_peaks = peaks
                 else:
                     peaks = self.last_peaks
+            elif self.algorithm == 'seeded_skimage':
+                if 0 == i:
+                    peaks = np.array(self.algorithm_params['peaks'])
+                else:
+                    expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                    expanded_im *= mask
+                    peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
+                    peaks //= self.im.anisotropy
             else:
                 peaks = findpeaks2d(im1)
                 peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
