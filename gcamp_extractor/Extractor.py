@@ -514,7 +514,6 @@ class BlobThreadTracker():
             offsets = []
             last_offset = None
             last_im = None
-            last_peaks = None
             for i in range(self.t):
                 im1 = self.im.get_t()
                 im1 = medFilter2d(im1, self.median)
@@ -531,17 +530,22 @@ class BlobThreadTracker():
                     if self.register and i!=0:
                         _off = phase_cross_correlation(last_im, im1, upsample_factor=100)[0][1:]
                         _off = np.insert(_off, 0,0)
+                        # track offset relative to t=0 so that all tmips are spatially aligned
+                        _off += last_offset
+                        offsets.append(_off)
                         shift = tuple(np.rint(_off).astype(int))
                         axis = tuple(np.arange(im1.ndim))
-                        im1 = np.roll(im1, shift, axis)
-                        im1[:shift[0], :shift[1]:, :shift[2]] = 0
-                        # track offset relative to t=0 so that all tmips are spatially aligned
-                        offsets.append(last_offset + _off)
+                        last_im = np.copy(im1)
+                        if np.max(shift) > 0:
+                            im1 = np.roll(im1, shift, axis)
+                            im1[:shift[0], :, :] = 0
+                            im1[:, :shift[1], :] = 0
+                            im1[:, :, :shift[2]] = 0
                     else:
+                        last_im = np.copy(im1)
                         offsets.append(np.array([0, 0, 0]))
                     last_offset = offsets[-1]
                     ims.append(np.copy(im1))
-                    last_im = im1
 
                     if len(ims) == window_size or i == self.t - 1:
                         tmip = np.max(np.array(ims), axis=0)
@@ -553,10 +557,7 @@ class BlobThreadTracker():
                         peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50)).astype(float)
                         peaks /= self.im.anisotropy
 
-                        for j in range(len(offsets)):
-                            self.spool.reel(peaks - offsets[j], self.im.anisotropy)
-
-                        last_peaks = peaks
+                        self.spool.reel(peaks - last_offset, self.im.anisotropy, delta_t=len(ims))
                         ims = []
                         offsets = []
 

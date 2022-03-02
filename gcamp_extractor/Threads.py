@@ -53,19 +53,19 @@ class Spool:
             x = pickle.load(fopen)
         return x
 
-    def reel(self, positions, anisotropy = (6,1,1), t=0, offset=np.array([0,0,0])):
+    def reel(self, positions, anisotropy = (6,1,1), delta_t=1, offset=np.array([0,0,0])):
 
         # if no threads already exist, add all incoming points to new threads them and positions tracker
         if self.threads == []:
             for i in range(len(positions)):
-                self.threads.append(Thread(positions[i], maxt = self.maxt))
+                self.threads.append(Thread(positions[i], t=delta_t-1, maxt = self.maxt))
 
             # update numpy array containing most recently found position of all blobs
             self.update_positions()
 
             # update numpy array containing predictions of positions for the next incoming timepoint
             self.predictions = copy.copy(self.positions)
-            self.t = 1
+            self.t = delta_t
 
         # if threads already exist
         else:
@@ -96,24 +96,29 @@ class Spool:
             # for all the incoming peaks that were matched to existing threads
             for match in matchings:
 
-                # update dvec 
-                self.dvec[self.t-1] -= self.threads[match[0]].get_position_mostrecent()-positions[match[1]]
-                self.threads[match[0]].update_position(positions[match[1]], t = self.t, found = True)
-            
+                # update dvec
+                interpolated = (self.threads[match[0]].get_position_mostrecent()-positions[match[1]]) / delta_t
+                for t in range(delta_t):
+                    self.dvec[self.t - 1 + t] -= interpolated
+                    self.threads[match[0]].update_position(positions[match[1]] + interpolated * (delta_t - t), t=self.t+t, found = True)
             if matchings.any():
-                self.dvec[self.t-1] *= 1/len(matchings)
+                for t in range(delta_t):
+                    self.dvec[self.t - 1 + t] *= 1/len(matchings)
             else:
-                self.dvec[self.t-1] = 0
+                for t in range(delta_t):
+                    self.dvec[self.t - 1 + t] = 0
             #print(self.dvec[self.t])
             for match in unmatched:
-                self.threads[match].update_position(self.threads[match].get_position_mostrecent() + self.dvec[self.t-1], found = False, t=self.t)
+                for t in range(delta_t):
+                    self.threads[match].update_position(self.threads[match].get_position_mostrecent() + self.dvec[self.t - 1 + t], found = False, t=self.t+t)
 
             for point in newpoints:
-                self.threads.append(Thread(positions[point], t=self.t, maxt = self.maxt))
-            
+                self.threads.append(Thread(positions[point], t=self.t + delta_t - 1, maxt = self.maxt))
+
             self.update_positions()
             self.update_predictions()
-            self.t += 1
+            self.t += delta_t
+
     def calc_match(self, mat, thresh):
         """
         Calculate matches based on distance matrix
