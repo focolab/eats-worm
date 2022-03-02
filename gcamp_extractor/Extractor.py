@@ -508,102 +508,160 @@ class BlobThreadTracker():
         mask = np.zeros(expanded_shape, dtype=np.uint16)
         mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
 
-        for i in range(self.t):
-            im1 = self.im.get_t()
-            im1 = medFilter2d(im1, self.median)
-            if self.gaussian:
-                im1 = gaussian3d(im1, self.gaussian)
-            im1 = np.array(im1 * np.array(im1 > np.quantile(im1, self.quantile)))
-            if self.algorithm == 'skimage':
-                expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
-                expanded_im *= mask
-                peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
-                peaks //= self.im.anisotropy
-                min_filter_size = self.algorithm_params.get('min_filter', False)
-                if min_filter_size:
-                    min_filtered = rank.minimum(im1.astype(bool), np.ones((1, min_filter_size, min_filter_size)))
-                    peaks_mask = np.zeros(im1.shape, dtype=bool)
-                    peaks_mask[tuple(peaks.T)] = True
-                    peaks = np.array(np.nonzero(min_filtered * peaks_mask)).T
-            elif self.algorithm == 'threed':
-                peaks = findpeaks3d(im1)
-                peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
-            elif self.algorithm == 'template':
-                if not self.algorithm_params['templates_made']:
-                    expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
-                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
-                    expanded_im *= mask
-                    try:
-                        peaks = np.rint(self.algorithm_params["template_peaks"]).astype(int)
-                    except:
-                        peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
-                        peaks //= self.im.anisotropy
-                    chunks = get_bounded_chunks(data=im1, peaks=peaks, pad=[1, 25, 25])
-                    chunk_shapes = [chunk.shape for chunk in chunks]
-                    max_chunk_shape = (max([chunk_shape[0] for chunk_shape in chunk_shapes]), max([chunk_shape[1] for chunk_shape in chunk_shapes]), max([chunk_shape[2] for chunk_shape in chunk_shapes]))
-                    self.templates = [np.mean(np.array([chunk for chunk in chunks if chunk.shape == max_chunk_shape]), axis=0)]
-                    quantiles = self.algorithm_params.get('quantiles', [0.5])
-                    rotations = self.algorithm_params.get('rotations', [0])
-                    for quantile in quantiles:
-                        for rotation in rotations:
-                            try:
-                                self.templates.append(rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2)))
-                            except:
-                                pass
-                    print("Total number of computed templates: ", len(self.templates))
-                    self.algorithm_params['templates_made'] = True
-                peaks = None
-                for template in self.templates:
-                    template_peaks = peak_filter_2(data=im1, params={'template': template, 'threshold': 0.5})
-                    if peaks is None:
-                        peaks = template_peaks
+        if self.algorithm in ['tmip_skimage', 'seeded_tmip_skimage']:
+            window_size = self.algorithm_params.get('window_size', 10)
+            ims = []
+            offsets = []
+            last_offset = None
+            last_im = None
+            last_peaks = None
+            for i in range(self.t):
+                im1 = self.im.get_t()
+                im1 = medFilter2d(im1, self.median)
+                if self.gaussian:
+                    im1 = gaussian3d(im1, self.gaussian)
+
+                if self.algorithm == 'seeded_tmip_skimage' and i==0:
+                    peaks = np.array(self.algorithm_params['peaks'])
+                    self.spool.reel(peaks,self.im.anisotropy)
+                    last_offset = np.array([0, 0, 0])
+                    last_im = im1
+
+                else:
+                    if self.register and i!=0:
+                        _off = phase_cross_correlation(last_im, im1, upsample_factor=100)[0][1:]
+                        _off = np.insert(_off, 0,0)
+                        shift = tuple(np.rint(_off).astype(int))
+                        axis = tuple(np.arange(im1.ndim))
+                        im1 = np.roll(im1, shift, axis)
+                        im1[:shift[0], :shift[1]:, :shift[2]] = 0
+                        # track offset relative to t=0 so that all tmips are spatially aligned
+                        offsets.append(last_offset + _off)
                     else:
-                        peaks = np.concatenate((peaks, template_peaks))
-                peak_mask = np.zeros(im1.shape, dtype=bool)
-                peak_mask[tuple(peaks.T)] = True
-                peak_masked = im1 * peak_mask
-                expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
-                expanded_im *= mask
-                peaks = peak_local_max(expanded_im, min_distance=13)
-                peaks //= self.im.anisotropy
-            elif self.algorithm == 'curated':
-                if 0 == i:
-                    peaks = np.array(self.algorithm_params['peaks'])
-                    self.last_peaks = peaks
-                else:
-                    peaks = self.last_peaks
-            elif self.algorithm == 'seeded_skimage':
-                if 0 == i:
-                    peaks = np.array(self.algorithm_params['peaks'])
-                else:
+                        offsets.append(np.array([0, 0, 0]))
+                    last_offset = offsets[-1]
+                    ims.append(np.copy(im1))
+                    last_im = im1
+
+                    if len(ims) == window_size or i == self.t - 1:
+                        tmip = np.max(np.array(ims), axis=0)
+
+                        expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
+                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                        expanded_im *= mask
+                        peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50)).astype(float)
+                        peaks /= self.im.anisotropy
+
+                        for j in range(len(offsets)):
+                            self.spool.reel(peaks - offsets[j], self.im.anisotropy)
+
+                        last_peaks = peaks
+                        ims = []
+                        offsets = []
+
+                if not self.suppress_output:
+                    print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
+
+        else:
+            for i in range(self.t):
+                im1 = self.im.get_t()
+                im1 = medFilter2d(im1, self.median)
+                if self.gaussian:
+                    im1 = gaussian3d(im1, self.gaussian)
+                im1 = np.array(im1 * np.array(im1 > np.quantile(im1, self.quantile)))
+                if self.algorithm == 'skimage':
                     expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
                     expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                     expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                     expanded_im *= mask
                     peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
                     peaks //= self.im.anisotropy
-            else:
-                peaks = findpeaks2d(im1)
-                peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+                    min_filter_size = self.algorithm_params.get('min_filter', False)
+                    if min_filter_size:
+                        min_filtered = rank.minimum(im1.astype(bool), np.ones((1, min_filter_size, min_filter_size)))
+                        peaks_mask = np.zeros(im1.shape, dtype=bool)
+                        peaks_mask[tuple(peaks.T)] = True
+                        peaks = np.array(np.nonzero(min_filtered * peaks_mask)).T
+                elif self.algorithm == 'threed':
+                    peaks = findpeaks3d(im1)
+                    peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
+                elif self.algorithm == 'template':
+                    if not self.algorithm_params['templates_made']:
+                        expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                        expanded_im *= mask
+                        try:
+                            peaks = np.rint(self.algorithm_params["template_peaks"]).astype(int)
+                        except:
+                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
+                            peaks //= self.im.anisotropy
+                        chunks = get_bounded_chunks(data=im1, peaks=peaks, pad=[1, 25, 25])
+                        chunk_shapes = [chunk.shape for chunk in chunks]
+                        max_chunk_shape = (max([chunk_shape[0] for chunk_shape in chunk_shapes]), max([chunk_shape[1] for chunk_shape in chunk_shapes]), max([chunk_shape[2] for chunk_shape in chunk_shapes]))
+                        self.templates = [np.mean(np.array([chunk for chunk in chunks if chunk.shape == max_chunk_shape]), axis=0)]
+                        quantiles = self.algorithm_params.get('quantiles', [0.5])
+                        rotations = self.algorithm_params.get('rotations', [0])
+                        for quantile in quantiles:
+                            for rotation in rotations:
+                                try:
+                                    self.templates.append(rotate(np.quantile(chunks, quantile, axis=0), rotation, axes=(-1, -2)))
+                                except:
+                                    pass
+                        print("Total number of computed templates: ", len(self.templates))
+                        self.algorithm_params['templates_made'] = True
+                    peaks = None
+                    for template in self.templates:
+                        template_peaks = peak_filter_2(data=im1, params={'template': template, 'threshold': 0.5})
+                        if peaks is None:
+                            peaks = template_peaks
+                        else:
+                            peaks = np.concatenate((peaks, template_peaks))
+                    peak_mask = np.zeros(im1.shape, dtype=bool)
+                    peak_mask[tuple(peaks.T)] = True
+                    peak_masked = im1 * peak_mask
+                    expanded_im = np.repeat(peak_masked, self.im.anisotropy[0], axis=0)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                    expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                    expanded_im *= mask
+                    peaks = peak_local_max(expanded_im, min_distance=13)
+                    peaks //= self.im.anisotropy
+                elif self.algorithm == 'curated':
+                    if 0 == i:
+                        peaks = np.array(self.algorithm_params['peaks'])
+                        self.last_peaks = peaks
+                    else:
+                        peaks = self.last_peaks
+                elif self.algorithm == 'seeded_skimage':
+                    if 0 == i:
+                        peaks = np.array(self.algorithm_params['peaks'])
+                    else:
+                        expanded_im = np.repeat(im1, self.im.anisotropy[0], axis=0)
+                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                        expanded_im *= mask
+                        peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
+                        peaks //= self.im.anisotropy
+                else:
+                    peaks = findpeaks2d(im1)
+                    peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
-            if self.register and i!=0:
-                _off = phase_cross_correlation(self.last_im1, im1, upsample_factor=100)[0][1:]
-                _off = np.insert(_off, 0,0)
-                if self.algorithm == 'curated':
-                    self.last_peaks -= _off
-                self.spool.reel(peaks,self.im.anisotropy, offset=_off)
-            else:
-                self.spool.reel(peaks,self.im.anisotropy)
+                if self.register and i!=0:
+                    _off = phase_cross_correlation(self.last_im1, im1, upsample_factor=100)[0][1:]
+                    _off = np.insert(_off, 0,0)
+                    if self.algorithm == 'curated':
+                        self.last_peaks -= _off
+                        self.spool.reel(peaks,self.im.anisotropy, offset=_off)
+                else:
+                    self.spool.reel(peaks,self.im.anisotropy)
 
-            self.last_im1 = np.copy(im1)
+                self.last_im1 = np.copy(im1)
 
-            if not self.suppress_output:
-                print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+                if not self.suppress_output:
+                    print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+
         print('\nInfilling...')
         self.spool.infill()
         
