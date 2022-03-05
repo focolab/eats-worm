@@ -73,7 +73,7 @@ def default_quant_function(im, positions, frames):
         timeseries.append(np.mean(masked[-20:]))
     return timeseries
 
-def background_subtraction_quant_function(im, positions, frames, quant_radius=3, background_radius=30, other_pos_radius=None):
+def background_subtraction_quant_function(im, positions, frames, quant_radius=3, quant_z_radius=1, background_radius=30, other_pos_radius=None):
     """
     Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
 
@@ -90,7 +90,7 @@ def background_subtraction_quant_function(im, positions, frames, quant_radius=3,
         list of quantifications corresponding to the positions specified
     """
     positions = np.rint(np.copy(positions)).astype(int)
-    timeseries = []
+    intensities = []
     max_z = len(frames) - 1
     max_x = im.shape[1] - 1
     max_y = im.shape[2] - 1
@@ -98,34 +98,54 @@ def background_subtraction_quant_function(im, positions, frames, quant_radius=3,
 
     pos_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
     background_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
-    other_pos_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
+    other_pos_masks = np.zeros((len(positions),) + im.shape, dtype=int)
 
-    for i in range(len(positions)):
-        z_slice = slice(max(0, pos_z[i] - 1), min(max_z + 1, pos_z[i] + 2))
-        x_slice = slice(max(0, pos_x[i] - quant_radius), min(max_x + 1, pos_x[i] + quant_radius + 1))
-        y_slice = slice(max(0, pos_y[i] - quant_radius), min(max_y + 1, pos_y[i] + quant_radius + 1))
-        pos_masks[i, z_slice, x_slice, y_slice] = True
-        z_slice = slice(max(0, pos_z[i] - 1), min(max_z + 1, pos_z[i] + 2))
-        x_slice = slice(max(0, pos_x[i] - background_radius), min(max_x + 1, pos_x[i] + background_radius + 1))
-        y_slice = slice(max(0, pos_y[i] - background_radius), min(max_y + 1, pos_y[i] + background_radius + 1))
-        background_masks[i, z_slice, x_slice, y_slice] = True
-        if not other_pos_radius:
-            other_pos_radius = quant_radius
-        x_slice = slice(max(0, pos_x[i] - other_pos_radius), min(max_x + 1, pos_x[i] + other_pos_radius + 1))
-        y_slice = slice(max(0, pos_y[i] - other_pos_radius), min(max_y + 1, pos_y[i] + other_pos_radius + 1))
-        other_pos_masks[:i, z_slice, x_slice, y_slice] = True
-        if i + 1< len(positions):
-            other_pos_masks[i + 1:, z_slice, x_slice, y_slice] = True
+    roi_indices = np.arange(positions.shape[0])
+    z_zeros = np.array([0] * len(pos_z))
+    z_maxes = np.array([max_z] * len(pos_z))
+    x_zeros = np.array([0] * len(pos_x))
+    x_maxes = np.array([max_x] * len(pos_x))
+    y_zeros = np.array([0] * len(pos_y))
+    y_maxes = np.array([max_y] * len(pos_y))
+    z_starts = np.maximum(z_zeros, pos_z - quant_z_radius)
+    z_stops = np.minimum(z_maxes, pos_z + quant_z_radius + 1)
+
+    x_starts = np.maximum(x_zeros, pos_x - quant_radius)
+    x_stops = np.minimum(x_maxes, pos_x + quant_radius + 1)
+    y_starts = np.maximum(y_zeros, pos_y - quant_radius)
+    y_stops = np.minimum(y_maxes, pos_y + quant_radius + 1)
+    for i in range(len(z_starts)):
+        pos_masks[roi_indices[i], z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] = True
+
+    x_starts = np.maximum(x_zeros, pos_x - background_radius)
+    x_stops = np.minimum(x_maxes, pos_x + background_radius + 1)
+    y_starts = np.maximum(y_zeros, pos_y - background_radius)
+    y_stops = np.minimum(y_maxes, pos_y + background_radius + 1)
+    for i in range(len(z_starts)):
+        background_masks[roi_indices[i], z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] = True
+
+    if not other_pos_radius:
+        other_pos_radius = quant_radius
+    all_pos_masks = np.zeros((len(positions),) + im.shape, dtype=int)
+    x_starts = np.maximum(x_zeros, pos_x - other_pos_radius)
+    x_stops = np.minimum(x_maxes, pos_x + other_pos_radius + 1)
+    y_starts = np.maximum(y_zeros, pos_y - other_pos_radius)
+    y_stops = np.minimum(y_maxes, pos_y + other_pos_radius + 1)
+    for i in range(len(z_starts)):
+        all_pos_masks[:, z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] += 1
+        other_pos_masks[i, z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] += 1
+    other_pos_masks = (all_pos_masks - other_pos_masks).astype(bool)
+
     pos_masks *= ~other_pos_masks
     background_masks *= ~pos_masks
     background_masks *= ~other_pos_masks
 
     for i in range(len(positions)):
         roi_intensities = im[pos_masks[i]]
-        roi_intensities.sort()
+        top_roi_intensities = np.partition(-roi_intensities, 20)
         background_intensities = im[background_masks[i]]
-        timeseries.append((np.mean(roi_intensities[-20:]) - np.mean(background_intensities)) / np.mean(background_intensities))
-    return timeseries
+        intensities.append((np.mean(top_roi_intensities[:20]) - np.mean(background_intensities)) / np.mean(background_intensities))
+    return intensities
 
 # ported from wb-matlab
 def exp_curve_bleach_correction(timeseries):
