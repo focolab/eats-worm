@@ -73,7 +73,7 @@ def default_quant_function(im, positions, frames):
         timeseries.append(np.mean(masked[-20:]))
     return timeseries
 
-def background_subtraction_quant_function(im, positions, frames, quant_radius=3, quant_z_radius=1, background_radius=30, other_pos_radius=None):
+def background_subtraction_quant_function(im, positions, frames, quant_radius=3, quant_z_radius=1, quant_voxels=20, background_radius=30, other_pos_radius=None):
     """
     Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
 
@@ -96,9 +96,9 @@ def background_subtraction_quant_function(im, positions, frames, quant_radius=3,
     max_y = im.shape[2] - 1
     pos_z, pos_x, pos_y = positions.T
 
-    pos_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
-    background_masks = np.zeros((len(positions),) + im.shape, dtype=bool)
-    other_pos_masks = np.zeros((len(positions),) + im.shape, dtype=int)
+    pos_mask = np.zeros(im.shape, dtype=int)
+    background_mask = np.zeros(im.shape, dtype=bool)
+    collision_mask = np.zeros(im.shape, dtype=bool)
 
     roi_indices = np.arange(positions.shape[0])
     z_zeros = np.array([0] * len(pos_z))
@@ -110,41 +110,53 @@ def background_subtraction_quant_function(im, positions, frames, quant_radius=3,
     z_starts = np.maximum(z_zeros, pos_z - quant_z_radius)
     z_stops = np.minimum(z_maxes, pos_z + quant_z_radius + 1)
 
-    x_starts = np.maximum(x_zeros, pos_x - quant_radius)
-    x_stops = np.minimum(x_maxes, pos_x + quant_radius + 1)
-    y_starts = np.maximum(y_zeros, pos_y - quant_radius)
-    y_stops = np.minimum(y_maxes, pos_y + quant_radius + 1)
+    quant_x_starts = np.maximum(x_zeros, pos_x - quant_radius)
+    quant_x_stops = np.minimum(x_maxes, pos_x + quant_radius + 1)
+    quant_y_starts = np.maximum(y_zeros, pos_y - quant_radius)
+    quant_y_stops = np.minimum(y_maxes, pos_y + quant_radius + 1)
     for i in range(len(z_starts)):
-        pos_masks[roi_indices[i], z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] = True
+        pos_mask[z_starts[i]:z_stops[i], quant_x_starts[i]:quant_x_stops[i], quant_y_starts[i]:quant_y_stops[i]] += 1
 
-    x_starts = np.maximum(x_zeros, pos_x - background_radius)
-    x_stops = np.minimum(x_maxes, pos_x + background_radius + 1)
-    y_starts = np.maximum(y_zeros, pos_y - background_radius)
-    y_stops = np.minimum(y_maxes, pos_y + background_radius + 1)
-    for i in range(len(z_starts)):
-        background_masks[roi_indices[i], z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] = True
+    background_x_starts = np.maximum(x_zeros, pos_x - background_radius)
+    background_x_stops = np.minimum(x_maxes, pos_x + background_radius + 1)
+    background_y_starts = np.maximum(y_zeros, pos_y - background_radius)
+    background_y_stops = np.minimum(y_maxes, pos_y + background_radius + 1)
 
-    if not other_pos_radius:
-        other_pos_radius = quant_radius
-    all_pos_masks = np.zeros((len(positions),) + im.shape, dtype=int)
-    x_starts = np.maximum(x_zeros, pos_x - other_pos_radius)
-    x_stops = np.minimum(x_maxes, pos_x + other_pos_radius + 1)
-    y_starts = np.maximum(y_zeros, pos_y - other_pos_radius)
-    y_stops = np.minimum(y_maxes, pos_y + other_pos_radius + 1)
-    for i in range(len(z_starts)):
-        all_pos_masks[:, z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] += 1
-        other_pos_masks[i, z_starts[i]:z_stops[i], x_starts[i]:x_stops[i], y_starts[i]:y_stops[i]] += 1
-    other_pos_masks = (all_pos_masks - other_pos_masks).astype(bool)
+    if not other_pos_radius or other_pos_radius == quant_radius:
+        background_mask[pos_mask == 0] = True
+        collision_mask[pos_mask > 1] = True
+    else:
+        background_mask[:] = True
+        collision_mask = collision_mask.astype(int)
+        other_x_starts = np.maximum(x_zeros, pos_x - other_pos_radius)
+        other_x_stops = np.minimum(x_maxes, pos_x + other_pos_radius + 1)
+        other_y_starts = np.maximum(y_zeros, pos_y - other_pos_radius)
+        other_y_stops = np.minimum(y_maxes, pos_y + other_pos_radius + 1)
+        for i in range(len(z_starts)):
+            background_mask[z_starts[i]:z_stops[i], other_x_starts[i]:other_x_stops[i], other_y_starts[i]:other_y_stops[i]] = False
+            collision_mask[z_starts[i]:z_stops[i], other_x_starts[i]:other_x_stops[i], other_y_starts[i]:other_y_stops[i]] += 1
+        collision_mask = (collision_mask > 1).astype(bool)
 
-    pos_masks *= ~other_pos_masks
-    background_masks *= ~pos_masks
-    background_masks *= ~other_pos_masks
+    pos_mask = pos_mask.astype(bool)
+    pos_mask *= ~collision_mask
 
+    roi_mask = np.zeros(im.shape, dtype=bool)
+    roi_background_mask = np.zeros(im.shape, dtype=bool)
     for i in range(len(positions)):
-        roi_intensities = im[pos_masks[i]]
-        top_roi_intensities = np.partition(-roi_intensities, 20)
-        background_intensities = im[background_masks[i]]
-        intensities.append((np.mean(top_roi_intensities[:20]) - np.mean(background_intensities)) / np.mean(background_intensities))
+        roi_mask[z_starts[i]:z_stops[i], quant_x_starts[i]:quant_x_stops[i], quant_y_starts[i]:quant_y_stops[i]] = True
+        roi_mask *= ~collision_mask
+        roi_intensities = im[roi_mask]
+        num_voxels = np.minimum(quant_voxels, len(roi_intensities))
+        top_rois = np.argpartition(-roi_intensities, num_voxels)[:num_voxels]
+        top_roi_intensities = roi_intensities[top_rois]
+        roi_background_mask[z_starts[i]:z_stops[i], background_x_starts[i]:background_x_stops[i], background_y_starts[i]:background_y_stops[i]] = True
+        roi_background_mask *= background_mask
+        background_intensities = im[roi_background_mask]
+        roi_intensity = np.mean(top_roi_intensities)
+        background_intensity = np.mean(background_intensities)
+        intensities.append((roi_intensity - background_intensity) / background_intensity)
+        roi_mask[:] = False
+        roi_background_mask[:] = False
     return intensities
 
 # ported from wb-matlab
