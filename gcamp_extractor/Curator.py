@@ -138,7 +138,7 @@ class Curator:
         max of image data (for setting ranges)
 
     """
-    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100, labels={}):
+    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100, labels={}, new_curation=False):
         if e:
             self.s = e.spool
             self.timeseries = e.timeseries
@@ -163,12 +163,16 @@ class Curator:
 
         self.path = os.path.join(self.tf.output_dir, 'curate.json') if self.tf else None
         self.ind = 0
-        try:
-            with open(self.path) as f:
-                self.curate = json.load(f)
-            
-            self.ind = int(self.curate['last'])
-        except:
+        curate_loaded = False
+        if not new_curation:
+            try:
+                with open(self.path) as f:
+                    self.curate = json.load(f)
+                self.ind = int(self.curate['last'])
+                curate_loaded = True
+            except:
+                print("No curate.json in output folder. Creating new curation.")
+        if not curate_loaded:
             self.curate = {}
             self.ind = 0
             self.curate['0'] = 'seen'
