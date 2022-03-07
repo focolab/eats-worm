@@ -555,6 +555,9 @@ class BlobThreadTracker():
                 if self.algorithm == 'seeded_tmip_skimage' and i==0:
                     peaks = np.array(self.algorithm_params['peaks'])
                     self.spool.reel(peaks,self.im.anisotropy)
+                    if 'labels' in self.algorithm_params:
+                        for thread, label in zip(self.spool.threads, self.algorithm_params['labels']):
+                            thread.label = label
                     last_offset = np.array([0, 0, 0])
                     last_im = im1
 
@@ -689,6 +692,10 @@ class BlobThreadTracker():
                         self.spool.reel(peaks,self.im.anisotropy, offset=_off)
                 else:
                     self.spool.reel(peaks,self.im.anisotropy)
+                    if self.algorithm.startswith('seeded'):
+                        if 'labels' in self.algorithm_params:
+                            for thread, label in zip(self.spool.threads, self.algorithm_params['labels']):
+                                thread.label = label
 
                 self.last_im1 = np.copy(im1)
 

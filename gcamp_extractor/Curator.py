@@ -171,7 +171,12 @@ class Curator:
         except:
             self.curate = {}
             self.ind = 0
-            self.curate['0']='seen'
+            self.curate['0'] = 'seen'
+            self.curate['labels'] = {}
+            for i in range(len(self.s.threads)):
+                if self.s.threads[i].label:
+                    self.curate['labels'][str(i)] = self.s.threads[i].label
+        if labels != {}:
             self.curate['labels'] = labels
 
 

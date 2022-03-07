@@ -407,6 +407,7 @@ class Thread:
             #self.t = t + 1
             #self.positions.append(np.array(position))
             self.t.append(int(t))
+        self.label = kwargs.get('label')
 
     def get_position_mostrecent(self):
         """    
