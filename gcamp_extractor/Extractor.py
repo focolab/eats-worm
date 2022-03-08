@@ -737,6 +737,8 @@ class BlobThreadTracker():
         _a = len(self.spool.threads)
         for i in range(_a):
             if collided(self.spool.threads[i].positions,imshape):
+                if self.spool.threads[i].label:
+                    print("removing thread for neuron", self.spool.threads[i].label, "due to collision with edge of imaging window.")
                 destroy.append(i)
             print('\r' + 'Blob Threads Checked: ' + str(i+1)+'/'+str(_a), sep='', end='', flush=True)
         print('\n')
@@ -769,6 +771,8 @@ class BlobThreadTracker():
             throw_ndx.sort(reverse = True)
 
             for ndx in throw_ndx:
+                if self.spool.threads[ndx].label:
+                    print("removing thread for neuron", self.spool.threads[ndx].label, "due to illegal inter-frame movement.")
                 self.spool.threads.pop(int(ndx))
             print('Blob threads removed: ' + str(len(throw_ndx)) + '/' + str(orig))
 
