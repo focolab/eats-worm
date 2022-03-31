@@ -326,6 +326,27 @@ def load_extractor(path):
     return e
 
 
+def render_gaussian_2d(im_width, sigma):
+    """
+    :param im_width:
+    :param sigma:
+    :return:
+    """
+
+    g = np.zeros((im_width, im_width), dtype=np.float32)
+
+    # gaussian filter
+    for i in range(int(-(im_width - 1) / 2), int((im_width + 1) / 2)):
+        for j in range(int(-(im_width - 1) / 2), int((im_width + 1) / 2)):
+            x0 = int((im_width) / 2)  # center
+            y0 = int((im_width) / 2)  # center
+            x = i + x0  # row
+            y = j + y0  # col
+            g[y, x] = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / 2 / sigma / sigma)
+            # g[x, y] = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / 2 / sigma / sigma)
+
+    return g
+
 
 class Extractor:
     """
@@ -540,19 +561,24 @@ class BlobThreadTracker():
         mask = np.zeros(expanded_shape, dtype=np.uint16)
         mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
 
-        if self.algorithm in ['tmip_skimage', 'seeded_tmip_skimage']:
+        if self.algorithm in ['tmip_skimage', 'seeded_tmip_skimage', 'seeded_tmip_wb-matlab']:
             window_size = self.algorithm_params.get('window_size', 10)
             ims = []
             offsets = []
             last_offset = None
             last_im = None
             for i in range(self.t):
-                im1 = self.im.get_t()
-                im1 = medFilter2d(im1, self.median)
-                if self.gaussian:
-                    im1 = gaussian3d(im1, self.gaussian)
 
-                if self.algorithm == 'seeded_tmip_skimage' and i==0:
+                im1 = self.im.get_t()
+
+                if self.algorithm == 'seeded_tmip_wb-matlab':
+                    pass
+                else:
+                    im1 = medFilter2d(im1, self.median)
+                    if self.gaussian:
+                        im1 = gaussian3d(im1, self.gaussian)
+
+                if self.algorithm in ['seeded_tmip_skimage', 'seeded_tmip_wb-matlab'] and i==0:
                     peaks = np.array(self.algorithm_params['peaks'])
                     self.spool.reel(peaks,self.im.anisotropy)
                     if 'labels' in self.algorithm_params:
@@ -583,14 +609,48 @@ class BlobThreadTracker():
                     ims.append(np.copy(im1))
 
                     if len(ims) == window_size or i == self.t - 1:
-                        tmip = np.max(np.array(ims), axis=0)
 
-                        expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
-                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
-                        expanded_im *= mask
-                        peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50)).astype(float)
-                        peaks /= self.im.anisotropy
+                        if self.algorithm == 'seeded_tmip_wb-matlab':
+                            vol_tmip = np.max(np.array(ims), axis=0).astype(np.float32)
+
+                            # median threshold
+                            for z in range(vol_tmip.shape[0]):
+                                im_filtered = vol_tmip[z,:,:]
+                                fb_threshold_margin = self.algorithm_params.get('fb_threshold_margin', 20)
+                                threshold = np.median(im_filtered) + fb_threshold_margin
+                                im_filtered = (im_filtered > threshold) * im_filtered
+                        
+                                # median filter
+                                im_filtered = cv2.medianBlur(im_filtered, self.median)
+
+                                # template filter
+                                gaussian_template_filter = render_gaussian_2d(13, 9)
+                                im_filtered = cv2.matchTemplate(im_filtered, gaussian_template_filter, cv2.TM_CCOEFF)
+
+                                # pad
+                                pad = [int((x-1)/2) for x in gaussian_template_filter.shape]
+                                im_filtered = np.pad(im_filtered, tuple(zip(pad, pad)))
+
+                                # post threshold
+                                im_filtered = (im_filtered > threshold) * im_filtered
+
+                                # add back to vol tmip
+                                vol_tmip[z,:,:] = im_filtered
+
+                            # reset local var
+                            tmip = vol_tmip
+
+                            # get peaks, min distance is in 3 dimensions
+                            peaks = peak_local_max(tmip, min_distance=3).astype(float)
+
+                        else:
+                            tmip = np.max(np.array(ims), axis=0)
+                            expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                            expanded_im *= mask
+                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50)).astype(float)
+                            peaks /= self.im.anisotropy
 
                         self.spool.reel(peaks - last_offset, self.im.anisotropy, delta_t=len(ims))
                         ims = []
