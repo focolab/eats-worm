@@ -229,7 +229,7 @@ class Spool:
                     self.threads[i].exfill(inferred)
 
     # handle threads which are illegally close to one another (e.g. after infill)
-    def manage_collisions(self, method='merge'):
+    def manage_collisions(self, method='merge', anisotropy=None):
         if method is None:
             pass
 
@@ -241,6 +241,8 @@ class Spool:
                 for t in range(self.maxt):
                     t_positions = self.allthreads[t]
                     t_positions = t_positions.reshape((-1, 3))
+                    if anisotropy:
+                        t_positions *= anisotropy
                     distances = scipy.spatial.distance.cdist(t_positions, t_positions, metric='euclidean')
                     # zero out diagonal and below to avoid identities and duplicates
                     tril_mask = np.tril(np.ones(distances.shape, dtype=bool))
