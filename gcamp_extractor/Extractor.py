@@ -204,7 +204,7 @@ def exp_curve_bleach_correction(timeseries):
     tau = tau_best
     return traces_bc
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, **kwargs):
+def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, **kwargs):
     """
     generates timeseries based on calculated threads. 
 
@@ -401,8 +401,12 @@ class Extractor:
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         self.im.t = 0
+        self.start_t = kwargs.get('start_t', 0)
+        self.end_t = kwargs.get('end_t', kwargs.get('t', 0))
+        if self.end_t==0 or self.end_t>(self.im.numframes-self.im.offset)//self.im.numz:
+            self.end_t=int((self.im.numframes-self.im.offset)//self.im.numz)
         self.blobthreadtracker_params = {k: v for k, v in kwargs.items() if k not in vars(self)}
-        self.t = kwargs.get('t', 0)
+        self.blobthreadtracker_params.update({'start_t': self.start_t, 'end_t': self.end_t})
 
         ### Dump a record of input parameters
         if kwargs.get('regen'):
@@ -421,7 +425,7 @@ class Extractor:
 
     def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', **kwargs):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, **kwargs)
+        self.timeseries = quantify(mft=self.im, spool=self.spool, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, **kwargs)
         self.save_timeseries()
 
     def save_timeseries(self):
@@ -467,12 +471,12 @@ class Extractor:
 
         _t = self.im.t
         self.im.t = 0
-        _output = np.zeros(tuple([self.t]) + self.im.sizexy, dtype = np.uint16)
+        _output = np.zeros(tuple([self.end_t - self.start_t]) + self.im.sizexy, dtype = np.uint16)
         
         with tiff.TiffWriter(fname,bigtiff = True) as tif:
-            for i in range(self.t):
-                tif.save(np.max(self.im.get_t(), axis = 0))
-                print('\r' + 'MIP Frames Saved: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+            for i in range(self.start_t, self.end_t):
+                tif.save(np.max(self.im.get_t(i), axis = 0))
+                print('\r' + 'MIP Frames Saved: ' + str(i+1-self.start_t)+'/'+str(self.end_t - self.start_t), sep='', end='', flush=True)
 
         print('\n')
 
@@ -518,10 +522,9 @@ class BlobThreadTracker():
         except:
             self.algorithm_params['templates_made'] = False
 
-        # self.t is a time index cutoff for partial analysis
-        self.t = params.get('t', 0)
-        if self.t==0 or self.t>(self.im.numframes-self.im.offset)//self.im.numz:
-            self.t=(self.im.numframes-self.im.offset)//self.im.numz
+        # self.start_t and self.end_t are time index cutoffs for partial analysis
+        self.start_t = params['start_t']
+        self.end_t = params['end_t']
 
 
     def calc_blob_threads(self):
@@ -532,7 +535,7 @@ class BlobThreadTracker():
         -------
         spool: (Spool)
         """
-        self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.t, predict=self.predict)
+        self.spool = Spool(self.blob_merge_dist_thresh, max_t=self.end_t - self.start_t, predict=self.predict)
 
         # handle an ugly workaround for peak_local_max not supporting anisotropy. this stuff is only needed when
         # using skimage or template matching, but putting it here allows us to avoid redoing the matmuls every iteration
@@ -546,13 +549,14 @@ class BlobThreadTracker():
             offsets = []
             last_offset = None
             last_im = None
-            for i in range(self.t):
-                im1 = self.im.get_t()
+
+            for i in range(self.start_t, self.end_t):
+                im1 = self.im.get_t(i)
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
                     im1 = gaussian3d(im1, self.gaussian)
 
-                if self.algorithm == 'seeded_tmip_skimage' and i==0:
+                if self.algorithm == 'seeded_tmip_skimage' and i==self.start_t:
                     peaks = np.array(self.algorithm_params['peaks'])
                     self.spool.reel(peaks,self.im.anisotropy)
                     if 'labels' in self.algorithm_params:
@@ -562,7 +566,7 @@ class BlobThreadTracker():
                     last_im = im1
 
                 else:
-                    if self.register and i!=0:
+                    if self.register and i!=self.start_t:
                         _off = phase_cross_correlation(last_im, im1, upsample_factor=100)[0][1:]
                         _off = np.insert(_off, 0,0)
                         # track offset relative to t=0 so that all tmips are spatially aligned
@@ -591,7 +595,7 @@ class BlobThreadTracker():
                     last_offset = offsets[-1]
                     ims.append(np.copy(im1))
 
-                    if len(ims) == window_size or i == self.t - 1:
+                    if len(ims) == window_size or i == self.end_t - 1:
                         tmip = np.max(np.array(ims), axis=0)
 
                         expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
@@ -606,12 +610,12 @@ class BlobThreadTracker():
                         offsets = []
 
                 if not self.suppress_output:
-                    print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+                    print('\r' + 'Frames Processed: ' + str(i+1-self.start_t)+'/'+str(self.end_t - self.start_t), sep='', end='', flush=True)
 
 
         else:
-            for i in range(self.t):
-                im1 = self.im.get_t()
+            for i in range(self.start_t, self.end_t):
+                im1 = self.im.get_t(i)
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
                     im1 = gaussian3d(im1, self.gaussian)
@@ -693,7 +697,7 @@ class BlobThreadTracker():
                     peaks = findpeaks2d(im1)
                     peaks = reg_peaks(im1, peaks,thresh=self.reg_peak_dist)
 
-                if self.register and i!=0:
+                if self.register and i!=self.start_t:
                     _off = phase_cross_correlation(self.last_im1, im1, upsample_factor=100)[0][1:]
                     _off = np.insert(_off, 0,0)
                     if self.algorithm == 'curated':
@@ -709,7 +713,7 @@ class BlobThreadTracker():
                 self.last_im1 = np.copy(im1)
 
                 if not self.suppress_output:
-                    print('\r' + 'Frames Processed: ' + str(i+1)+'/'+str(self.t), sep='', end='', flush=True)
+                    print('\r' + 'Frames Processed: ' + str(i+1-self.start_t)+'/'+str(self.end_t - self.start_t), sep='', end='', flush=True)
 
         print('\nInfilling...')
         self.spool.infill()
@@ -762,14 +766,14 @@ class BlobThreadTracker():
         return self.spool
 
     def remove_bad_threads(self):
-        if self.t > 1:
+        if self.end_t > 1:
             d = np.zeros(len(self.spool.threads))
             zd = np.zeros(len(self.spool.threads))
             orig = len(self.spool.threads)
             for i in range(len(self.spool.threads)):
                 dvec = np.diff(self.spool.threads[i].positions, axis = 0)
                 d[i] = np.abs(dvec).max()
-                zd[i] = np.abs(dvec[0:self.t,0]).max()
+                zd[i] = np.abs(dvec[0:,0]).max()
 
             ans = d > self.remove_blobs_dist
             ans = ans + (zd > self.remove_blobs_dist/self.im.anisotropy[0])

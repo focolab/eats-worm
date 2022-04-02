@@ -143,13 +143,15 @@ class Curator:
             self.s = e.spool
             self.timeseries = e.timeseries
             self.tf = e.im
-            self.tmax = e.t
+            self.tmax = e.end_t - e.start_t
+            self.t_offset = e.start_t
             self.scale = e.anisotropy
         else:
             self.tf = mft
             self.s = spool
             self.timeseries = timeseries
             self.tmax = None
+            self.t_offset = 0
             self.scale = (15, 1, 1)
             if mft:
                 self.scale = mft.anisotropy
@@ -216,7 +218,7 @@ class Curator:
         self.viewer = napari.Viewer(ndisplay=3)
         if self.tf:
             for c in range(self.tf.numc):
-                self.viewer.add_image(self.tf.get_t(self.t, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
+                self.viewer.add_image(self.tf.get_t(self.t + self.t_offset, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
         if self.s:
             self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=2, scale=self.scale)
 
@@ -394,17 +396,17 @@ class Curator:
         else:
             f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
             if 1 == self.showmip:
-                self.im = np.max(self.tf.get_t(self.t),axis = 0)
+                self.im = np.max(self.tf.get_t(self.t + self.t_offset),axis = 0)
             else:
-                self.im = self.tf.get_tbyf(self.t, f)
+                self.im = self.tf.get_tbyf(self.t + self.t_offset, f)
             if f == self.num_frames - 1:
                 self.im_plus_one = np.zeros(self.im.shape)
             else:
-                self.im_plus_one = self.tf.get_tbyf(self.t, f + 1)
+                self.im_plus_one = self.tf.get_tbyf(self.t + self.t_offset, f + 1)
             if f == 0:
                 self.im_minus_one = np.zeros(self.im.shape)
             else:
-                self.im_minus_one = self.tf.get_tbyf(self.t, f - 1)
+                self.im_minus_one = self.tf.get_tbyf(self.t + self.t_offset, f - 1)
     
     def get_im_display(self, im):
         return (im - self.min)/(self.max - self.min)
@@ -429,10 +431,10 @@ class Curator:
     def update_figures(self):
         if self.tf:
             for c in range(self.tf.numc):
-                self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t, channel=c)
-            self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t), axis=1), "Ortho MIP ax 1")
-            self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t), axis=2), "Ortho MIP ax 2")
-            self.update_imageview(self.montage_view, np.rot90(np.vstack(self.tf.get_t(self.t))), "Montage View")
+                self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t + self.t_offset, channel=c)
+            self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t + self.t_offset), axis=1), "Ortho MIP ax 1")
+            self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t + self.t_offset), axis=2), "Ortho MIP ax 2")
+            self.update_imageview(self.montage_view, np.rot90(np.vstack(self.tf.get_t(self.t + self.t_offset))), "Montage View")
         if self.s:
             # swap to PAN_ZOOM to avoid highlighting points on recreation
             last_roi_mode = self.viewer.layers['roi'].mode
@@ -757,7 +759,7 @@ class Curator:
         plot_item.scatterPlot(x, y, symbolSize=3, pen=QPen(color, .1), brush=QBrush(color))
     
     def plot_on_montageview(self, positions, color):
-        x_size, y_size = self.tf.get_t(self.t).shape[-2:]
+        x_size, y_size = self.tf.get_t(self.t + self.t_offset).shape[-2:]
         z = positions[:,0]
         x = positions[:,1]
         y = positions[:,2]
