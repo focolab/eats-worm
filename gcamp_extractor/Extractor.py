@@ -1,3 +1,4 @@
+import bz2
 import numpy as np
 import pdb
 import time
@@ -304,6 +305,7 @@ def load_extractor(path):
     mftf = folders[0]+'/mft.obj'
     threadf = folders[0]+'/threads.obj'
     timef = folders[0]+'/timeseries.txt'
+    curator_layersf = folders[0]+'/curator_layers.pkl.bz2'
 
     with open(paramsf) as f:
         params = json.load(f)
@@ -320,6 +322,13 @@ def load_extractor(path):
     try:
         time = np.genfromtxt(timef)
         e.timeseries = time
+    except:
+        pass
+
+    try:
+        with bz2.open(curator_layersf, 'r') as f:
+            curator_layers = pickle.load(f)
+            e.curator_layers = curator_layers
     except:
         pass
 
@@ -436,7 +445,6 @@ class Extractor:
             kwargs['regen']=True
             with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
                 json.dump(kwargs, json_file)
-                print(kwargs)
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""
@@ -444,6 +452,9 @@ class Extractor:
         self.spool = x.calc_blob_threads()
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
+        if x.curator_layers:
+            self.curator_layers = x.curator_layers
+            pickle.dump(self.curator_layers, bz2.open(os.path.join(self.output_dir, 'curator_layers.pkl.bz2'), 'wb'))
 
     def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', **kwargs):
         """generates timeseries based on calculated threads"""
@@ -539,6 +550,7 @@ class BlobThreadTracker():
         self.predict = params.get('predict', True)
         self.algorithm = params.get('algorithm', 'template')
         self.algorithm_params = params.get('algorithm_params', {})
+        self.curator_layers = params.get('curator_layers', False)
         try:
             self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
         except:
@@ -571,7 +583,8 @@ class BlobThreadTracker():
             offsets = []
             last_offset = None
             last_im = None
-
+            if self.algorithm == 'seeded_tmip_wb-matlab' and self.curator_layers:
+                self.curator_layers = {'filtered': {'type': 'image', 'data': []}}
             for i in range(self.start_t, self.end_t):
                 im1 = self.im.get_t(i)
 
@@ -650,6 +663,11 @@ class BlobThreadTracker():
 
                                 # add back to vol tmip
                                 vol_tmip[z,:,:] = im_filtered
+                            
+                            if self.curator_layers:
+                                vol_tmip_mask_as_list = (vol_tmip > 0).tolist()
+                                for timepoint in range(len(ims)):
+                                    self.curator_layers['filtered']['data'].append(vol_tmip_mask_as_list)
 
                             # reset local var
                             tmip = vol_tmip

@@ -146,6 +146,12 @@ class Curator:
             self.tmax = e.end_t - e.start_t
             self.t_offset = e.start_t
             self.scale = e.anisotropy
+            try:
+                self.curator_layers = e.curator_layers
+                for layer in self.curator_layers:
+                    self.curator_layers[layer]['data'] = np.array(self.curator_layers[layer]['data'])
+            except:
+                self.curator_layers = None
         else:
             self.tf = mft
             self.s = spool
@@ -223,6 +229,11 @@ class Curator:
             self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=2, scale=self.scale)
 
             self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
+
+            if self.curator_layers:
+                for layer in self.curator_layers.keys():
+                    if self.curator_layers[layer]['type'] == 'image':
+                        self.viewer.add_image(self.curator_layers[layer]['data'][self.t], name=layer, scale=self.scale, blending='additive', visible=False)
 
             self.last_selected = set()
             def handle_select(event):
@@ -468,6 +479,11 @@ class Curator:
             self.viewer.layers['other rois'].selected_data = last_other_rois_selected_data
             self.viewer.layers['roi'].mode = last_roi_mode
             self.viewer.layers['other rois'].mode = last_other_rois_mode
+
+            if self.curator_layers:
+                for layer in self.curator_layers:
+                    if self.curator_layers[layer]['type'] == 'image':
+                        self.viewer.layers[layer].data = self.curator_layers[layer]['data'][self.t]
 
         self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
         self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
