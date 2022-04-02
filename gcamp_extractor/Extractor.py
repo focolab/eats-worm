@@ -588,12 +588,12 @@ class BlobThreadTracker():
             for i in range(self.start_t, self.end_t):
                 im1 = self.im.get_t(i)
 
-                if self.algorithm == 'seeded_tmip_wb-matlab':
-                    pass
-                else:
-                    im1 = medFilter2d(im1, self.median)
-                    if self.gaussian:
-                        im1 = gaussian3d(im1, self.gaussian)
+                # if self.algorithm == 'seeded_tmip_wb-matlab':
+                #     pass
+                # else:
+                im1 = medFilter2d(im1, self.median)
+                if self.gaussian:
+                    im1 = gaussian3d(im1, self.gaussian)
 
                 if self.algorithm in ['seeded_tmip_skimage', 'seeded_tmip_wb-b'] and i==self.start_t:
                     peaks = np.array(self.algorithm_params['peaks'])
@@ -648,7 +648,7 @@ class BlobThreadTracker():
                                 im_filtered = (im_filtered > threshold) * im_filtered
                         
                                 # median filter
-                                im_filtered = cv2.medianBlur(im_filtered, self.median)
+                                # im_filtered = cv2.medianBlur(im_filtered, self.median)
 
                                 # template filter
                                 gaussian_template_filter = render_gaussian_2d(13, 9)
@@ -673,7 +673,12 @@ class BlobThreadTracker():
                             tmip = vol_tmip
 
                             # get peaks, min distance is in 3 dimensions
-                            peaks = peak_local_max(tmip, min_distance=3).astype(float)
+                            expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                            expanded_im *= mask
+                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9)).astype(float)
+                            peaks /= self.im.anisotropy
 
                         else:
                             tmip = np.max(np.array(ims), axis=0)
