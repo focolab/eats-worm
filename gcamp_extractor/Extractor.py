@@ -573,9 +573,18 @@ class BlobThreadTracker():
                         last_im = np.copy(im1)
                         if np.max(shift) > 0:
                             im1 = np.roll(im1, shift, axis)
-                            im1[:shift[0], :, :] = 0
-                            im1[:, :shift[1], :] = 0
-                            im1[:, :, :shift[2]] = 0
+                            if shift[0] >= 0:
+                                im1[:shift[0], :, :] = 0
+                            else:
+                                im1[shift[0]:, :, :] = 0
+                            if shift[1] >= 0:
+                                im1[:, :shift[1], :] = 0
+                            else:
+                                im1[:, shift[1]:, :] = 0
+                            if shift[2] >- 0:
+                                im1[:, :, :shift[2]] = 0
+                            else:
+                                im1[:, :, shift[2]:] = 0
                     else:
                         last_im = np.copy(im1)
                         offsets.append(np.array([0, 0, 0]))
