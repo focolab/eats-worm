@@ -208,24 +208,36 @@ class Spool:
             for i in range(len(self.threads)):
                 self.predictions[i] = self.threads[i].get_position_mostrecent()
     
-    def infill(self):
+    def infill(self, parents=None, weights=None):
         for i in range(len(self.threads)):
             if self.threads[i].t[0]==0:
                 pass
             else:
                 inferred = self.threads[i].get_position_t(self.threads[i].t[0])
                 for j in reversed(range(self.threads[i].t[0])):
-                    inferred = inferred - self.dvec[j]
+                    if parents:
+                        if not weights:
+                            weights = np.array([1] * len(parents))
+                        parent_offsets = np.array([self.threads[parent].get_position_t(j + 1) - self.threads[parent].get_position_t(j) for parent, weight in zip(parents, weights)])
+                        inferred -= np.sum(parent_offsets, axis=0) / np.sum(weights)
+                    else:
+                        inferred = inferred - self.dvec[j]
                     self.threads[i].infill(inferred)
 
-    def exfill(self):
+    def exfill(self, parents=None, weights=None):
         for i in range(len(self.threads)):
             if self.threads[i].t[-1]==self.maxt - 1:
                 pass
             else:
                 inferred = self.threads[i].get_position_t(self.threads[i].t[-1])
                 for j in range(self.threads[i].t[-1] + 1, self.maxt):
-                    inferred = inferred + self.dvec[j-1]
+                    if parents:
+                        if not weights:
+                            weights = np.array([1] * len(parents))
+                        parent_offsets = np.array([self.threads[parent].get_position_t(j) - self.threads[parent].get_position_t(j - 1) for parent, weight in zip(parents, weights)])
+                        inferred += np.sum(parent_offsets, axis=0) / np.sum(weights)
+                    else:
+                        inferred = inferred + self.dvec[j-1]
                     self.threads[i].exfill(inferred)
 
     # handle threads which are illegally close to one another (e.g. after infill)
@@ -327,12 +339,19 @@ class Spool:
             self.allthreads[:,3*i:3*i+3] = self.threads[i].positions
 
     # handle manual addition of new roi to completed spool
-    def add_thread_post_hoc(self, position, t):
+    def add_thread_post_hoc(self, position, t, anisotropy):
+        distances = scipy.spatial.distance.cdist(np.array([position]), anisotropy * self.get_positions_t(t), metric='euclidean')
+        if np.min(distances) < 1:
+            print("Invalid creation of new ROI on top of existing ROI; ignoring.")
+            return False
+        num_neighbors = np.minimum(3, len(distances) - 1)
+        nearest_neighbors = np.argpartition(distances, num_neighbors)[:num_neighbors]
         self.threads.append(Thread(position, t=t, maxt = self.maxt))
-        self.infill()
-        self.exfill()
+        self.infill(parents=nearest_neighbors, weights=1./distances[nearest_neighbors])
+        self.exfill(parents=nearest_neighbors, weights=1./distances[nearest_neighbors])
         self.update_positions()
         self.make_allthreads()
+        return True
 
     def get_positions_t(self,t,indices=None):
         if self.allthreads is not None:
