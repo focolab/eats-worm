@@ -1,5 +1,5 @@
 # GCAMP Processing
-## Author: Steven Ban
+## Author: FoCo Lab
 
 
 ### Installation Instructions

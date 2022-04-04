@@ -536,15 +536,3 @@ class minimal_mft:
         self.sizexy = mft.sizexy
         self.numframes = mft.numframes
         self.anisotropy = mft.anisotropy
-'''
-
-from multifiletiff import *
-im = MultiFileTiff('/Users/stevenban/Documents/Data/20190917/binned')
-im.filenames
-#im.save()
-#im.list_all_files(im.root)
-
-
-im1 = MultiFileTiff('/Users/stevenban/Documents/Data/20190917/binned', regen = True)
-
-'''
