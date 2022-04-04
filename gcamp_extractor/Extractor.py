@@ -642,7 +642,7 @@ class BlobThreadTracker():
                                 threshold = np.median(im_filtered) + fb_threshold_margin
                                 im_filtered = (im_filtered > threshold) * im_filtered
                         
-                                gaussian_template_filter = render_gaussian_2d(13, 9)
+                                gaussian_template_filter = render_gaussian_2d(self.algorithm_params.get('gaussian_diameter', 13), self.algorithm_params.get('gaussian_sigma', 9))
                                 im_filtered = cv2.matchTemplate(im_filtered, gaussian_template_filter, cv2.TM_CCOEFF)
                                 pad = [int((x-1)/2) for x in gaussian_template_filter.shape]
                                 im_filtered = np.pad(im_filtered, tuple(zip(pad, pad)))
