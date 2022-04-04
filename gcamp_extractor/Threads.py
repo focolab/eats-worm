@@ -378,6 +378,7 @@ class Spool:
             df['T'] = th.t
             df['prov'] = [dd[k] for k in th.found]
             df['blob_ix'] = [ix]*len(df)
+            df['ID'] = [th.label if th.label is not None else ""]*len(df)
             all_dataframes.append(df)
         df_out = pd.concat(all_dataframes, axis=0).reset_index(drop=True)
         return df_out

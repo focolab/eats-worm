@@ -1,3 +1,4 @@
+import bz2
 import numpy as np
 import pdb
 import time
@@ -304,6 +305,7 @@ def load_extractor(path):
     mftf = folders[0]+'/mft.obj'
     threadf = folders[0]+'/threads.obj'
     timef = folders[0]+'/timeseries.txt'
+    curator_layersf = folders[0]+'/curator_layers.pkl.bz2'
 
     with open(paramsf) as f:
         params = json.load(f)
@@ -323,8 +325,35 @@ def load_extractor(path):
     except:
         pass
 
+    try:
+        with bz2.open(curator_layersf, 'r') as f:
+            curator_layers = pickle.load(f)
+            e.curator_layers = curator_layers
+    except:
+        pass
+
     return e
 
+
+def render_gaussian_2d(blob_diameter, sigma):
+    """
+    :param im_width:
+    :param sigma:
+    :return:
+    """
+
+    gaussian = np.zeros((blob_diameter, blob_diameter), dtype=np.float32)
+
+    # gaussian filter
+    for i in range(int(-(blob_diameter - 1) / 2), int((blob_diameter + 1) / 2)):
+        for j in range(int(-(blob_diameter - 1) / 2), int((blob_diameter + 1) / 2)):
+            x0 = int((blob_diameter) / 2)  # center
+            y0 = int((blob_diameter) / 2)  # center
+            x = i + x0  # row
+            y = j + y0  # col
+            gaussian[y, x] = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / 2 / sigma / sigma)
+
+    return gaussian
 
 
 class Extractor:
@@ -422,6 +451,9 @@ class Extractor:
         self.spool = x.calc_blob_threads()
         print('Saving blob timeseries as numpy object...')
         self.spool.export(f=os.path.join(self.output_dir, 'threads.obj'))
+        if x.curator_layers:
+            self.curator_layers = x.curator_layers
+            pickle.dump(self.curator_layers, bz2.open(os.path.join(self.output_dir, 'curator_layers.pkl.bz2'), 'wb'))
 
     def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', **kwargs):
         """generates timeseries based on calculated threads"""
@@ -517,6 +549,7 @@ class BlobThreadTracker():
         self.predict = params.get('predict', True)
         self.algorithm = params.get('algorithm', 'template')
         self.algorithm_params = params.get('algorithm_params', {})
+        self.curator_layers = params.get('curator_layers', False)
         try:
             self.algorithm_params['templates_made'] = type(self.algorithm_params['template']) != bool
         except:
@@ -543,20 +576,22 @@ class BlobThreadTracker():
         mask = np.zeros(expanded_shape, dtype=np.uint16)
         mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
 
-        if self.algorithm in ['tmip_skimage', 'seeded_tmip_skimage']:
+        if 'tmip' in self.algorithm:
             window_size = self.algorithm_params.get('window_size', 10)
             ims = []
             offsets = []
             last_offset = None
             last_im = None
-
+            if self.algorithm.endswith('2d_template') and self.curator_layers:
+                self.curator_layers = {'filtered': {'type': 'image', 'data': []}}
             for i in range(self.start_t, self.end_t):
                 im1 = self.im.get_t(i)
+
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
                     im1 = gaussian3d(im1, self.gaussian)
 
-                if self.algorithm == 'seeded_tmip_skimage' and i==self.start_t:
+                if self.algorithm.startswith('seeded') and i==self.start_t:
                     peaks = np.array(self.algorithm_params['peaks'])
                     self.spool.reel(peaks,self.im.anisotropy)
                     if 'labels' in self.algorithm_params:
@@ -598,12 +633,47 @@ class BlobThreadTracker():
                     if len(ims) == window_size or i == self.end_t - 1:
                         tmip = np.max(np.array(ims), axis=0)
 
-                        expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
-                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                        expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
-                        expanded_im *= mask
-                        peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50)).astype(float)
-                        peaks /= self.im.anisotropy
+                        if self.algorithm.endswith('2d_template'):
+                            vol_tmip = np.max(np.array(ims), axis=0).astype(np.float32)
+
+                            for z in range(vol_tmip.shape[0]):
+                                im_filtered = vol_tmip[z,:,:]
+                                fb_threshold_margin = self.algorithm_params.get('fb_threshold_margin', 20)
+                                threshold = np.median(im_filtered) + fb_threshold_margin
+                                im_filtered = (im_filtered > threshold) * im_filtered
+                        
+                                gaussian_template_filter = render_gaussian_2d(self.algorithm_params.get('gaussian_diameter', 13), self.algorithm_params.get('gaussian_sigma', 9))
+                                im_filtered = cv2.matchTemplate(im_filtered, gaussian_template_filter, cv2.TM_CCOEFF)
+                                pad = [int((x-1)/2) for x in gaussian_template_filter.shape]
+                                im_filtered = np.pad(im_filtered, tuple(zip(pad, pad)))
+
+                                im_filtered = (im_filtered > threshold) * im_filtered
+                                vol_tmip[z,:,:] = im_filtered
+                            
+                            if self.curator_layers:
+                                vol_tmip_mask_as_list = (vol_tmip > 0).tolist()
+                                for timepoint in range(len(ims)):
+                                    self.curator_layers['filtered']['data'].append(vol_tmip_mask_as_list)
+
+                            # reset local var
+                            tmip = vol_tmip
+
+                            # get peaks, min distance is in 3 dimensions
+                            expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                            expanded_im *= mask
+                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9)).astype(float)
+                            peaks /= self.im.anisotropy
+
+                        else:
+                            tmip = np.max(np.array(ims), axis=0)
+                            expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                            expanded_im *= mask
+                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50)).astype(float)
+                            peaks /= self.im.anisotropy
 
                         self.spool.reel(peaks - last_offset, self.im.anisotropy, delta_t=len(ims))
                         ims = []
