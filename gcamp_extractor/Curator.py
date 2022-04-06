@@ -9,7 +9,7 @@ from .Extractor import *
 from .multifiletiff import *
 from napari.layers.points._points_constants import Mode
 from .Threads import *
-from qtpy.QtWidgets import QAbstractItemView, QAction, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
+from qtpy.QtWidgets import QAbstractItemView, QAction, QCheckBox, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
 
@@ -194,6 +194,7 @@ class Curator:
 
         # array to contain internal state: whether to display single ROI, ROI in Z, or all ROIs
         self.pointstate = 2
+        self.zoom_to_roi = False
         self.show_settings = 0
         self.showmip = 0
 
@@ -357,6 +358,12 @@ class Curator:
         points_button_group[2].toggled.connect(lambda:self.update_pointstate(points_button_group[2].text()))
         self.viewer.window.add_dock_widget(points_button_group, area='right')
 
+        #### Axis for button for display
+        zoom_checkbox = QCheckBox("Zoom to ROI?")
+        zoom_checkbox.setChecked(False)
+        zoom_checkbox.stateChanged.connect(lambda:self.update_zoomstate(zoom_checkbox))
+        self.viewer.window.add_dock_widget(zoom_checkbox, area='right')
+
         #### Axis for whether to display MIP on left
         mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP'), QRadioButton('Montage')]
         mip_button_group[0].setChecked(True)
@@ -484,6 +491,15 @@ class Curator:
                 for layer in self.curator_layers:
                     if self.curator_layers[layer]['type'] == 'image':
                         self.viewer.layers[layer].data = self.curator_layers[layer]['data'][self.t]
+
+            if self.zoom_to_roi:
+                roi_pos = self.s.threads[self.ind].get_position_t(self.t)
+                z_lower_bound, z_upper_bound, x_lower_bound, x_upper_bound, y_lower_bound, y_upper_bound = self.get_zoom_bounds(roi_pos)
+                zoom_mask = np.zeros(self.viewer.layers['channel 0'].data.shape, dtype=bool)
+                zoom_mask[z_lower_bound:z_upper_bound, x_lower_bound:x_upper_bound, y_lower_bound:y_upper_bound] = True
+                self.viewer.layers['channel 0'].data *= zoom_mask
+                self.viewer.camera.center = roi_pos
+                self.viewer.camera.zoom = 20
 
         self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
         self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
@@ -688,6 +704,10 @@ class Curator:
         self.pointstate = d[label]
         self.update()
 
+    def update_zoomstate(self, checkbox):
+        self.zoom_to_roi = checkbox.isChecked()
+        self.update()
+
     def update_mipstate(self, label):
         last_setting = self.showmip
         d = {
@@ -782,6 +802,16 @@ class Curator:
         self.plot_on_imageview(self.montage_view, z * x_size + x, -y + y_size, color)
         for z in range(1, self.num_frames):
             self.montage_view.getView().plot([z * x_size] * y_size, range(y_size), pen='y')
+
+    def get_zoom_bounds(self, position):
+        window_radius = 15
+        z_lower_bound = max(0, round(position[0] - (window_radius // self.scale[0])))
+        z_upper_bound = min(self.viewer.layers['channel 0'].data.shape[0], round(position[0] + (window_radius // self.scale[0])))
+        x_lower_bound = max(0, round(position[1] - window_radius))
+        x_upper_bound = min(self.viewer.layers['channel 0'].data.shape[1], round(position[1] + window_radius))
+        y_lower_bound = max(0, round(position[2] - window_radius))
+        y_upper_bound = min(self.viewer.layers['channel 0'].data.shape[2], round(position[2] + window_radius))
+        return z_lower_bound, z_upper_bound, x_lower_bound, x_upper_bound, y_lower_bound, y_upper_bound
 
     def load_image_folder(self):
         folder_path = QFileDialog.getExistingDirectory()
