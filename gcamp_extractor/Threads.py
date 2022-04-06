@@ -339,8 +339,11 @@ class Spool:
             self.allthreads[:,3*i:3*i+3] = self.threads[i].positions
 
     # handle manual addition of new roi to completed spool
-    def add_thread_post_hoc(self, position, t, anisotropy):
+    def add_thread_post_hoc(self, position, t, anisotropy, excluded_threads=None):
         distances = scipy.spatial.distance.cdist(np.array([position]), anisotropy * self.get_positions_t(t), metric='euclidean')
+        if excluded_threads:
+            for thread in excluded_threads:
+                distances[:,thread] = np.Inf
         if np.min(distances) < 1:
             print("Invalid creation of new ROI on top of existing ROI; ignoring.")
             return False

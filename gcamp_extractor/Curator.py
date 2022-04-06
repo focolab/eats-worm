@@ -790,7 +790,11 @@ class Curator:
         Curator(mft=mft, spool = self.s, timeseries = self.timeseries, window = self.window)
 
     def add_roi(self, position, t):
-        roi_added = self.s.add_thread_post_hoc(position, t, self.scale)
+        excluded_threads = []
+        for thread in range(len(self.s.threads)):
+            if self.curate[str(thread)] == 'trash':
+                excluded_threads.append(thread)
+        roi_added = self.s.add_thread_post_hoc(position, t, self.scale, excluded_threads=excluded_threads)
         if not roi_added:
             self.other_rois.data = np.delete(self.other_rois.data, -1, axis=0)
         else:
