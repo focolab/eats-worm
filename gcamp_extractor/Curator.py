@@ -237,8 +237,11 @@ class Curator:
                         self.viewer.add_image(self.curator_layers[layer]['data'][self.t], name=layer, scale=self.scale, blending='additive', visible=False)
 
             self.last_selected = set()
+            self.last_selected_t = None
             def handle_select(event):
                 if self.other_rois.mode == 'select':
+                    self.last_selected_coords = None
+                    self.last_selected_t = self.t
                     selected = self.other_rois.selected_data
                     if selected != self.last_selected:
                         self.last_selected = selected
@@ -256,6 +259,7 @@ class Curator:
                                 self.trace_grid.item(thread_index).setSelected(True)
                             if len(selected) == 1:
                                 self.go_to_trace(thread_index)
+                                self.last_selected_coords = self.other_rois.data[thread_index]
 
             self.other_rois.events.highlight.connect(handle_select)
 
@@ -266,6 +270,24 @@ class Curator:
                         if not (self.s.get_positions_t(self.t) == data[-1]).all(axis=1).any():
                             self.add_roi(data[-1], self.t)
             self.other_rois.events.data.connect(handle_add)
+
+            self.drag_beginning = None
+            def handle_move(event):
+                if self.other_rois.mode == 'select':
+                    selected = self.other_rois.selected_data
+                    if len(selected) == 1 and selected == self.last_selected and (self.other_rois.data[list(selected)[0]] != self.last_selected_coords).all() and self.last_selected_t == self.t:
+                        new_drag = True
+                        if self.drag_beginning:
+                            if self.drag_beginning['thread'] == list(selected)[0] and self.drag_beginning['t'] != self.t:
+                                new_drag = False
+                                self.alter_roi_positions(list(selected)[0], self.drag_beginning['pos'], self.other_rois.data[list(selected)[0]], self.drag_beginning['t'], self.t)
+                            else:
+                                print("Moved same ROI without changing timepoint or moved different ROI; discarding drag.")
+                            self.drag_beginning = None
+                        if new_drag:
+                            print("Starting new drag for thread", list(selected)[0], "at timepoint", self.t)
+                            self.drag_beginning = {'thread': list(selected)[0], 't': self.t, 'pos': self.other_rois.data[list(selected)[0]]}
+            self.other_rois.events.data.connect(handle_move)
 
         # initialize load buttons
         self.load_image_button = QPushButton("Load image folder")
@@ -837,6 +859,11 @@ class Curator:
             self.e.spool.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
 
             self.neurs_to_add += 1
+
+    def alter_roi_positions(self, thread, position_0, position_1, time_0, time_1):
+        self.s.alter_thread_post_hoc(thread, position_0, position_1, time_0, time_1)
+        self.update_ims()
+        self.update_figures()
 
     # handle any rois added manually
     def do_hacks(self):

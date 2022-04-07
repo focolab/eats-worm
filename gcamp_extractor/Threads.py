@@ -338,6 +338,17 @@ class Spool:
         for i in range(len(self.threads)):
             self.allthreads[:,3*i:3*i+3] = self.threads[i].positions
 
+    def alter_thread_post_hoc(self, thread, position_0, position_1, time_0, time_1):
+        print("Interpolating positions for thread", thread, "between timepoints", time_0, "and", time_1)
+        pos_diff = position_1 - position_0
+        time_diff = time_1 - time_0
+        pos = position_0
+        for t in range(time_0, time_1 + 1):
+            self.threads[thread].positions[t] = position_0 + (t / time_diff) * pos_diff
+        self.update_positions()
+        self.make_allthreads()
+        return True
+
     # handle manual addition of new roi to completed spool
     def add_thread_post_hoc(self, position, t, anisotropy, excluded_threads=None):
         distances = scipy.spatial.distance.cdist(np.array([position]), anisotropy * self.get_positions_t(t), metric='euclidean')
