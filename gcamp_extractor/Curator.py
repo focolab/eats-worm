@@ -213,6 +213,7 @@ class Curator:
             self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
         
         self.neurs_to_add = 0
+        self.threads_edited = False
 
         self.restart()
         atexit.register(self.log_curate)
@@ -248,14 +249,8 @@ class Curator:
                         if selected != set():
                             for trace_icon in self.trace_grid.selectedItems():
                                 trace_icon.setSelected(False)
-                            # napari indices may not match thread indices depending on display mode
-                            thread_index = -1
-                            visible_threads = 0
-                            for napari_point_index in sorted(selected):
-                                while visible_threads <= napari_point_index:
-                                    thread_index += 1
-                                    if not self.trace_grid.item(thread_index).isHidden():
-                                        visible_threads += 1
+                            thread_indices = self.napari_indices_to_spool_indices(list(selected))
+                            for thread_index in thread_indices:
                                 self.trace_grid.item(thread_index).setSelected(True)
                             if len(selected) == 1:
                                 self.go_to_trace(thread_index)
@@ -277,16 +272,18 @@ class Curator:
                     selected = self.other_rois.selected_data
                     if len(selected) == 1 and selected == self.last_selected and (self.other_rois.data[list(selected)[0]] != self.last_selected_coords).all() and self.last_selected_t == self.t:
                         new_drag = True
+                        point_index = list(selected)[0]
+                        thread_index = self.napari_indices_to_spool_indices([point_index])[0]
                         if self.drag_beginning:
-                            if self.drag_beginning['thread'] == list(selected)[0] and self.drag_beginning['t'] != self.t:
+                            if self.drag_beginning['thread'] == thread_index and self.drag_beginning['t'] != self.t:
                                 new_drag = False
-                                self.alter_roi_positions(list(selected)[0], self.drag_beginning['pos'], self.other_rois.data[list(selected)[0]], self.drag_beginning['t'], self.t)
+                                self.alter_roi_positions(thread_index, self.drag_beginning['pos'], self.other_rois.data[point_index], self.drag_beginning['t'], self.t)
                             else:
                                 print("Moved same ROI without changing timepoint or moved different ROI; discarding drag.")
                             self.drag_beginning = None
                         if new_drag:
-                            print("Starting new drag for thread", list(selected)[0], "at timepoint", self.t)
-                            self.drag_beginning = {'thread': list(selected)[0], 't': self.t, 'pos': self.other_rois.data[list(selected)[0]]}
+                            print("Starting new drag for thread", thread_index, "at timepoint", self.t)
+                            self.drag_beginning = {'thread': thread_index, 't': self.t, 'pos': self.other_rois.data[point_index]}
             self.other_rois.events.data.connect(handle_move)
 
         # initialize load buttons
@@ -862,8 +859,21 @@ class Curator:
 
     def alter_roi_positions(self, thread, position_0, position_1, time_0, time_1):
         self.s.alter_thread_post_hoc(thread, position_0, position_1, time_0, time_1)
+        self.threads_edited = True
         self.update_ims()
         self.update_figures()
+
+    def napari_indices_to_spool_indices(self, indices):
+        spool_indices = []
+        thread_index = -1
+        visible_threads = 0
+        for napari_point_index in sorted(indices):
+            while visible_threads <= napari_point_index:
+                thread_index += 1
+                if not self.trace_grid.item(thread_index).isHidden():
+                    visible_threads += 1
+            spool_indices.append(thread_index)
+        return spool_indices
 
     # handle any rois added manually
     def do_hacks(self):
@@ -873,3 +883,5 @@ class Curator:
             self.e.save_timeseries()
 
             self.num_neurons += self.neurs_to_add
+        if self.threads_edited:
+            self.s.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
