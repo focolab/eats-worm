@@ -254,7 +254,7 @@ class Curator:
                                 self.trace_grid.item(thread_index).setSelected(True)
                             if len(selected) == 1:
                                 self.go_to_trace(thread_index)
-                                self.last_selected_coords = self.other_rois.data[thread_index]
+                                self.last_selected_coords = self.other_rois.data[list(selected)[0]]
 
             self.other_rois.events.highlight.connect(handle_select)
 
