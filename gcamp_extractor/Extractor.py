@@ -663,7 +663,7 @@ class BlobThreadTracker():
                             expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
                             expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
                             expanded_im *= mask
-                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9)).astype(float)
+                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), exclude_border=self.algorithm_params.get('exclude_border', True)).astype(float)
                             peaks /= self.im.anisotropy
 
                         else:
