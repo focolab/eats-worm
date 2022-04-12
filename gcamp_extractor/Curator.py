@@ -212,7 +212,6 @@ class Curator:
         if not self.tmax:
             self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
         
-        self.neurs_to_add = 0
         self.threads_edited = False
 
         self.restart()
@@ -759,9 +758,11 @@ class Curator:
         self.update_ims()
         self.update_figures()
 
-    def set_trace_icons(self):
+    def set_trace_icons(self, indices=None):
+        if indices is None:
+            indices = range(self.timeseries.shape[1])
         if self.timeseries is not None:
-            for index in range(self.timeseries.shape[1]):
+            for index in indices:
                 self.plot_timeseries_to_trace_grid(index)
 
     def plot_timeseries_to_trace_grid(self, index):
@@ -846,16 +847,24 @@ class Curator:
     def add_roi(self, position, t):
         excluded_threads = []
         for thread in range(len(self.s.threads)):
-            if self.curate[str(thread)] == 'trash':
-                excluded_threads.append(thread)
+            if str(thread) in self.curate.keys():
+                if self.curate[str(thread)] == 'trash':
+                    excluded_threads.append(thread)
         roi_added = self.s.add_thread_post_hoc(position, t, self.scale, excluded_threads=excluded_threads)
         if not roi_added:
             self.other_rois.data = np.delete(self.other_rois.data, -1, axis=0)
         else:
+            self.num_neurons += 1
             print('Saving blob timeseries as numpy object...')
+            self.e.timeseries = np.hstack((self.e.timeseries, np.empty((self.e.timeseries.shape[0], 1))))
+            self.e.timeseries[:,-1] = np.NaN
             self.e.spool.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
-
-            self.neurs_to_add += 1
+            self.e.save_timeseries()
+            self.timeseries = self.e.timeseries
+            self.set_trace_icons([self.timeseries.shape[1] - 1])
+            self.update_ims()
+            self.update_figures()
+            self.update_timeseries()
 
     def alter_roi_positions(self, thread, position_0, position_1, time_0, time_1):
         self.s.alter_thread_post_hoc(thread, position_0, position_1, time_0, time_1)
@@ -877,11 +886,5 @@ class Curator:
 
     # handle any rois added manually
     def do_hacks(self):
-        if self.neurs_to_add:
-            self.e.quantify()
-            self.timeseries = self.e.timeseries
-            self.e.save_timeseries()
-
-            self.num_neurons += self.neurs_to_add
         if self.threads_edited:
             self.s.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
