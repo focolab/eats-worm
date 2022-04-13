@@ -604,7 +604,10 @@ class Curator:
             self.curate[str(index)]='keep'
         if self.show_settings != 0:
             self.viewer.layers['other rois'].selected_data = {}
-        self.update()
+        if self.ind in selected_trace_indices and self.show_settings != 0:
+            self.next()
+        else:
+            self.update()
 
 
     def trash_all_selected(self, label):
@@ -613,7 +616,10 @@ class Curator:
             self.curate[str(index)]='trash'
         if self.show_settings != 0:
             self.viewer.layers['other rois'].selected_data = {}
-        self.update()
+        if self.ind in selected_trace_indices and self.show_settings != 0:
+            self.next()
+        else:
+            self.update()
 
     def label_selected(self, label):
         selected_icons = self.trace_grid.selectedItems()
