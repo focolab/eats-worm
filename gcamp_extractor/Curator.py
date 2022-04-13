@@ -651,11 +651,14 @@ class Curator:
             'Trashed':3
         }
         self.show_settings = d[label]
+        self.other_rois.selected_data = {}
         if self.show_settings != 0:
             if str(self.ind) in self.curate:
                 current_label = self.curate[str(self.ind)]
                 if (current_label != 'seen' and self.show_settings == 1) or (current_label != 'keep' and self.show_settings == 2) or (current_label != 'trash' and self.show_settings == 3):
                     self.next()
+            elif self.show_settings != 1:
+                self.next()
         self.update_trace_icons()
         self.update_figures()
 
@@ -731,6 +734,7 @@ class Curator:
             'All':2,
         }
         self.pointstate = d[label]
+        self.other_rois.selected_data = {}
         self.update()
 
     def update_zoomstate(self, checkbox):
@@ -866,6 +870,7 @@ class Curator:
             self.e.timeseries[:,-1] = np.NaN
             self.e.spool.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
             self.e.save_timeseries()
+            self.other_rois.selected_data = {}
             self.timeseries = self.e.timeseries
             self.set_trace_icons([self.timeseries.shape[1] - 1])
             self.update_ims()
