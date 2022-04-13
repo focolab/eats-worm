@@ -344,7 +344,7 @@ class Spool:
         time_diff = time_1 - time_0
         pos = position_0
         for t in range(time_0, time_1 + 1):
-            self.threads[thread].positions[t] = position_0 + (t / time_diff) * pos_diff
+            self.threads[thread].positions[t] = position_0 + ((t - time_0 + 1) / time_diff) * pos_diff
         self.update_positions()
         self.make_allthreads()
         return True
