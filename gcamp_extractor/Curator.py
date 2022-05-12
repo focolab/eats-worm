@@ -203,10 +203,6 @@ class Curator:
 
         ### First frame of the first thread
         self.update_ims()
-
-        ## Display range 
-        self.min = np.min(np.nonzero([self.im, self.im_plus_one, self.im_minus_one]))
-        self.max = np.max([self.im, self.im_plus_one, self.im_minus_one]) # just some arbitrary value
         
         ## maximum t
         if not self.tmax:
@@ -226,6 +222,8 @@ class Curator:
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t + self.t_offset, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
+            self.min, self.max = self.viewer.layers['channel 0'].contrast_limits
+            self.viewer.layers['channel 0'].events.contrast_limits.connect(lambda:self.update_mm(self.viewer.layers['channel 0'].contrast_limits))
         if self.s:
             self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=2, scale=self.scale)
 
@@ -345,21 +343,6 @@ class Curator:
         self.update_figures()
         self.update_timeseries()
 
-        ### Axis for setting min/max range
-        min_r_slider = QSlider()
-        min_r_slider.setMaximum(int(np.max(self.im)))
-        min_r_slider.setTickPosition(int(self.min))
-        min_r_slider.setValue(int(self.min))
-        min_r_slider.setOrientation(Qt.Horizontal)
-        min_r_slider.valueChanged.connect(lambda:self.update_mm("min", min_r_slider.value()))
-        max_r_slider = QSlider()
-        max_r_slider.setMaximum(int(np.max(self.im)*4))
-        max_r_slider.setTickPosition(int(self.max))
-        max_r_slider.setValue(int(self.max))
-        max_r_slider.setOrientation(Qt.Horizontal)
-        max_r_slider.valueChanged.connect(lambda:self.update_mm("max", max_r_slider.value()))
-        self.viewer.window.add_dock_widget([QLabel('R Min'), min_r_slider, QLabel('R Max'), max_r_slider], area='right')
-
         ### Axis for scrolling through t
         t_slider = QSlider()
         t_slider.setMaximum(int(self.tmax-1))
@@ -445,7 +428,7 @@ class Curator:
                 self.im_minus_one = self.tf.get_tbyf(self.t + self.t_offset, f - 1)
     
     def get_im_display(self, im):
-        return (im - self.min)/(self.max - self.min)
+        return np.clip(im, self.min, self.max) / (self.max - self.min)
     
     def add_figures_to_image_grid(self):
         self.image_grid.addWidget(self.z_plus_one_view, 0, 0)
@@ -468,9 +451,9 @@ class Curator:
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t + self.t_offset, channel=c)
-            self.update_imageview(self.ortho_1_view, np.max(self.tf.get_t(self.t + self.t_offset), axis=1), "Ortho MIP ax 1")
-            self.update_imageview(self.ortho_2_view, np.max(self.tf.get_t(self.t + self.t_offset), axis=2), "Ortho MIP ax 2")
-            self.update_imageview(self.montage_view, np.rot90(np.vstack(self.tf.get_t(self.t + self.t_offset))), "Montage View")
+            self.update_imageview(self.ortho_1_view, self.get_im_display(np.max(self.tf.get_t(self.t + self.t_offset), axis=1)), "Ortho MIP ax 1")
+            self.update_imageview(self.ortho_2_view, self.get_im_display(np.max(self.tf.get_t(self.t + self.t_offset), axis=2)), "Ortho MIP ax 2")
+            self.update_imageview(self.montage_view, self.get_im_display(np.rot90(np.vstack(self.tf.get_t(self.t + self.t_offset)))), "Montage View")
         if self.s:
             # swap to PAN_ZOOM to avoid highlighting points on recreation
             last_roi_mode = self.viewer.layers['roi'].mode
@@ -556,11 +539,9 @@ class Curator:
         self.update_figures()
         self.update_timeseries()
 
-    def update_mm(self, button, val):
-        if 'min' == button:
-            self.min = val
-        elif 'max' == button:
-            self.max = val
+    def update_mm(self, contrast_limits):
+        self.min = contrast_limits[0]
+        self.max = contrast_limits[1]
         self.update_figures()
 
     def next(self):
@@ -811,7 +792,6 @@ class Curator:
     def get_imageview(self):
         plot_item = pg.PlotItem()
         image_view = pg.ImageView(view=plot_item)
-        image_view.setPredefinedGradient('viridis')
         image_view.ui.histogram.hide()
         image_view.ui.roiBtn.hide()
         image_view.ui.menuBtn.hide()
