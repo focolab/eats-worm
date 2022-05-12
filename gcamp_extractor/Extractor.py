@@ -266,7 +266,7 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach
     return timeseries
 
 
-def load_extractor(path):
+def load_extractor(path, root_override=None, output_override=None):
     """
     Function for loading an existing extractor object
 
@@ -309,6 +309,12 @@ def load_extractor(path):
 
     with open(paramsf) as f:
         params = json.load(f)
+        if root_override:
+            params['root'] = root_override
+        if output_override:
+            params['output_dir'] = output_override
+        else:
+            params['output_dir'] = path
     params['regen_mft'] = False
     e = Extractor(**params)
 
