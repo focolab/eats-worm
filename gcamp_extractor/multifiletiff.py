@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-import numpy as np
-import tifffile as tiff
+import dask
 import glob
-from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
-import pickle
+import numpy as np
 import os
+import tifffile as tiff
+import pickle
+from concurrent.futures import ThreadPoolExecutor
 
 class MultiFileTiff():
     """
@@ -207,8 +208,6 @@ class MultiFileTiff():
         self.sizexy = self.tf[0].pages[0].asarray().shape
         self.dtype = type(self.tf[0].pages[0].asarray()[0,0])
         self.t = 0
-        
-
 
     def list_files_tiff(self, path):
         """
@@ -242,6 +241,7 @@ class MultiFileTiff():
                 	allFiles.append(fullPath)
 
         return allFiles
+
     def list_all_files(self,path):
         """
         method for listing all files in directory and all subdirectories. internal method only
@@ -272,6 +272,20 @@ class MultiFileTiff():
             else:
                 allFiles.append(fullPath)
         return allFiles
+
+    def get_dask_array(self):
+        """
+        method for getting entire recording as dask array with single timepoint chunks
+        useful for viewing with napari
+        """
+        shape = self.get_t(0).shape
+        timepoints = []
+        for t in range(self.end_t):
+            frames = dask.array.from_delayed(dask.delayed(self.get_t)(t), shape=shape, dtype=np.int16)
+            timepoints.append(frames)
+        timepoints =  dask.array.stack(timepoints)
+        return timepoints
+
     def get_frame(self, frame, channel = 0):
         """
         method for getting a single frame from your recording, mostly used internally. if you're going to call this function, please make sure you know what's going on.
