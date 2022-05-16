@@ -307,10 +307,6 @@ class Curator:
         self.montage_view = self.get_imageview()
         self.montage_view.setVisible(False)
 
-        ### Series label
-        self.series_label = QLabel()
-        self.viewer.window.add_dock_widget(self.series_label, area='right')
-
         ### Grid showing all extracted timeseries
         self.trace_grid = QListWidget()
         self.trace_grid.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -520,9 +516,6 @@ class Curator:
                 self.plot_on_montageview(self.s.get_positions_t(self.t), Qt.blue)
             self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
             self.plot_on_montageview(np.array([self.s.threads[self.ind].get_position_t(self.t)]), Qt.red)
-
-        if self.timeseries is not None:
-            self.series_label.setText('Series=' + str(self.ind) + ', Z=' + str(round(self.s.threads[self.ind].get_position_t(self.t)[0])))
 
     def update_timeseries(self):
         self.timeseries_view.clear()
