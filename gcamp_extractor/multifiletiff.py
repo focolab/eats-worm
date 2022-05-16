@@ -200,6 +200,9 @@ class MultiFileTiff():
                     pagecounter = pagecounter - self.lens[filecounter]
                     filecounter += 1
 
+        # calculate end timepoint
+        self.end_t = int((self.numframes-self.offset)//self.numz)
+
         # Get some shape data from file
         self.sizexy = self.tf[0].pages[0].asarray().shape
         self.dtype = type(self.tf[0].pages[0].asarray()[0,0])

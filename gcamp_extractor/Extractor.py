@@ -438,8 +438,8 @@ class Extractor:
         self.im.t = 0
         self.start_t = kwargs.get('start_t', 0)
         self.end_t = kwargs.get('end_t', kwargs.get('t', 0))
-        if self.end_t==0 or self.end_t>(self.im.numframes-self.im.offset)//self.im.numz:
-            self.end_t=int((self.im.numframes-self.im.offset)//self.im.numz)
+        if self.end_t==0 or self.end_t>self.im.end_t:
+            self.end_t = self.im.end_t
         self.blobthreadtracker_params = {k: v for k, v in kwargs.items() if k not in vars(self)}
         self.blobthreadtracker_params.update({'start_t': self.start_t, 'end_t': self.end_t})
 

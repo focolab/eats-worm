@@ -206,7 +206,7 @@ class Curator:
         
         ## maximum t
         if not self.tmax:
-            self.tmax = (self.tf.numframes-self.tf.offset)//self.tf.numz if self.tf else 0
+            self.tmax = self.tf.end_t if self.tf else 0
         
         self.threads_edited = False
 
