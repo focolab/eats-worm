@@ -379,7 +379,7 @@ class Curator:
         if self.timeseries is not None:
             self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
             self.timeseries_view.addLine(x=self.t, pen='r')
-            self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])), color='#000')
+            self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])) + ", T=" + str(self.t), color='#000')
 
     def update_t(self, val):
         # Update index for t
