@@ -19,104 +19,6 @@ viewer_settings = {
     5: [{'colormap': 'red', 'visible': True}, {'colormap': 'gray', 'visible': True}, {'colormap': 'green', 'visible': True}, {'colormap': 'gray', 'visible': False}, {'colormap': 'blue', 'visible': True}],
 }
 
-def subaxis(im, position, window = 100):
-    """
-    returns window around specified center of image, along with an an offset that gives how much the image was offset (and thus yields the center of the image)
-
-    Parameters
-    ----------
-    im : np.array
-        3d numpy array representing volume at a particular time point
-    z : int
-    x : int
-    y : int
-        pixel indices of the center
-    window : int
-        size of image window around center
-
-    Returns
-    -------
-    im : np.array
-        2d image array of size window by window
-    offset : int
-        integer offset 
-    """
-
-    z,y,x = position
-    z = round(z)
-    xmin,xmax = int(x-window//2),int(x+window//2)
-    ymin,ymax = int(y-window//2),int(y+window//2)
-
-    offset = [0,0]
-    if xmin < 0:
-        xmax -= xmin
-        xmin = 0
-        offset[0] = -xmin
-    if ymin < 0:
-        ymax -= ymin
-        ymin = 0 
-        offset[1] = -ymin
-    if ymax >= im.shape[-2]:
-        ymin -= ymax-im.shape[-2]+1
-        offset[1] = (ymax-im.shape[-2] )
-        ymax = im.shape[-2]-1
-
-    if xmax >= im.shape[-1]:
-        xmin -= xmax - im.shape[-1]+1
-        offset[0] = (xmax - im.shape[-1]+1)
-        xmax = im.shape[-1]-1
-    #offset[0],offset[1] = offset[1], offset[0]
-    return im[ymin:ymax, xmin:xmax], offset
-
-def subaxis_MIP(im, z,x,y, window = 100):
-    """
-    returns window around specified center of MIP image, along with an an offset that gives how much the image was offset (and thus yields the center of the image). 
-
-    Parameters
-    ----------
-    im : np.array
-        3d numpy array representing volume at a particular time point
-    z : int
-    x : int
-    y : int
-        pixel indices of the center
-    window : int
-        size of image window around center
-
-    Returns
-    -------
-    im : np.array
-        2d image array of size window by window
-    offset : int
-        integer offset 
-    """
-    z = z
-    xmin,xmax = x-window//2,x+window//2
-    ymin,ymax = y-window//2,y+window//2
-
-    offset = [0,0]
-    if xmin < 0:
-        xmax -= xmin
-        xmin = 0
-        offset[0] = xmin
-    if ymin < 0:
-        ymax -= ymin
-        ymin = 0 
-        offset[1] = ymin
-    if ymax > im.shape[-2]:
-        ymin -= ymax-im.shape[-2] 
-        offset[1] = ymax-im.shape[-2] 
-        ymax = im.shape[-2]-1
-
-    if xmax > im.shape[-1]:
-        xmin -= xmax - im.shape[-1]
-        offset[0] = xmax - im.shape[-1]
-        xmax = im.shape[-1]-1
-
-
-    #print(offset)
-    return im[ymin:ymax, xmin:xmax], offset
-
 class Curator:
     """
     matplotlib display of scrolling image data 
@@ -196,13 +98,10 @@ class Curator:
         self.pointstate = 2
         self.zoom_to_roi = False
         self.show_settings = 0
-        self.showmip = 0
+        self.panel_mode = 0
 
         ## index for which time point to display
         self.t = 0
-
-        ### First frame of the first thread
-        self.update_ims()
         
         ## maximum t
         if not self.tmax:
@@ -288,13 +187,6 @@ class Curator:
         self.load_image_button.clicked.connect(self.load_image_folder)
 
         ### initialize views for images
-        self.z_view = self.get_imageview()
-        self.z_plus_one_view = self.get_imageview()
-        self.z_plus_one_view.view.setXLink(self.z_view.view)
-        self.z_plus_one_view.view.setYLink(self.z_view.view)
-        self.z_minus_one_view = self.get_imageview()
-        self.z_minus_one_view.view.setXLink(self.z_view.view)
-        self.z_minus_one_view.view.setYLink(self.z_view.view)
         self.ortho_1_view = self.get_imageview()
         self.ortho_2_view = self.get_imageview()
         self.timeseries_view = pg.PlotWidget()
@@ -362,11 +254,10 @@ class Curator:
         self.viewer.window.add_dock_widget(zoom_checkbox, area='right')
 
         #### Axis for whether to display MIP on left
-        mip_button_group = [QRadioButton('Single Z'), QRadioButton('MIP'), QRadioButton('Montage')]
+        mip_button_group = [QRadioButton('Timeseries'), QRadioButton('Montage')]
         mip_button_group[0].setChecked(True)
-        mip_button_group[0].toggled.connect(lambda:self.update_mipstate(mip_button_group[0].text()))
-        mip_button_group[1].toggled.connect(lambda:self.update_mipstate(mip_button_group[1].text()))
-        mip_button_group[2].toggled.connect(lambda:self.update_mipstate(mip_button_group[2].text()))
+        mip_button_group[0].toggled.connect(lambda:self.update_panel_mode(mip_button_group[0].text()))
+        mip_button_group[1].toggled.connect(lambda:self.update_panel_mode(mip_button_group[1].text()))
         self.viewer.window.add_dock_widget(mip_button_group, area='right')
 
         ### Axis for button to keep
@@ -401,44 +292,19 @@ class Curator:
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):
         self.log_curate()
-
-    def update_ims(self):
-        if not self.tf or not self.s:
-            self.im = np.ones((1, 1))
-            self.im_plus_one = np.ones((1, 1))
-            self.im_minus_one = np.ones((1, 1))
-    
-        else:
-            f = int(self.s.threads[self.ind].get_position_t(self.t)[0])
-            if 1 == self.showmip:
-                self.im = np.max(self.tf.get_t(self.t + self.t_offset),axis = 0)
-            else:
-                self.im = self.tf.get_tbyf(self.t + self.t_offset, f)
-            if f == self.num_frames - 1:
-                self.im_plus_one = np.zeros(self.im.shape)
-            else:
-                self.im_plus_one = self.tf.get_tbyf(self.t + self.t_offset, f + 1)
-            if f == 0:
-                self.im_minus_one = np.zeros(self.im.shape)
-            else:
-                self.im_minus_one = self.tf.get_tbyf(self.t + self.t_offset, f - 1)
     
     def get_im_display(self, im):
         return np.clip(im, self.min, self.max) / (self.max - self.min)
     
     def add_figures_to_image_grid(self):
-        self.image_grid.addWidget(self.z_plus_one_view, 0, 0)
         if self.tf:
-            self.image_grid.addWidget(self.z_view, 1, 0)
             self.load_image_button.setVisible(False)
         else:
             self.image_grid.addWidget(self.load_image_button, 1, 0)
-            self.z_view.setVisible(False)
-        self.image_grid.addWidget(self.z_minus_one_view, 2, 0)
-        self.image_grid.addWidget(self.timeseries_view, 0, 1)
-        self.image_grid.addWidget(self.ortho_1_view, 1, 1)
-        self.image_grid.addWidget(self.ortho_2_view, 2, 1)
-        self.image_grid.addWidget(self.trace_grid, 0, 2, 3, 1)
+        self.image_grid.addWidget(self.timeseries_view, 0, 0, 2, 1)
+        self.image_grid.addWidget(self.ortho_1_view, 0, 1)
+        self.image_grid.addWidget(self.ortho_2_view, 1, 1)
+        self.image_grid.addWidget(self.trace_grid, 0, 2, 2, 1)
         self.image_grid.setColumnStretch(0, 2)
         self.image_grid.setColumnStretch(1, 1)
         self.image_grid.setColumnStretch(2, 1)
@@ -498,23 +364,14 @@ class Curator:
                 self.viewer.camera.center = roi_pos
                 self.viewer.camera.zoom = 20
 
-        self.update_imageview(self.z_view, self.get_im_display(self.im), "Parent Z")
-        self.update_imageview(self.z_plus_one_view, self.get_im_display(self.im_plus_one), "Z + 1")
-        self.update_imageview(self.z_minus_one_view, self.get_im_display(self.im_minus_one), "Z - 1")
-
         if self.s:
             # plotting for multiple points
             if self.pointstate==0:
                 pass
             elif self.pointstate==1:
-                self.plot_on_imageview(self.z_view, self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0])[:,2], self.s.get_positions_t_z(self.t,self.s.threads[self.ind].get_position_t(self.t)[0])[:,1], Qt.blue)
                 self.plot_on_montageview(self.s.get_positions_t_z(self.t, self.s.threads[self.ind].get_position_t(self.t)[0]), Qt.blue)
             elif self.pointstate==2:
-                self.plot_on_imageview(self.z_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
-                self.plot_on_imageview(self.z_plus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
-                self.plot_on_imageview(self.z_minus_one_view, self.s.get_positions_t(self.t)[:,2], self.s.get_positions_t(self.t)[:,1], Qt.blue)
                 self.plot_on_montageview(self.s.get_positions_t(self.t), Qt.blue)
-            self.plot_on_imageview(self.z_view, [self.s.threads[self.ind].get_position_t(self.t)[2]], [self.s.threads[self.ind].get_position_t(self.t)[1]], Qt.red)
             self.plot_on_montageview(np.array([self.s.threads[self.ind].get_position_t(self.t)]), Qt.red)
 
     def update_timeseries(self):
@@ -527,8 +384,7 @@ class Curator:
     def update_t(self, val):
         # Update index for t
         self.t = val
-        # update image for t
-        self.update_ims()
+        # update images for t
         self.update_figures()
         self.update_timeseries()
 
@@ -546,7 +402,6 @@ class Curator:
         self.update()
     
     def update(self):
-        self.update_ims()
         self.update_figures()
         self.update_timeseries()
         self.update_buttons()
@@ -715,31 +570,29 @@ class Curator:
         self.zoom_to_roi = checkbox.isChecked()
         self.update()
 
-    def update_mipstate(self, label):
-        last_setting = self.showmip
+    def update_panel_mode(self, label):
+        last_setting = self.panel_mode
         d = {
-            'Single Z':0,
-            'MIP':1,
-            'Montage':2,
+            'Timeseries':0,
+            'Montage':1,
         }
-        self.showmip = d[label]
+        self.panel_mode = d[label]
 
         ## clear image grid and reassign
-        if 2 == self.showmip:
+        if 1 == self.panel_mode:
             i = self.image_grid.count() - 2
             while(i >= 0):
                 grid_item = self.image_grid.itemAt(i).widget()
                 grid_item.setParent(None)
                 i -=1
-            self.image_grid.addWidget(self.montage_view, 0, 0, 3, 2)
+            self.image_grid.addWidget(self.montage_view, 0, 0, 2, 2)
             self.montage_view.setVisible(True)
 
-        elif 2 == last_setting:
+        elif 1 == last_setting:
             self.montage_view.setVisible(False)
             self.montage_view.setParent(None)
             self.add_figures_to_image_grid()
 
-        self.update_ims()
         self.update_figures()
 
     def set_trace_icons(self, indices=None):
@@ -846,14 +699,12 @@ class Curator:
             self.other_rois.selected_data = {}
             self.timeseries = self.e.timeseries
             self.set_trace_icons([self.timeseries.shape[1] - 1])
-            self.update_ims()
             self.update_figures()
             self.update_timeseries()
 
     def alter_roi_positions(self, thread, position_0, position_1, time_0, time_1):
         self.s.alter_thread_post_hoc(thread, position_0, position_1, time_0, time_1)
         self.threads_edited = True
-        self.update_ims()
         self.update_figures()
 
     def napari_indices_to_spool_indices(self, indices):
