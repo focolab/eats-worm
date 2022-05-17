@@ -313,9 +313,11 @@ class Curator:
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.layers['channel {}'.format(c)].data = self.tf.get_t(self.t + self.t_offset, channel=c)
-            self.update_imageview(self.ortho_1_view, self.get_im_display(np.max(self.tf.get_t(self.t + self.t_offset), axis=1)), "Ortho MIP ax 1")
-            self.update_imageview(self.ortho_2_view, self.get_im_display(np.max(self.tf.get_t(self.t + self.t_offset), axis=2)), "Ortho MIP ax 2")
-            self.update_imageview(self.montage_view, self.get_im_display(np.rot90(np.vstack(self.tf.get_t(self.t + self.t_offset)))), "Montage View")
+            if self.panel_mode == 0:
+                self.update_imageview(self.ortho_1_view, self.get_im_display(np.max(self.tf.get_t(self.t + self.t_offset), axis=1)), "Ortho MIP ax 1")
+                self.update_imageview(self.ortho_2_view, self.get_im_display(np.max(self.tf.get_t(self.t + self.t_offset), axis=2)), "Ortho MIP ax 2")
+            else:
+                self.update_imageview(self.montage_view, self.get_im_display(np.rot90(np.vstack(self.tf.get_t(self.t + self.t_offset)))), "Montage View")
         if self.s:
             # swap to PAN_ZOOM to avoid highlighting points on recreation
             last_roi_mode = self.viewer.layers['roi'].mode
@@ -364,7 +366,7 @@ class Curator:
                 self.viewer.camera.center = roi_pos
                 self.viewer.camera.zoom = 20
 
-        if self.s:
+        if self.s and self.panel_mode == 1:
             # plotting for multiple points
             if self.pointstate==0:
                 pass
