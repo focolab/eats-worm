@@ -190,11 +190,10 @@ class Curator:
         self.ortho_1_view = self.get_imageview()
         self.ortho_2_view = self.get_imageview()
         self.timeseries_view = pg.PlotWidget()
+        self.timeseries_view_time_line = None
+        self.timeseries_view_ind = None
         self.timeseries_view.setBackground('w')
-        if self.timeseries is not None:
-            self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen='b')
-            self.timeseries_view.addLine(x=self.t, pen='r')
-        
+
         ### initialize montage view
         self.montage_view = self.get_imageview()
         self.montage_view.setVisible(False)
@@ -377,10 +376,15 @@ class Curator:
             self.plot_on_montageview(np.array([self.s.threads[self.ind].get_position_t(self.t)]), Qt.red)
 
     def update_timeseries(self):
-        self.timeseries_view.clear()
         if self.timeseries is not None:
-            self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
-            self.timeseries_view.addLine(x=self.t, pen='r')
+            if not self.timeseries_view_ind or self.timeseries_view_ind != self.ind:
+                self.timeseries_view.clear()
+                self.timeseries_view.plot((self.timeseries[:,self.ind]-np.min(self.timeseries[:,self.ind]))/(np.max(self.timeseries[:,self.ind])-np.min(self.timeseries[:,self.ind])), pen=pg.mkPen(color=(31, 119, 180), width=3))
+                self.timeseries_view_ind = self.ind
+                self.timeseries_view_time_line = self.timeseries_view.addLine(x=self.t, pen='r')
+            else:
+                self.timeseries_view.removeItem(self.timeseries_view_time_line)
+                self.timeseries_view_time_line = self.timeseries_view.addLine(x=self.t, pen='r')
             self.timeseries_view.setTitle('Series=' + str(self.ind) + ', Z=' + str(int(self.s.threads[self.ind].get_position_t(self.t)[0])) + ", T=" + str(self.t), color='#000')
 
     def update_t(self, val):
