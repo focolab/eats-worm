@@ -358,11 +358,16 @@ class Curator:
 
             if self.zoom_to_roi:
                 roi_pos = self.s.threads[self.ind].get_position_t(self.t)
-                z_lower_bound, z_upper_bound, x_lower_bound, x_upper_bound, y_lower_bound, y_upper_bound = self.get_zoom_bounds(roi_pos)
-                zoom_mask = np.zeros(self.viewer.layers['channel 0'].data.shape, dtype=bool)
-                zoom_mask[z_lower_bound:z_upper_bound, x_lower_bound:x_upper_bound, y_lower_bound:y_upper_bound] = True
-                self.viewer.layers['channel 0'].data *= zoom_mask
-                self.viewer.camera.center = roi_pos
+                if self.viewer.dims.ndisplay == 2:
+                    z_index = self.viewer.dims.order.index(0)
+                    self.viewer.dims.current_step = self.viewer.dims.current_step[:z_index] + (round(roi_pos[0]),) + self.viewer.dims.current_step[z_index+1:]
+                else:
+                    z_lower_bound, z_upper_bound, x_lower_bound, x_upper_bound, y_lower_bound, y_upper_bound = self.get_zoom_bounds(roi_pos)
+                    zoom_mask = np.zeros(self.viewer.layers['channel 0'].data.shape, dtype=bool)
+                    zoom_mask[z_lower_bound:z_upper_bound, x_lower_bound:x_upper_bound, y_lower_bound:y_upper_bound] = True
+                    self.viewer.layers['channel 0'].data *= zoom_mask
+                    # centering produces buggy behavior in 2d; for now, less broken to only center in 3d
+                    self.viewer.camera.center = roi_pos
                 self.viewer.camera.zoom = 20
 
         if self.s and self.panel_mode == 1:
