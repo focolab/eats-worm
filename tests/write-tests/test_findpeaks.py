@@ -1,5 +1,5 @@
 import numpy as np
-from gcamp_extractor.segfunctions import *
+from eats_worm.segfunctions import *
 from sklearn.datasets import make_blobs
 
 # generate three points, use them as bright voxels in image, and verify that they are detected

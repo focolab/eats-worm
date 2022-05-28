@@ -1,4 +1,4 @@
-from gcamp_extractor import *
+from eats_worm import *
 im = MultiFileTiff('/Users/stevenban/Documents/Data/20190917/binned')
 
 

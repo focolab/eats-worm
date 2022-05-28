@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/Users/stevenban/Documents/gcamp-extractor/gcamp-extractor')
+sys.path.append('/Users/stevenban/Documents/eats-worm/eats-worm')
 
 from Extractor import *
 from Threads import *

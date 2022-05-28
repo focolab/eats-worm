@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/Users/stevenban/Documents/gcamp-extractor/gcamp-extractor')
+sys.path.append('/Users/stevenban/Documents/eats-worm/eats-worm')
 
 import numpy as np
 import scipy

@@ -1,6 +1,6 @@
 #
 #import sys
-#sys.path.append('/Users/stevenban/Documents/gcamp-extractor/gcamp-extractor')
+#sys.path.append('/Users/stevenban/Documents/eats-worm/eats-worm')
 '''
 from Extractor import *
 from Threads import *
@@ -8,7 +8,7 @@ from segfunctions import *
 from Curator import *
 '''
 
-from gcamp_extractor import *
+from eats_worm import *
 arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/test',
     'numz':20,

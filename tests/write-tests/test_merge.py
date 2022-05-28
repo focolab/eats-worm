@@ -1,4 +1,4 @@
-from gcamp_extractor import *
+from eats_worm import *
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform

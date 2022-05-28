@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-## Example use case of gcamp extractor package
+## Example use case of eats-worm package
 
 
 import numpy as np
-from gcamp_extractor.Extractor import *
-from gcamp_extractor.FilterSweeper import *
-from gcamp_extractor.Threads import *
-from gcamp_extractor.Curator import *
-from gcamp_extractor import *
+from eats_worm.Extractor import *
+from eats_worm.FilterSweeper import *
+from eats_worm.Threads import *
+from eats_worm.Curator import *
+from eats_worm import *
 
 arguments = {
     'root':'/home/jack/Projects/foco/FOCO_FCD_v0.1/RLD_selected_recordings/shortened_recs/renamed',

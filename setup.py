@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name="gcamp_extractor",
+    name="eats_worm",
     version="0.0.3",
     author="Steven Ban",
     author_email="ban.steven1337@gmail.com",

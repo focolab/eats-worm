@@ -7,7 +7,7 @@
 
 2. Start your virtual environment, and run the command
 ```bash
-pip install git+https://github.com/focolab/gcamp-extractor
+pip install git+https://github.com/focolab/eats-worm
 ```
 And that's basically it!
 
@@ -15,7 +15,7 @@ And that's basically it!
 An example use case is found in `example.py` in the root directory. The minimal use case is to extract GCaMP timeseries out of a recording, and can be accomplished with the following lines:
 
 ```python3
-from gcamp_extractor import *
+from eats_worm import *
 arguments = {
     'root':'/Users/stevenban/Desktop/20191203_KP_FC083_worm20_gcamp6f_1/',
     'numz':10,
@@ -81,7 +81,7 @@ The only 'coding' necessary here is to modify the 'root' directory that contains
 
 Generally, you will follow the sequence of:
 ```python3
-from gcamp_extractor import *
+from eats_worm import *
 arguments = {
 ...
 }
@@ -98,7 +98,7 @@ If you're for some reason doing processing across multiple sessions, you can rel
 
 
 ```python3
-from gcamp_extractor import *
+from eats_worm import *
 arguments = {
 ...
 }
