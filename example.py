@@ -1,43 +1,39 @@
 #!/usr/bin/env python3
 ## Example use case of eats-worm package
 
-
-import numpy as np
-from eats_worm.Extractor import *
-from eats_worm.FilterSweeper import *
-from eats_worm.Threads import *
-from eats_worm.Curator import *
 from eats_worm import *
 
+data_directory= "<path to folder containing tiff file(s) for recording>"
+output_directory = "<path to folder where output will be written>"
+
 arguments = {
-    'root':'/home/jack/Projects/foco/FOCO_FCD_v0.1/RLD_selected_recordings/shortened_recs/renamed',
-    'numz':10,
-    'frames':[0,1,2,3,4,5,6,7,8,9],
-    'offset':0,
-    't':499,
-    'gaussian':(25,4,3,1),
-    'quantile':0.99,
-    'reg_peak_dist':40,
-    'anisotropy':(6,1,1),
-    'blob_merge_dist_thresh':7,
-    'mip_movie':True,
-    'marker_movie':True,
-    'infill':True,
-    'save_threads':True,
-    'save_timeseries':True,
-    'suppress_output':False,
-    'regen':False,
+    "root": data_directory,
+    "numz": 12,
+    "frames":[1,2,3,4,5,6,7,8,9,10,11],
+    "numc": 1,
+    # "end_t": 100,
+    "offset": 0,
+    "gaussian": False,
+    "median": 3,
+    "quantile": 0.963,
+    "anisotropy": [7, 1, 1],
+    "blob_merge_dist_thresh": 5,
+    "remove_blobs_dist": 3,
+    "algorithm":"tmip_2d_template",
+    "algorithm_params": {
+        "window_size": 5,
+        "min_distance": 11,
+        "manage_collisions": "prune",
+        "fb_threshold_margin": 50
+    },
+    "register_frames": True,
+    "output_dir": output_directory
 }
 
 e = Extractor(**arguments)
-
-# uncomment these lines to enable filter/threshold parameter sweep
-# sweeper = FilterSweeper(e)
-# sweeper.sweep_parameters()
-# e.gaussian, e.median, e.quantile = sweeper.gaussian, sweeper.median, sweeper.quantile
-
 e.calc_blob_threads()
-e.quantify()
-c = Curator(e)
+e.quantify(quant_function=background_subtraction_quant_function)
 
+# e = load_extractor(output_dir)
 
+c = Curator(e=e)
