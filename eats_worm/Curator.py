@@ -79,6 +79,12 @@ class Curator:
                 with open(self.path) as f:
                     self.curate = json.load(f)
                 self.ind = int(self.curate['last'])
+                try:
+                    self.min, self.max = self.curate['contrastMin'], self.curate['contrastMax']
+                    print("Loaded contrast limits from curate.json {} {}".format(self.min, self.max))
+                except:
+                    print('Contrast limits not present in curate.json. These will be set to default values.')
+                    self.min, self.max = -1,-1
                 curate_loaded = True
             except:
                 print("No curate.json in output folder. Creating new curation.")
@@ -121,7 +127,10 @@ class Curator:
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t + self.t_offset, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
-            self.min, self.max = self.viewer.layers['channel 0'].contrast_limits
+            if ((self.min == -1) and (self.max==-1)): #contrast limits not found in curate.json. Set to default
+                self.min, self.max = self.viewer.layers['channel 0'].contrast_limits      
+            else: #set contrast limits to values loaded from curate.json
+                self.viewer.layers['channel 0'].contrast_limits = (self.min, self.max)
             self.viewer.layers['channel 0'].events.contrast_limits.connect(lambda:self.update_mm(self.viewer.layers['channel 0'].contrast_limits))
         if self.s:
             self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=2, scale=self.scale)
@@ -402,6 +411,7 @@ class Curator:
     def update_mm(self, contrast_limits):
         self.min = contrast_limits[0]
         self.max = contrast_limits[1]
+        self.curate["contrastMin"], self.curate["contrastMax"] = self.min, self.max
         self.update_figures()
 
     def next(self):
