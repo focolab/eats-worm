@@ -318,9 +318,16 @@ def load_extractor(path, root_override=None, output_override=None):
     params['regen_mft'] = False
     e = Extractor(**params)
 
+    # handle curators which were pickled before the repo name was changed to eats-worm (from https://stackoverflow.com/questions/40914066/unpickling-objects-after-renaming-a-module)
+    class BackwardsCompatibleUnpickler(pickle.Unpickler):
+        def find_class(self, module, name):
+            if 'gcamp_extractor' in module:
+                module = module.replace('gcamp_extractor', 'eats_worm')
+            return super().find_class(module, name)
+
     try:
         with open(threadf,'rb') as f:
-            thread = pickle.load(f)
+            thread = BackwardsCompatibleUnpickler(f).load()
         e.spool = thread
     except:
         pass
@@ -333,7 +340,7 @@ def load_extractor(path, root_override=None, output_override=None):
 
     try:
         with bz2.open(curator_layersf, 'r') as f:
-            curator_layers = pickle.load(f)
+            curator_layers = BackwardsCompatibleUnpickler(f).load()
             e.curator_layers = curator_layers
     except:
         pass
