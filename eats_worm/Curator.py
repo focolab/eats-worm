@@ -79,6 +79,10 @@ class Curator:
                 with open(self.path) as f:
                     self.curate = json.load(f)
                 self.ind = int(self.curate['last'])
+                try:
+                    self.min, self.max = self.curate['contrast_min'], self.curate['contrast_max']
+                except:
+                    self.min, self.max = None, None
                 curate_loaded = True
             except:
                 print("No curate.json in output folder. Creating new curation.")
@@ -121,6 +125,8 @@ class Curator:
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t + self.t_offset, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
+            if self.min is not None and self.max is not None:
+                self.viewer.layers['channel 0'].contrast_limits = (self.min, self.max)
             self.min, self.max = self.viewer.layers['channel 0'].contrast_limits
             self.viewer.layers['channel 0'].events.contrast_limits.connect(lambda:self.update_mm(self.viewer.layers['channel 0'].contrast_limits))
         if self.s:
@@ -422,6 +428,7 @@ class Curator:
     def log_curate(self):
         self.do_hacks()
         self.curate['last'] = self.ind
+        self.curate["contrast_min"], self.curate["contrast_max"] = self.min, self.max
         with open(self.path, 'w') as fp:
             json.dump(self.curate, fp)
 
