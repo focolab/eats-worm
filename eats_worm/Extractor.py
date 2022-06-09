@@ -472,6 +472,7 @@ class Extractor:
         """generates timeseries based on calculated threads"""
         self.timeseries = quantify(mft=self.im, spool=self.spool, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, **kwargs)
         self.save_timeseries()
+        self.save_dataframe()
 
     def save_timeseries(self):
         print('Saving timeseries as text file...')

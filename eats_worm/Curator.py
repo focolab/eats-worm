@@ -714,6 +714,7 @@ class Curator:
             self.e.timeseries[:,-1] = np.NaN
             self.e.spool.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
             self.e.save_timeseries()
+            self.e.save_dataframe()
             self.other_rois.selected_data = {}
             self.timeseries = self.e.timeseries
             self.set_trace_icons([self.timeseries.shape[1] - 1])
@@ -741,3 +742,4 @@ class Curator:
     def do_hacks(self):
         if self.threads_edited:
             self.s.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
+            self.e.save_dataframe()
