@@ -14,6 +14,7 @@ def mkdir(path):
     except: pass
 import glob
 import json
+import math
 from scipy.ndimage import generate_binary_structure, binary_dilation, rotate
 from scipy.spatial.distance import pdist, squareform
 from skimage.feature import peak_local_max
@@ -21,6 +22,7 @@ from skimage.filters import rank
 from skimage.registration import phase_cross_correlation
 from fastcluster import linkage
 import scipy.cluster
+from threading import Thread, Lock
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -205,7 +207,7 @@ def exp_curve_bleach_correction(timeseries):
     tau = tau_best
     return traces_bc
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, **kwargs):
+def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, parallel_threads=1, **kwargs):
     """
     generates timeseries based on calculated threads. 
 
@@ -252,13 +254,35 @@ def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach
 
     timeseries = np.empty((num_t,num_threads))
     timeseries[:] = np.NaN
-    for i in range(num_t):
-        timeseries[i][threads_to_quantify] = quant_function(mft.get_t(),[spool.threads[j].get_position_t(i) for j in threads_to_quantify], mft.frames, **kwargs)
-        if not suppress_output:
-            print('\r' + 'Frames Processed (Quantification): ' + str(i+1)+'/'+str(num_t), sep='', end='', flush=True)
+    def quantify_in_parallel_thread(start, stop, lock, processed_counter):
+        thread_timeseries = np.empty((stop - start, num_threads))
+        thread_timeseries[:] = np.NaN
+        for t in range(stop - start):
+            thread_timeseries[t][threads_to_quantify] = quant_function(mft.get_t(start+t),[spool.threads[j].get_position_t(t) for j in threads_to_quantify], mft.frames, **kwargs)
+            quant_lock.acquire()
+            processed_counter[0] += 1
+            quant_lock.release()
+            print('\r' + 'Frames Processed (Quantification): ' + str(processed_counter[0])+'/'+str(num_t), sep='', end='', flush=True)
+
+        quant_lock.acquire()
+        timeseries[start:stop] = thread_timeseries
+        quant_lock.release()
+
+    threads = []
+    quant_lock = Lock()
+    t_per_thread = math.ceil(num_t / parallel_threads)
+    processed_counter = [0]
+    start = 0
+    while start < num_t:
+        stop = min(start + t_per_thread, num_t)
+        threads.append(Thread(target=quantify_in_parallel_thread, args=(start, stop, quant_lock, processed_counter)))
+        start += t_per_thread
+    for x in threads:
+        x.start()
+    for x in threads:
+        x.join()
 
     print('\r')
-
     if bleach_correction is not None:
         print('Performing bleach correction using exponential curve relaxation method.')
         timeseries = exp_curve_bleach_correction(timeseries)
@@ -468,9 +492,9 @@ class Extractor:
             self.curator_layers = x.curator_layers
             pickle.dump(self.curator_layers, bz2.open(os.path.join(self.output_dir, 'curator_layers.pkl.bz2'), 'wb'))
 
-    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', **kwargs):
+    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', parallel_threads=1, **kwargs):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, **kwargs)
+        self.timeseries = quantify(mft=self.im, spool=self.spool, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, parallel_threads=parallel_threads, **kwargs)
         self.save_timeseries()
         self.save_dataframe()
 
