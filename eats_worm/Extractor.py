@@ -44,7 +44,7 @@ default_arguments = {
     'algorithm_params': {},
 }
 
-def background_subtraction_quant_function(im, positions, frames, quant_radius=3, quant_z_radius=1, quant_voxels=20, background_radius=30, other_pos_radius=None):
+def background_subtraction_quant_function(mft, spool, t, frames, quant_radius=3, quant_z_radius=1, quant_voxels=20, background_radius=30, other_pos_radius=None, threads_to_quantify=None):
     """
     Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
 
@@ -60,8 +60,10 @@ def background_subtraction_quant_function(im, positions, frames, quant_radius=3,
     activity: list
         list of quantifications corresponding to the positions specified
     """
+    im = mft.get_t(t)
+    intensities = [np.NaN] * len(spool.threads)
+    positions = spool.get_positions_t(t, indices=threads_to_quantify)
     positions = np.rint(np.copy(positions)).astype(int)
-    intensities = []
     max_z = len(frames) - 1
     max_x = im.shape[1] - 1
     max_y = im.shape[2] - 1
@@ -125,7 +127,7 @@ def background_subtraction_quant_function(im, positions, frames, quant_radius=3,
         background_intensities = im[roi_background_mask]
         roi_intensity = np.mean(top_roi_intensities)
         background_intensity = np.mean(background_intensities)
-        intensities.append((roi_intensity - background_intensity) / background_intensity)
+        intensities[threads_to_quantify[i]] = (roi_intensity - background_intensity) / background_intensity
         roi_mask[:] = False
         roi_background_mask[:] = False
     return intensities
@@ -185,7 +187,7 @@ def quantify(mft=None, spool=None, quant_function=background_subtraction_quant_f
         function that takes in a list of positions/pixel indices, and returns a
         list of floats that describe neuronal activity. A default
         quantification function is included. It takes the 10 brightest pixels
-        in a 6x6 square around the position and averages them. 
+        in a 6x6 square around the position and averages them.
 
         Parameters
         ----------
@@ -226,7 +228,7 @@ def quantify(mft=None, spool=None, quant_function=background_subtraction_quant_f
         thread_timeseries = np.empty((stop - start, num_threads))
         thread_timeseries[:] = np.NaN
         for t in range(stop - start):
-            thread_timeseries[t][threads_to_quantify] = quant_function(mft.get_t(start+t),[spool.threads[j].get_position_t(t) for j in threads_to_quantify], mft.frames, **kwargs)
+            thread_timeseries[t][threads_to_quantify] = quant_function(mft,spool, start_t+t, mft.frames, threads_to_quantify=threads_to_quantify, **kwargs)
             quant_lock.acquire()
             processed_counter[0] += 1
             quant_lock.release()
