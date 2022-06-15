@@ -44,7 +44,7 @@ default_arguments = {
     'algorithm_params': {},
 }
 
-def background_subtraction_quant_function(mft, spool, t, frames, quant_radius=3, quant_z_radius=1, quant_voxels=20, background_radius=30, other_pos_radius=None, threads_to_quantify=None):
+def background_subtraction_quant_function(im, spool, t, frames, quant_radius=3, quant_z_radius=1, quant_voxels=20, background_radius=30, other_pos_radius=None, threads_to_quantify=None, quantified_voxels=None):
     """
     Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
 
@@ -60,7 +60,6 @@ def background_subtraction_quant_function(mft, spool, t, frames, quant_radius=3,
     activity: list
         list of quantifications corresponding to the positions specified
     """
-    im = mft.get_t(t)
     intensities = [np.NaN] * len(spool.threads)
     positions = spool.get_positions_t(t, indices=threads_to_quantify)
     positions = np.rint(np.copy(positions)).astype(int)
@@ -115,7 +114,7 @@ def background_subtraction_quant_function(mft, spool, t, frames, quant_radius=3,
 
     roi_mask = np.zeros(im.shape, dtype=bool)
     roi_background_mask = np.zeros(im.shape, dtype=bool)
-    for i in range(len(positions)):
+    for i in range(positions.shape[0]):
         roi_mask[z_starts[i]:z_stops[i], quant_x_starts[i]:quant_x_stops[i], quant_y_starts[i]:quant_y_stops[i]] = True
         roi_mask *= ~collision_mask
         roi_intensities = im[roi_mask]
@@ -128,6 +127,10 @@ def background_subtraction_quant_function(mft, spool, t, frames, quant_radius=3,
         roi_intensity = np.mean(top_roi_intensities)
         background_intensity = np.mean(background_intensities)
         intensities[threads_to_quantify[i]] = (roi_intensity - background_intensity) / background_intensity
+        if quantified_voxels is not None:
+            roi_foreground_voxels = np.array(np.where(roi_mask)).T
+            quantified_foreground_voxels = roi_foreground_voxels[top_rois]
+            quantified_voxels[threads_to_quantify[i]][t] = quantified_foreground_voxels
         roi_mask[:] = False
         roi_background_mask[:] = False
     return intensities
@@ -177,7 +180,7 @@ def exp_curve_bleach_correction(timeseries):
     tau = tau_best
     return traces_bc
 
-def quantify(mft=None, spool=None, quant_function=background_subtraction_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, parallel_threads=1, **kwargs):
+def quantify(mft=None, extractor=None, quant_function=background_subtraction_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, parallel_threads=1, save_quantification_voxels=False, **kwargs):
     """
     generates timeseries based on calculated threads. 
 
@@ -203,10 +206,11 @@ def quantify(mft=None, spool=None, quant_function=background_subtraction_quant_f
 
     """
     mft.t = 0
+    spool = extractor.spool
     num_threads = len(spool.threads)
     num_t = spool.t
 
-    threads_to_quantify = range(len(spool.threads))
+    threads_to_quantify = list(range(len(spool.threads)))
     if curation_filter != 'all':
         try:
             output_dir = mft.output_dir.replace('//', '/')
@@ -224,38 +228,52 @@ def quantify(mft=None, spool=None, quant_function=background_subtraction_quant_f
 
     timeseries = np.empty((num_t,num_threads))
     timeseries[:] = np.NaN
-    def quantify_in_parallel_thread(start, stop, lock, processed_counter):
+    quantified_voxels = {i: {} for i in range(num_threads)}
+    quant_lock = Lock()
+    processed_counter = [0]
+    def quantify_in_parallel_thread(start, stop):
         thread_timeseries = np.empty((stop - start, num_threads))
         thread_timeseries[:] = np.NaN
+        thread_quantified_voxels = None
+        if save_quantification_voxels:
+            thread_quantified_voxels = {i: {} for i in range(num_threads)}
         for t in range(stop - start):
-            thread_timeseries[t][threads_to_quantify] = quant_function(mft,spool, start_t+t, mft.frames, threads_to_quantify=threads_to_quantify, **kwargs)
+            quant_lock.acquire()
+            im = mft.get_t(start + t)
+            quant_lock.release()
+            thread_timeseries[t] = quant_function(im, spool, start+t, mft.frames, threads_to_quantify=threads_to_quantify, quantified_voxels=thread_quantified_voxels, **kwargs)
             quant_lock.acquire()
             processed_counter[0] += 1
             quant_lock.release()
             print('\r' + 'Frames Processed (Quantification): ' + str(processed_counter[0])+'/'+str(num_t), sep='', end='', flush=True)
-
         quant_lock.acquire()
         timeseries[start:stop] = thread_timeseries
+        if save_quantification_voxels:
+            for key in thread_quantified_voxels.keys():
+                quantified_voxels[key].update(thread_quantified_voxels[key])
         quant_lock.release()
 
     threads = []
-    quant_lock = Lock()
     t_per_thread = math.ceil(num_t / parallel_threads)
-    processed_counter = [0]
     start = 0
     while start < num_t:
         stop = min(start + t_per_thread, num_t)
-        threads.append(Thread(target=quantify_in_parallel_thread, args=(start, stop, quant_lock, processed_counter)))
+        threads.append(Thread(target=quantify_in_parallel_thread, args=(start, stop)))
         start += t_per_thread
-    for x in threads:
-        x.start()
-    for x in threads:
-        x.join()
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
 
     print('\r')
     if bleach_correction is not None:
         print('Performing bleach correction using exponential curve relaxation method.')
         timeseries = exp_curve_bleach_correction(timeseries)
+
+    if save_quantification_voxels:
+        if not hasattr(extractor, 'curator_layers'):
+            extractor.curator_layers = {}
+        extractor.curator_layers["quantified_roi_voxels"] = {'data': quantified_voxels, 'type': 'points'}
 
     return timeseries
 
@@ -464,9 +482,12 @@ class Extractor:
 
     def quantify(self, quant_function=background_subtraction_quant_function, bleach_correction=None, curation_filter='all', parallel_threads=1, **kwargs):
         """generates timeseries based on calculated threads"""
-        self.timeseries = quantify(mft=self.im, spool=self.spool, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, parallel_threads=parallel_threads, **kwargs)
+        self.timeseries = quantify(mft=self.im, extractor=self, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, parallel_threads=parallel_threads, **kwargs)
         self.save_timeseries()
         self.save_dataframe()
+        if hasattr(self, 'curator_layers'):
+            if self.curator_layers:
+                pickle.dump(self.curator_layers, bz2.open(os.path.join(self.output_dir, 'curator_layers.pkl.bz2'), 'wb'))
 
     def save_timeseries(self):
         print('Saving timeseries as text file...')

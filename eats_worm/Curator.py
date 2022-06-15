@@ -138,6 +138,8 @@ class Curator:
                 for layer in self.curator_layers.keys():
                     if self.curator_layers[layer]['type'] == 'image':
                         self.viewer.add_image(self.curator_layers[layer]['data'][self.t], name=layer, scale=self.scale, blending='additive', visible=False)
+                    elif self.curator_layers[layer]['type'] == 'points':
+                        self.viewer.add_points(np.empty((0, 3)), name=layer, scale=self.scale, size=1, visible=False)
 
             self.last_selected = set()
             self.last_selected_t = None
@@ -361,6 +363,8 @@ class Curator:
                 for layer in self.curator_layers:
                     if self.curator_layers[layer]['type'] == 'image':
                         self.viewer.layers[layer].data = self.curator_layers[layer]['data'][self.t]
+                    elif self.curator_layers[layer]['type'] == 'points':
+                        self.viewer.layers[layer].data = self.curator_layers[layer]['data'].item()[self.ind].get(self.t, np.empty((0, 3)))
 
             if self.zoom_to_roi:
                 roi_pos = self.s.threads[self.ind].get_position_t(self.t)
