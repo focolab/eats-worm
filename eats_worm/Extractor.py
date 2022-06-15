@@ -44,38 +44,6 @@ default_arguments = {
     'algorithm_params': {},
 }
 
-def default_quant_function(im, positions, frames):
-    """
-    Default quantification function, to be used in conjunction with the Extractor class. Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position 
-
-    Parameters
-    ----------
-    im : numpy array
-        numpy array representing image volume data at a particular time point
-    positions : list
-        a list of positions/pixel coordinates to be quantified
-    
-    Returns
-    -------
-    activity: list
-        list of quantifications corresponding to the positions specified
-    """
-    timeseries = []
-    for i in range(len(positions)):
-        center = positions[i]
-        z,y,x = [],[],[]
-        for i in range(-3,4):
-            for j in range(-3,4):
-                for k in range(-1,2):
-                    if 0 <= round(center[0] + k) < len(frames): 
-                        z.append(round(center[0] + k))
-                        y.append(round(center[1] + j))
-                        x.append(round(center[2] + i))
-        masked = im[z,y,x]
-        masked.sort()
-        timeseries.append(np.mean(masked[-20:]))
-    return timeseries
-
 def background_subtraction_quant_function(im, positions, frames, quant_radius=3, quant_z_radius=1, quant_voxels=20, background_radius=30, other_pos_radius=None):
     """
     Takes the mean of the 20 brightest pixels in a 3x7x7 square around the specified position minus the mean of pixels within a bounding region which are not too close to the roi or other rois
@@ -207,7 +175,7 @@ def exp_curve_bleach_correction(timeseries):
     tau = tau_best
     return traces_bc
 
-def quantify(mft=None, spool=None, quant_function=default_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, parallel_threads=1, **kwargs):
+def quantify(mft=None, spool=None, quant_function=background_subtraction_quant_function, bleach_correction=None, curation_filter='not trashed', suppress_output=False, start_t=0, parallel_threads=1, **kwargs):
     """
     generates timeseries based on calculated threads. 
 
@@ -492,7 +460,7 @@ class Extractor:
             self.curator_layers = x.curator_layers
             pickle.dump(self.curator_layers, bz2.open(os.path.join(self.output_dir, 'curator_layers.pkl.bz2'), 'wb'))
 
-    def quantify(self, quant_function=default_quant_function, bleach_correction=None, curation_filter='all', parallel_threads=1, **kwargs):
+    def quantify(self, quant_function=background_subtraction_quant_function, bleach_correction=None, curation_filter='all', parallel_threads=1, **kwargs):
         """generates timeseries based on calculated threads"""
         self.timeseries = quantify(mft=self.im, spool=self.spool, start_t=self.start_t, quant_function=quant_function, bleach_correction=bleach_correction, curation_filter=curation_filter, parallel_threads=parallel_threads, **kwargs)
         self.save_timeseries()
