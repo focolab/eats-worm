@@ -73,16 +73,15 @@ class Curator:
 
         self.path = os.path.join(self.tf.output_dir, 'curate.json') if self.tf else None
         self.ind = 0
+        self.min, self.max = None, None
         curate_loaded = False
         if not new_curation:
             try:
                 with open(self.path) as f:
                     self.curate = json.load(f)
                 self.ind = int(self.curate['last'])
-                try:
+                if 'contrast_min' in self.curate and 'contrast_max' in self.curate:
                     self.min, self.max = self.curate['contrast_min'], self.curate['contrast_max']
-                except:
-                    self.min, self.max = None, None
                 curate_loaded = True
             except:
                 print("No curate.json in output folder. Creating new curation.")
