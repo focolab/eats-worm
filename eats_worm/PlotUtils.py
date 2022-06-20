@@ -76,12 +76,16 @@ def get_neuron_mips(extractor, indices, window_size=60, zoom=1):
 
 def write_roi_mip_montage_video(extractor, output_path, video_label=None, window_size=20, zoom=4, curation_filter='kept'):
     skip = None
-    with open(os.path.join(extractor.output_dir, 'curate.json')) as f:
-        curated_json = json.load(f)
-        if curation_filter == 'kept':
-            skip = [roi for roi in curated_json.keys() if curated_json[roi] != 'keep']
-        elif curation_filter == 'not trashed':
-            skip = [roi for roi in curated_json.keys() if curated_json[roi] == 'trash']
+    if curation_filter != 'all':
+        try:
+            with open(os.path.join(extractor.output_dir, 'curate.json')) as f:
+                curated_json = json.load(f)
+                if curation_filter == 'kept':
+                    skip = [roi for roi in curated_json.keys() if curated_json[roi] != 'keep']
+                elif curation_filter == 'not trashed':
+                    skip = [roi for roi in curated_json.keys() if curated_json[roi] == 'trash']
+        except:
+            print("No curate.json found. Falling back to curation_filter='all'.")
     
     output_x, output_y = 1920, 1080
     frames = np.zeros((extractor.spool.t, 1080, 1920, 3), dtype=np.uint8)
