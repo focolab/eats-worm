@@ -74,7 +74,7 @@ def get_neuron_mips(extractor, indices, window_size=60, zoom=1, quant_z_radius=1
         colored_mips[index] = colored
     return colored_mips
 
-def write_roi_mip_montage_video(extractor, output_path, video_label=None, window_size=20, zoom=4, curation_filter='kept'):
+def write_roi_mip_montage_video(extractor, output_path, video_label=None, window_size=20, zoom=4, curation_filter='not trashed', quant_z_radius=1):
     skip = None
     if curation_filter != 'all':
         try:
@@ -91,7 +91,7 @@ def write_roi_mip_montage_video(extractor, output_path, video_label=None, window
     frames = np.zeros((extractor.spool.t, 1080, 1920, 3), dtype=np.uint8)
     app = pg.mkQApp()
     draw_index = 0
-    neuron_mips = get_neuron_mips(extractor, [index for index in range(len(extractor.spool.threads)) if not skip or str(index) not in skip], window_size=window_size, zoom=zoom)
+    neuron_mips = get_neuron_mips(extractor, [index for index in range(len(extractor.spool.threads)) if not skip or str(index) not in skip], window_size=window_size, zoom=zoom, quant_z_radius=quant_z_radius)
     mip_size = window_size * zoom
     mips_per_line = output_x // mip_size
     x_remainder = output_x % mip_size
