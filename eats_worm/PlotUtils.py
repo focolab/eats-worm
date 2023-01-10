@@ -8,7 +8,7 @@ import os
 from cv2 import cvtColor, normalize, resize, VideoWriter, VideoWriter_fourcc
 from eats_worm import *
 
-def get_neuron_mips(extractor, indices, window_size=60, zoom=1):
+def get_neuron_mips(extractor, indices, window_size=60, zoom=1, quant_z_radius=1):
     im_shape = extractor.im.get_t(0).shape
     mip_shape = (window_size, window_size)
     mips = np.zeros((len(indices), extractor.spool.t, window_size * zoom, window_size * zoom), dtype=np.uint16)
@@ -26,8 +26,8 @@ def get_neuron_mips(extractor, indices, window_size=60, zoom=1):
         im = extractor.im.get_t(t)
         for index in indices:
             position = extractor.spool.threads[index].get_position_t(t).tolist()
-            min_z = np.rint(max(0, position[0] - 1)).astype(int)
-            max_z = np.rint(min(len(extractor.frames) - 1, position[0] + 1)).astype(int)
+            min_z = np.rint(max(0, position[0] - quant_z_radius)).astype(int)
+            max_z = np.rint(min(len(extractor.frames) - 1, position[0] + quant_z_radius)).astype(int)
             min_x = np.rint(max(0, position[1] - half_window)).astype(int)
             max_x = np.rint(min(im_shape[1], position[1] + half_window)).astype(int)
             min_y = np.rint(max(0, position[2] - half_window)).astype(int)
@@ -74,7 +74,7 @@ def get_neuron_mips(extractor, indices, window_size=60, zoom=1):
         colored_mips[index] = colored
     return colored_mips
 
-def write_roi_mip_montage_video(extractor, output_path, video_label=None, window_size=20, zoom=4, curation_filter='kept'):
+def write_roi_mip_montage_video(extractor, output_path, video_label=None, window_size=20, zoom=4, curation_filter='not trashed', quant_z_radius=1):
     skip = None
     if curation_filter != 'all':
         try:
@@ -91,7 +91,7 @@ def write_roi_mip_montage_video(extractor, output_path, video_label=None, window
     frames = np.zeros((extractor.spool.t, 1080, 1920, 3), dtype=np.uint8)
     app = pg.mkQApp()
     draw_index = 0
-    neuron_mips = get_neuron_mips(extractor, [index for index in range(len(extractor.spool.threads)) if not skip or str(index) not in skip], window_size=window_size, zoom=zoom)
+    neuron_mips = get_neuron_mips(extractor, [index for index in range(len(extractor.spool.threads)) if not skip or str(index) not in skip], window_size=window_size, zoom=zoom, quant_z_radius=quant_z_radius)
     mip_size = window_size * zoom
     mips_per_line = output_x // mip_size
     x_remainder = output_x % mip_size

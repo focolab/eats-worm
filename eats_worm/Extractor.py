@@ -63,9 +63,9 @@ def background_subtraction_quant_function(im, spool, t, frames, quant_radius=3, 
     intensities = [np.NaN] * len(spool.threads)
     positions = spool.get_positions_t(t, indices=threads_to_quantify)
     positions = np.rint(np.copy(positions)).astype(int)
-    max_z = len(frames) - 1
-    max_x = im.shape[1] - 1
-    max_y = im.shape[2] - 1
+    max_z = len(frames) # in case of max_x, max_y, max_z, we're using these as indices so don't subtract 1 because slicing is exclusive 
+    max_x = im.shape[1]
+    max_y = im.shape[2]
     pos_z, pos_x, pos_y = positions.T
 
     pos_mask = np.zeros(im.shape, dtype=int)
