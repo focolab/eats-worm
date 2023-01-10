@@ -429,6 +429,7 @@ class Curator:
         self.update_trace_icons()
 
     def log_curate(self):
+        print('Logging curation...')
         self.do_hacks()
         self.curate['last'] = self.ind
         self.curate["contrast_min"], self.curate["contrast_max"] = self.min, self.max
