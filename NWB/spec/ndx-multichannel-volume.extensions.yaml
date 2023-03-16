@@ -1,0 +1,156 @@
+groups:
+- neurodata_type_def: MultiChannelVolume
+  neurodata_type_inc: NWBDataInterface
+  doc: An extension of the base NWBData type to allow for multichannel volumetric
+    images
+  datasets:
+  - name: resolution
+    dtype: float32
+    dims:
+    - xyz scale
+    shape:
+    - 3
+    doc: pixel resolution of the image
+  - name: description
+    dtype: text
+    doc: description of image
+  - name: RGBW_channels
+    dtype: int8
+    dims:
+    - channels
+    shape:
+    - null
+    doc: which channels in image map to RGBW
+  - name: data
+    dtype: int16
+    dims:
+    - x
+    - y
+    - z
+    - channel
+    shape:
+    - null
+    - null
+    - null
+    - null
+    doc: Volumetric multichannel data
+  links:
+  - name: imaging_volume
+    target_type: ImagingVolume
+    doc: Link to ImagingVolume object from which this data was generated.
+- neurodata_type_def: ImagingVolume
+  neurodata_type_inc: NWBDataInterface
+  doc: An Imaging Volume and its Metadata
+  attributes:
+  - name: origin_coords_unit
+    dtype: text
+    default_value: meters
+    doc: Measurement units for origin_coords. The default value is meters.
+    required: false
+  - name: grid_spacing_unit
+    dtype: text
+    default_value: meters
+    doc: Measurement units for grid_spacing. The default value is meters.
+    required: false
+  datasets:
+  - name: description
+    dtype: text
+    doc: Description of the imaging plane
+  - name: location
+    dtype: text
+    doc: Location of the imaging plane. Specify the area, layer, comments on estimation
+      of area/layer, stereotaxic coordinates if in vivo, etc. Use standard atlas names
+      for anatomical regions when possible.
+  - name: origin_coords
+    dtype: float32
+    dims:
+    - x, y, z
+    shape:
+    - 3
+    doc: Physical location of the first element of the imaging plane. see also reference_frame
+      for what the physical location is relative to (e.g., bregma).
+    quantity: '?'
+  - name: grid_spacing
+    dtype: float32
+    dims:
+    - x, y, z
+    shape:
+    - 3
+    doc: Space between voxels in (x,y,z) directions in the specified unit. Assumes
+      imaging plane is a regular grid. See also reference_frame to interpret the grid.
+    quantity: '?'
+  - name: reference_frame
+    dtype: text
+    doc: Describes reference frame of origin_coords and grid_spacing. See doc for
+      imaging_plane for more detail and examples.
+    quantity: '?'
+  groups:
+  - neurodata_type_inc: OpticalChannel
+    doc: An optical channel used to record from an imaging volume
+    quantity: +
+  - name: Order_optical_channels
+    neurodata_type_inc: OpticalChannelReferences
+    doc: Order of the optical channels in the data
+  links:
+  - name: device
+    target_type: Device
+    doc: Link to the Device object that was used to record from this electrode.
+- neurodata_type_def: OpticalChannelReferences
+  neurodata_type_inc: NWBDataInterface
+  doc: wrapper for optical channel references dataset
+  datasets:
+  - name: data
+    dtype: text
+    dims:
+    - NumChannels
+    shape:
+    - null
+    doc: Ordered list of optical channels
+- neurodata_type_def: VolumeSegmentation
+  neurodata_type_inc: DynamicTable
+  doc: Results from image segmentation of a specific imaging volume
+  datasets:
+  - name: image_mask
+    neurodata_type_inc: VectorData
+    dims:
+    - num_ROI
+    - num_x
+    - num_y
+    - num_z
+    shape:
+    - null
+    - null
+    - null
+    - null
+    doc: ROI masks for each ROI. Each image mask is the size of the original imaging
+      plane (or volume) and members of the ROI are finite non-zero.
+    quantity: '?'
+  - name: voxel_mask_index
+    neurodata_type_inc: VectorIndex
+    doc: Index into pixel_mask.
+    quantity: '?'
+  - name: voxel_mask
+    neurodata_type_inc: VectorData
+    dtype:
+    - name: x
+      dtype: uint32
+      doc: Voxel x-coordinate
+    - name: y
+      dtype: uint32
+      doc: Voxel y-coordinate
+    - name: z
+      dtype: uint32
+      doc: Voxel z-coordinate
+    - name: weight
+      dtype: float32
+      doc: Weight of the voxel
+    - name: ID
+      dtype: text
+      doc: Cell ID of the ROI
+    doc: 'Voxel masks for each ROI: a list of indices and weights for the ROI. Voxel
+      masks are concatenated and parsing of this dataset is maintained by the PlaneSegmentation'
+    quantity: '?'
+  links:
+  - name: imaging_volume
+    target_type: ImagingVolume
+    doc: Link to ImagingVolume object from which this data was generated.
