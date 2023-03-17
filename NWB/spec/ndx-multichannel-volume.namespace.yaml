@@ -18,6 +18,7 @@ namespaces:
     - VectorData
     - VectorIndex
     - NWBDataInterface
+    - TimeSeries
   - namespace: hdmf-common
     neurodata_types:
     - Data

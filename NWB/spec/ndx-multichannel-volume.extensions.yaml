@@ -1,4 +1,80 @@
 groups:
+- neurodata_type_def: MultiChannelVolumeSeries
+  neurodata_type_inc: TimeSeries
+  doc: Time series of volumetric data with multiple channels
+  attributes:
+  - name: scan_line_rate
+    dtype: float32
+    doc: Lines imaged per second.
+    required: false
+  - name: binning
+    dtype: uint8
+    doc: Amount of pixels combined into bins; could be 1, 2, 4, 8, etc.
+    required: false
+  datasets:
+  - name: data
+    dtype: int16
+    dims:
+    - frame
+    - x
+    - y
+    - z
+    - channel
+    shape:
+    - null
+    - null
+    - null
+    - null
+    - null
+    doc: Data representing multichannel volumetric images across frames
+  - name: description
+    dtype: float32
+    doc: description of image series
+  - name: RGBW_channels
+    dtype: int8
+    dims:
+    - channels
+    shape:
+    - 4
+    doc: which channels in image map to RGBW
+  - name: resolution
+    dtype: float32
+    dims:
+    - xyz scale
+    shape:
+    - 3
+    doc: pixel resolution of each image
+  - name: pmt_gain
+    dtype: float32
+    dims:
+    - channels
+    shape:
+    - null
+    doc: Photomultiplier gain for each channel
+    quantity: '?'
+  - name: exposure_time
+    dtype: float32
+    dims:
+    - channels
+    shape:
+    - null
+    doc: Exposure time of the sample; often the inverse of the frequency.
+    quantity: '?'
+  - name: power
+    dtype: float32
+    dims:
+    - channels
+    shape:
+    - null
+    doc: Power of the excitation in mW, if known.
+    quantity: '?'
+  links:
+  - name: imaging_volume
+    target_type: ImagingVolume
+    doc: Link to ImagingVolume object from which this data was generated.
+  - name: device
+    target_type: Device
+    doc: Link to the Device object that was used to capture these images
 - neurodata_type_def: MultiChannelVolume
   neurodata_type_inc: NWBDataInterface
   doc: An extension of the base NWBData type to allow for multichannel volumetric
@@ -19,7 +95,7 @@ groups:
     dims:
     - channels
     shape:
-    - null
+    - 4
     doc: which channels in image map to RGBW
   - name: data
     dtype: int16
@@ -85,7 +161,7 @@ groups:
       imaging_plane for more detail and examples.
     quantity: '?'
   groups:
-  - neurodata_type_inc: OpticalChannel
+  - neurodata_type_inc: OpticalChannelPlus
     doc: An optical channel used to record from an imaging volume
     quantity: +
   - name: Order_optical_channels
@@ -106,6 +182,28 @@ groups:
     shape:
     - null
     doc: Ordered list of optical channels
+- neurodata_type_def: OpticalChannelPlus
+  neurodata_type_inc: OpticalChannel
+  doc: An optical channel used to record from an imaging volume. Contains both emission
+    and excitation bands.
+  datasets:
+  - name: emission_range
+    dtype: float32
+    dims:
+    - start and end
+    shape:
+    - 2
+    doc: boundaries of emission wavelength for channel, in nm
+  - name: excitation_range
+    dtype: float32
+    dims:
+    - start and end
+    shape:
+    - 2
+    doc: boundaries of excitation wavelength for channel, in nm
+  - name: excitation_lambda
+    dtype: float32
+    doc: Excitation wavelength for channle, in nm.
 - neurodata_type_def: VolumeSegmentation
   neurodata_type_inc: DynamicTable
   doc: Results from image segmentation of a specific imaging volume
@@ -147,6 +245,10 @@ groups:
     - name: ID
       dtype: text
       doc: Cell ID of the ROI
+    dims:
+    - num_ROIs
+    shape:
+    - null
     doc: 'Voxel masks for each ROI: a list of indices and weights for the ROI. Voxel
       masks are concatenated and parsing of this dataset is maintained by the PlaneSegmentation'
     quantity: '?'
