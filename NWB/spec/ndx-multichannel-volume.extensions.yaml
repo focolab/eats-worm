@@ -245,13 +245,40 @@ groups:
     - name: ID
       dtype: text
       doc: Cell ID of the ROI
-    dims:
-    - num_ROIs
-    shape:
-    - null
     doc: 'Voxel masks for each ROI: a list of indices and weights for the ROI. Voxel
       masks are concatenated and parsing of this dataset is maintained by the PlaneSegmentation'
     quantity: '?'
+  - name: color_voxel_mask
+    neurodata_type_inc: VectorData
+    dtype:
+    - name: x
+      dtype: uint32
+      doc: Voxel x-coordinate
+    - name: y
+      dtype: uint32
+      doc: Voxel y-coordinate
+    - name: z
+      dtype: uint32
+      doc: Voxel z-coordinate
+    - name: weight
+      dtype: float32
+      doc: Weight of the voxel
+    - name: ID
+      dtype: text
+      doc: Cell ID of the ROI
+    - name: R
+      dtype: uint32
+      doc: Voxel red value
+    - name: G
+      dtype: uint32
+      doc: Voxel green value
+    - name: B
+      dtype: uint32
+      doc: Voxel blue value
+    - name: W
+      dtype: uint32
+      doc: voxel white value
+    doc: Voxel masks for each ROI including RGBW color values
   links:
   - name: imaging_volume
     target_type: ImagingVolume
