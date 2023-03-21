@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from utils.utils import convert_coordinates
 import os
+from pynwb import NWBHDF5IO
 
 '''
 Each function should take in folder containing autoIDd and ground truth data then 
@@ -68,6 +69,23 @@ def proc_NP(file):
 
     return df_converted
 
-def proc_NWB(file):
+def proc_NWB(nwb_file):
 
+    '''
+    Open NWB file and return data structured for use in rest of pipeline
+    '''
+
+    with NWBHDF5IO(nwb_file, mode='r') as io:
+        nwb = io.read()
+        image = nwb.acquisition['NeuroPALImage'].data[:]
+        resolution = nwb.acquisition['NeuroPALImage'].resolution[:]
+        channels = nwb.acquisition['NeuroPALImage'].RGBW_channels[:]
+        seg = nwb.processing['NeuroPAL']['VolumeSegmentation'].voxel_mask[:]
+        
+    df = pd.DataFrame(seg)
+
+    RGBW = np.squeeze(image[:,:,:,channels])
+    RGBW = RGBW.astype('int32')
     
+    return RGBW, df, resolution
+

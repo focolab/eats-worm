@@ -24,10 +24,12 @@ setuptools.setup(
           'imreg_dft',
           'fastcluster',
           'napari[all]',
-          'pyqtgraph',
+          'pyqtgraph=0.12.4',
           'magicgui',
           'pandas',
-          'scikit-image'
+          'scikit-image',
+          'pyqt5',
+          'xmltodict'
       ], 
     dependency_links=['https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft'],
     python_requires='>=3.6',

@@ -1,0 +1,1307 @@
+{
+  "_about": "checklist of worm head neurons sorted on A-P axis",
+  "list_items": [
+    {
+      "ID": [
+        "AMSOL",
+        "AMSOR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AMSO",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "I1L",
+        "I1R"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "I1",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "MI"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "MI",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "I3"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "I3",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "MCL",
+        "MCR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "MC",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "I2L",
+        "I2R"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "I2",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "NSML",
+        "NSMR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "NSM",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "M4"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "M4",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "IL2DL",
+        "IL2DR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "IL2D",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "M3L",
+        "M3R"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "M3",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "URADL",
+        "URADR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "URAD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "IL1DL",
+        "IL1DR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "IL1D",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "IL2L",
+        "IL2R"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "IL2",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "IL2VL",
+        "IL2VR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "IL2V",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "OLLL",
+        "OLLR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "OLL",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "IL1L",
+        "IL1R"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "IL1",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "URYDL",
+        "URYDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "URYD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "IL1VL",
+        "IL1VR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "IL1V",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "OLQDL",
+        "OLQDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "OLQD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "URBL",
+        "URBR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "URB",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "URYVL",
+        "URYVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "URYV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMED"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "RMED",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "RIPL",
+        "RIPR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIP",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "URAVL",
+        "URAVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "URAV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMEL",
+        "RMER"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RME",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "OLQVL",
+        "OLQVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "OLQV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "BAGL",
+        "BAGR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "BAG",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RID"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "RID",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "CEPVL",
+        "CEPVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "CEPV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ALA"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "ALA",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "CEPDL",
+        "CEPDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "CEPD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "URXL",
+        "URXR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "URX",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SAAVL",
+        "SAAVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SAAV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMDVL",
+        "RMDVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RMDV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMEV"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "RMEV",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "SMDVL",
+        "SMDVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SMDV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RIAL",
+        "RIAR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIA",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVAL",
+        "AVAR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVA",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RIH"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "RIH",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "HMC"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "HMC",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "ASKL",
+        "ASKR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ASK",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVEL",
+        "AVER"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVE",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AFDL",
+        "AFDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AFD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ADFL",
+        "ADFR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ADF",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMDL",
+        "RMDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RMD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SMDDL",
+        "SMDDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SMDD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SAADL",
+        "SAADR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SAAD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ADLL",
+        "ADLR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ADL",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AWBL",
+        "AWBR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AWB",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SIBDL",
+        "SIBDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SIBD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AWAL",
+        "AWAR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AWA",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AIBL",
+        "AIBR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AIB",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RIR"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "RIR",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "AWCL",
+        "AWCR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AWC",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ASGL",
+        "ASGR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ASG",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SIADL",
+        "SIADR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SIAD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ASHL",
+        "ASHR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ASH",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMDDL",
+        "RMDDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RMDD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SIBVL",
+        "SIBVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SIBV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVHL",
+        "AVHR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVH",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RIVL",
+        "RIVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ASIL",
+        "ASIR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ASI",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ASEL",
+        "ASER"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ASE",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMHL",
+        "RMHR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RMH",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMFL",
+        "RMFR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RMF",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVBL",
+        "AVBR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVB",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RIBL",
+        "RIBR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIB",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AUAL",
+        "AUAR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AUA",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SMBDL",
+        "SMBDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SMBD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVJL",
+        "AVJR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVJ",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVDL",
+        "AVDR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVD",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AINL",
+        "AINR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AIN",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RIML",
+        "RIMR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIM",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ASJL",
+        "ASJR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ASJ",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "I4"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "I4",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "AIZL",
+        "AIZR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AIZ",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "M1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "M1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "SMBVL",
+        "SMBVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SMBV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "M2L",
+        "M2R"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "M2",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AIYL",
+        "AIYR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AIY",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AIAL",
+        "AIAR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AIA",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RICL",
+        "RICR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIC",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SIAVL",
+        "SIAVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SIAV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "I6"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "I6",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "I5"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "I5",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "AVL"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "AVL",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "FLPL",
+        "FLPR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "FLP",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AIML",
+        "AIMR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AIM",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "M5"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "M5",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "AVKL",
+        "AVKR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVK",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "ADEL",
+        "ADER"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ADE",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "SABVL",
+        "SABVR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "SABV",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AQR"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "AQR",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "VB2"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VB2",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "RIS"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "RIS",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "ADAL",
+        "ADAR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "ADA",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "RMGL",
+        "RMGR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RMG",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVFL",
+        "AVFR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "AVF",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "DB2"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "DB2",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "RIFL",
+        "RIFR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIF",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "VB1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VB1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "VA1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VA1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "VD1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VD1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "RIGL",
+        "RIGR"
+      ],
+      "status": [
+        0,
+        0
+      ],
+      "neuron_class": "RIG",
+      "is_LR": 1
+    },
+    {
+      "ID": [
+        "AVG"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "AVG",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "DB1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "DB1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "SABD"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "SABD",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "DD1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "DD1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "AS1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "AS1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "DA1"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "DA1",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "VD2"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VD2",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "VA2"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VA2",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "VB3"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "VB3",
+      "is_LR": 0
+    },
+    {
+      "ID": [
+        "AS2"
+      ],
+      "status": [
+        0
+      ],
+      "neuron_class": "AS2",
+      "is_LR": 0
+    }
+  ]
+}
