@@ -67,3 +67,7 @@ def proc_NP(file):
     df_converted = convert_coordinates(df)
 
     return df_converted
+
+def proc_NWB(file):
+
+    
