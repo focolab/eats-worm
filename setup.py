@@ -32,5 +32,5 @@ setuptools.setup(
           'xmltodict'
       ], 
     dependency_links=['https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft'],
-    python_requires='>=3.6',
+    python_requires='>=3.8',
 )

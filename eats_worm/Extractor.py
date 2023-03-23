@@ -17,12 +17,16 @@ import json
 import math
 from scipy.ndimage import generate_binary_structure, binary_dilation, rotate
 from scipy.spatial.distance import pdist, squareform
+import scipy.io as sio
 from skimage.feature import peak_local_max
 from skimage.filters import rank
 from skimage.registration import phase_cross_correlation
 from fastcluster import linkage
 import scipy.cluster
 from threading import Thread, Lock
+import neuroPAL.process.resample as res
+import neuroPAL.process.histogram as hist
+import tifffile
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -452,6 +456,7 @@ class Extractor:
         self.mip_movie = kwargs.get('mip_movie', True)
         self.marker_movie = kwargs.get('marker_movie', True)
         _regen_mft = kwargs.get('regen_mft')
+        self.processing_params = kwargs.get('processing_params', {"neuroPAL":False})
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         self.im.t = 0
@@ -469,6 +474,60 @@ class Extractor:
             kwargs['regen']=True
             with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
                 json.dump(kwargs, json_file)
+
+    def process_im(self):
+        if self.processing_params["neuroPAL"]:
+            channels = self.processing_params["RGBW_channels"]
+            NP_image = np.transpose(self.im.tf[0].asarray())
+            print(self.im.tf[0].asarray().shape)
+            NP_image = np.squeeze(NP_image[:,:,:,channels])
+            NP_image = NP_image.astype('int32')
+
+            print(NP_image.shape)
+
+            if self.processing_params["resample"]:   
+                print('Resampling image') 
+                new_res = self.processing_params["new_resolution"]
+                old_res = self.processing_params["old_resolution"]
+                NP_image = res.zoom_interpolate(new_res, old_res, NP_image)
+
+                print('Resampled image to: '+str(new_res))
+
+            if self.processing_params["histogram_match"]:
+                # TODO: make sure reffiles are in tif format
+                print('Matching histogram of image to reference')
+
+                A_max = self.processing_params["A_max"]
+                ref_max = self.processing_params["ref_max"]
+
+                reffile = sio.loadmat(self.processing_params["im_to_match"])
+                refchannels = reffile['prefs']['RGBW'][0][0]-1
+                refdata = reffile['data']
+                refRGBW = np.squeeze(refdata[:,:,:,refchannels])
+
+                print(refRGBW.shape)
+
+                NP_image = hist.match_histogram(NP_image, refRGBW, A_max, ref_max)
+
+                print('Matched histogram of image to reference')
+
+            NP_image = NP_image.astype('uint16')
+            NP_image = np.transpose(NP_image)
+
+            print(NP_image.shape)
+
+            tifffile.imwrite(self.output_dir+'/processed_data.tif', NP_image, imagej = True)
+
+            newim = tifffile.TiffFile(self.output_dir+'/processed_data.tif')
+
+            print('Saved processed image to output directory')
+
+            self.im.tf[0] = newim
+
+        else:
+            self.im = self.im
+
+        return self.im.tf[0]
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""

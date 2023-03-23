@@ -1,4 +1,4 @@
-import matlab.engine
+#import matlab.engine
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -79,6 +79,9 @@ def match_histogram(A, ref, A_max, ref_max):
     image = np.asarray(A)
     ref_im = np.asarray(ref)
 
+    #A_max = np.ma.minimum_fill_value(image)
+    #ref_max = np.ma.minimum_fill_value(ref_im)
+
     im_flat = image.reshape(-1, image.shape[-1]) #flatten images 
     ref_flat = ref_im.reshape(-1, ref_im.shape[-1])
 
@@ -89,7 +92,7 @@ def match_histogram(A, ref, A_max, ref_max):
         chan_ref_flat = ref_flat[:,l]
 
         hist, bins = np.histogram(chan_flat, A_max, [0, A_max]) #generate histograms
-        refhist, refbins = np.histogram(chan_ref_flat, ref_max, [0,ref_max])
+        refhist, refbins = np.histogram(chan_ref_flat, ref_max, [0, ref_max])
 
         cdf = hist.cumsum()/ chan_flat.size # generate cdf of histograms
         cdf_ref = refhist.cumsum()/ chan_ref_flat.size
