@@ -142,7 +142,7 @@ class NPEXCurator(object):
         self.view_blob_index = -1
         self.view_blob_index_prev = -1
         self.view_layer = 0
-        self.view_k_index = -1
+        self.view_k_index = -1 
         self.view_mip = True
         self.view_centers = 'one'
 

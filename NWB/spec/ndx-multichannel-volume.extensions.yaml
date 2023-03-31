@@ -1,4 +1,19 @@
 groups:
+- neurodata_type_def: CElegansSubject
+  neurodata_type_inc: Subject
+  doc: Subject object with support for C. Elegans specific attributes
+  attributes:
+  - name: growth_stage_time
+    dtype: text
+    doc: amount of time in current growth stage in ISO duration format
+  datasets:
+  - name: growth_stage
+    dtype: text
+    doc: Growth stage of C. elegans. One of two-fold, three-fold, L1-L4, YA, OA, duaer,
+      post-dauer L4, post-dauer YA, post-dauer OA
+  - name: cultivation_temp
+    dtype: float32
+    doc: Worm cultivation temperature in C
 - neurodata_type_def: MultiChannelVolumeSeries
   neurodata_type_inc: TimeSeries
   doc: Time series of volumetric data with multiple channels
@@ -163,7 +178,7 @@ groups:
   groups:
   - neurodata_type_inc: OpticalChannelPlus
     doc: An optical channel used to record from an imaging volume
-    quantity: +
+    quantity: '*'
   - name: Order_optical_channels
     neurodata_type_inc: OpticalChannelReferences
     doc: Order of the optical channels in the data
@@ -279,6 +294,7 @@ groups:
       dtype: uint32
       doc: voxel white value
     doc: Voxel masks for each ROI including RGBW color values
+    quantity: '?'
   links:
   - name: imaging_volume
     target_type: ImagingVolume
