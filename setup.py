@@ -15,9 +15,9 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-          'numpy>=1.13.3',
+          'numpy>=1.22.4',
           'scipy>=1.0.0',
-          'tifffile>=0.15.1',
+          'tifffile>=2022.5.4',
           'opencv-python-headless>=4.1.0.25',
           'matplotlib>=2.1.0',
           'improc @ git+https://github.com/focolab/image-processing',
@@ -26,10 +26,14 @@ setuptools.setup(
           'napari[all]',
           'pyqtgraph=0.12.4',
           'magicgui',
-          'pandas',
+          'pandas=1.4.2',
           'scikit-image',
           'pyqt5',
-          'xmltodict'
+          'pyqtgraph>=0.12.4'
+          'xmltodict',
+          'pynwb',
+          'nwbinspector',
+          'dandi'
       ], 
     dependency_links=['https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft'],
     python_requires='>=3.8',
