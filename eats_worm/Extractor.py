@@ -478,6 +478,7 @@ class Extractor:
                 json.dump(kwargs, json_file)
 
     def process_im(self):
+        """Runs basic image pre-processing steps and saves processed image"""
         if self.processing_params["neuroPAL"]:
             channels = self.processing_params["RGBW_channels"]
             NP_image = np.transpose(self.im.tf[0].asarray())

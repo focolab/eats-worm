@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-## Example use case of eats-worm package
+## Example use case of eats-worm package for neuroPAL static image
 
 from eats_worm import *
 from npex import npex
