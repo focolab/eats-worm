@@ -12,7 +12,7 @@ import pandas as pd
 
 from .datachunk import DataChunk, chunk_ix
 
-class TiffReader(object):
+class  TiffReader(object):
     """lazy reader, pulls arbitrary TZCYX chunks from a tiff hyperstack
 
     Tiff data reader that serves up arbitrary TZCXY data chunks

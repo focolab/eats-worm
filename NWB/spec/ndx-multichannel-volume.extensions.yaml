@@ -6,6 +6,7 @@ groups:
   - name: growth_stage_time
     dtype: text
     doc: amount of time in current growth stage in ISO duration format
+    required: false
   datasets:
   - name: growth_stage
     dtype: text
@@ -113,7 +114,7 @@ groups:
     - 4
     doc: which channels in image map to RGBW
   - name: data
-    dtype: int16
+    dtype: uint16
     dims:
     - x
     - y

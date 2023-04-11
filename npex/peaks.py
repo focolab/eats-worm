@@ -118,8 +118,10 @@ def peakfinder(filt=None, chunk=None, params=None, pad=None):
     elif filt == 'template':
         filtered = template_filter(chunk.data, **params)
 
+    print(filtered.shape)
 
     peaks = findpeaks3d_26nn(filtered)
+    print(peaks.shape)
     chunks = get_bounded_chunks(data=chunk.data, peaks=peaks, pad=pad)
     # cull out peaks for which the bounding box goes beyond data bounds
     peaks_inbounds, blobs, = [], []
@@ -135,6 +137,10 @@ def peakfinder(filt=None, chunk=None, params=None, pad=None):
     filtered_chunk = DataChunk(data=filtered, dims=chunk.dims)
     avg3D_chunk = DataChunk(np.mean([x for x in chunks], axis=0), dims=chunk.dims)
     med3D_chunk = DataChunk(np.median([x for x in chunks], axis=0), dims=chunk.dims)
+
+    print(np.mean([x for x in chunks], axis=0).shape)
+    print(avg3D_chunk.dims)
+    print(avg3D_chunk.dim_len)
 
     df_peaks = pd.DataFrame([b.posd for b in blobs])
     df_peaks['prov'] = [b.prov for b in blobs]
@@ -186,6 +192,7 @@ class BlobTemplate(object):
         
         # compute some helpful things
         self.chunk_center = {}
+        print(chunk.dim_len)
         for dim, sz in chunk.dim_len.items():
             self.chunk_center[dim] = np.floor(sz/2).astype(int)
 

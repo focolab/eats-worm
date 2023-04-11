@@ -27,6 +27,7 @@ from threading import Thread, Lock
 import neuroPAL.process.resample as res
 import neuroPAL.process.histogram as hist
 import tifffile
+import cv2
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -446,7 +447,7 @@ class Extractor:
             print('did not pass root directory')
             return 0
 
-        self.output_dir = os.path.join(kwargs.get('output_dir', self.root), 'extractor-objects')
+        self.output_dir = os.path.join(kwargs.get('output_dir', self.root), 'peakfinding_output')
         os.makedirs(self.output_dir, exist_ok=True)
         self.numz = kwargs.get('numz', 10)
         self.numc = kwargs.get('numc', 1)
@@ -472,6 +473,7 @@ class Extractor:
             pass
         else:
             kwargs['regen']=True
+            print(os.path.join(self.output_dir, 'params.json'))
             with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
                 json.dump(kwargs, json_file)
 
@@ -483,7 +485,7 @@ class Extractor:
             NP_image = np.squeeze(NP_image[:,:,:,channels])
             NP_image = NP_image.astype('int32')
 
-            print(NP_image.shape)
+            print('Preprocessing image')
 
             if self.processing_params["resample"]:   
                 print('Resampling image') 
@@ -492,6 +494,12 @@ class Extractor:
                 NP_image = res.zoom_interpolate(new_res, old_res, NP_image)
 
                 print('Resampled image to: '+str(new_res))
+
+            if self.processing_params["median_filter"]:
+                print('Median filtering image')
+                size = self.processing_params.get("median", 3)
+
+                NP_image = medFilter2d(NP_image, size)
 
             if self.processing_params["histogram_match"]:
                 # TODO: make sure reffiles are in tif format
@@ -512,22 +520,11 @@ class Extractor:
                 print('Matched histogram of image to reference')
 
             NP_image = NP_image.astype('uint16')
-            NP_image = np.transpose(NP_image)
+            NP_image = np.transpose(NP_image, (2,3,1,0))
 
-            print(NP_image.shape)
-
-            tifffile.imwrite(self.output_dir+'/processed_data.tif', NP_image, imagej = True)
-
-            newim = tifffile.TiffFile(self.output_dir+'/processed_data.tif')
+            tifffile.imwrite(self.root+'/processed_data.tif', NP_image, imagej = True)
 
             print('Saved processed image to output directory')
-
-            self.im.tf[0] = newim
-
-        else:
-            self.im = self.im
-
-        return self.im.tf[0]
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""
@@ -564,6 +561,15 @@ class Extractor:
         print('Export threads+quant:', csv)
         df = self.results_as_dataframe()
         df.to_csv(csv, float_format='%6g')
+        csv_blobs = os.path.join(self.output_dir, 'df_peaks_detected.csv')
+        print('Export blobs: ', csv_blobs)
+        blobs = df.loc[df['T']==0]
+        newcols = ['X', 'Y', 'Z', 'prov', 'ID']
+        blobs = blobs[newcols]
+        blobs = blobs.replace('infilled', 'detected')
+        blobs = blobs.astype({'X':'int32', 'Y':'int32', 'Z':'int32'})
+        blobs['Status'] = 0
+        blobs.to_csv(csv_blobs)
 
     def save_MIP(self, fname = ''):
 
@@ -630,6 +636,7 @@ class BlobThreadTracker():
         self.median = params.get('median', 3)
         self.quantile = params.get('quantile', 0.99)
         self.reg_peak_dist = params.get('reg_peak_dist', 40)
+        self.peakfind_channel = params.get('peakfind_channel',0)
         self.blob_merge_dist_thresh = params.get('blob_merge_dist_thresh', 6)
         self.remove_blobs_dist = params.get('remove_blobs_dist', 20)
         self.suppress_output = params.get('suppress_output', False)
@@ -673,7 +680,7 @@ class BlobThreadTracker():
             if self.algorithm.endswith('2d_template') and self.curator_layers:
                 self.curator_layers = {'filtered': {'type': 'image', 'data': []}}
             for i in range(self.start_t, self.end_t):
-                im1 = self.im.get_t(i)
+                im1 = self.im.get_t(i, channel = self.peakfind_channel)
 
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
@@ -773,7 +780,7 @@ class BlobThreadTracker():
 
         else:
             for i in range(self.start_t, self.end_t):
-                im1 = self.im.get_t(i)
+                im1 = self.im.get_t(i, channel = self.peakfind_channel)
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
                     im1 = gaussian3d(im1, self.gaussian)
