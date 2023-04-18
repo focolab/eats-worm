@@ -6,7 +6,7 @@ from npex import npex
 
 data_directory= "/Users/danielsprague/FOCO_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
 output_directory = "/Users/danielsprague/FOCO_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
-npex_output = output_directory +'/peakfinding_output'
+npex_output = output_directory +'/extractor-objects'
 
 eats_params = {
     "root": data_directory,
