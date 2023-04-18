@@ -35,9 +35,9 @@ eats_params = {
         "resample":False,
         "old_resolution": [0.3208,0.3208,0.75],
         "new_resolution": [0.325, 0.325, 0.75],
-        "median_filter":True,
+        "median_filter":False,
         "median": 3,
-        "histogram_match":True,
+        "histogram_match":False,
         "A_max": 4096,
         "ref_max":65536,
         "im_to_match": "/Users/danielsprague/FOCO_lab/data/NP_paper/all/11_YAalR"

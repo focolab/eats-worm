@@ -21,11 +21,11 @@ setuptools.setup(
           'opencv-python-headless>=4.1.0.25',
           'matplotlib>=2.1.0',
           'improc @ git+https://github.com/focolab/image-processing',
-          'npex @ git+https://github.com/focolab/npex',
+          'npex @ git+ssh://git@github.com/focolab/npex', #npex is private repository so need SSH access
           'imreg_dft',
           'fastcluster',
           'napari[all]',
-          'pyqtgraph==0.12.4',
+          'pyqtgraph==0.13',
           'magicgui',
           'pandas==1.4.2',
           'scikit-image',
