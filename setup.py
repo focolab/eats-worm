@@ -21,6 +21,7 @@ setuptools.setup(
           'opencv-python-headless>=4.1.0.25',
           'matplotlib>=2.1.0',
           'improc @ git+https://github.com/focolab/image-processing',
+          'npex @ git+https://github.com/focolab/npex',
           'imreg_dft',
           'fastcluster',
           'napari[all]',

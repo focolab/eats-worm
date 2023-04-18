@@ -1,1 +1,0 @@
-https://github.com/matejak/imreg_dft/tarball/master#egg=imreg_dft
