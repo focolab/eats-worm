@@ -8,3 +8,6 @@
 *.jpeg
 *.jpg
 *.pyc
+__pycache__/
+.DS_store
+
