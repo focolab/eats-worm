@@ -10,4 +10,4 @@
 *.pyc
 __pycache__/
 .DS_Store
-
+run_npex.ipynb

@@ -32,15 +32,15 @@ eats_params = {
     "processing_params": {
         "neuroPAL": True,
         "RGBW_channels": [0,2,4,1],
-        "resample":False,
+        "resample":{
         "old_resolution": [0.3208,0.3208,0.75],
-        "new_resolution": [0.325, 0.325, 0.75],
-        "median_filter":False,
+        "new_resolution": [0.325, 0.325, 0.75]},
         "median": 3,
-        "histogram_match":False,
+        "histogram_match":{
         "A_max": 4096,
         "ref_max":65536,
         "im_to_match": "/Users/danielsprague/FOCO_lab/data/NP_paper/all/11_YAalR"
+        }
     },
     "register_frames": True,
     "output_dir": output_directory

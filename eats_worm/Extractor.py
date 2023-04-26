@@ -487,33 +487,31 @@ class Extractor:
 
             print('Preprocessing image')
 
-            if self.processing_params["resample"]:   
+            if 'resample' in self.processing_params:   
                 print('Resampling image') 
-                new_res = self.processing_params["new_resolution"]
-                old_res = self.processing_params["old_resolution"]
+                new_res = self.processing_params['resample']["new_resolution"]
+                old_res = self.processing_params['resample']["old_resolution"]
                 NP_image = res.zoom_interpolate(new_res, old_res, NP_image)
 
                 print('Resampled image to: '+str(new_res))
 
-            if self.processing_params["median_filter"]:
+            if 'median' in self.processing_params:
                 print('Median filtering image')
                 size = self.processing_params.get("median", 3)
 
                 NP_image = medFilter2d(NP_image, size)
 
-            if self.processing_params["histogram_match"]:
+            if 'histogram_match' in self.processing_params:
                 # TODO: make sure reffiles are in tif format
                 print('Matching histogram of image to reference')
 
-                A_max = self.processing_params["A_max"]
-                ref_max = self.processing_params["ref_max"]
+                A_max = self.processing_params['histogram_match']["A_max"]
+                ref_max = self.processing_params['histogram_match']["ref_max"]
 
-                reffile = sio.loadmat(self.processing_params["im_to_match"])
+                reffile = sio.loadmat(self.processing_params['histogram_match']["im_to_match"])
                 refchannels = reffile['prefs']['RGBW'][0][0]-1
                 refdata = reffile['data']
                 refRGBW = np.squeeze(refdata[:,:,:,refchannels])
-
-                print(refRGBW.shape)
 
                 NP_image = hist.match_histogram(NP_image, refRGBW, A_max, ref_max)
 
