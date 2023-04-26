@@ -473,7 +473,6 @@ class Extractor:
             pass
         else:
             kwargs['regen']=True
-            print(os.path.join(self.output_dir, 'params.json'))
             with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
                 json.dump(kwargs, json_file)
 
@@ -573,8 +572,6 @@ class Extractor:
         blobs['Status'] = 0
         blobs['ID'] = blobs['ID'].astype('string')
         blobs['ID'] = ""
-        print(blobs['ID'].unique())
-        print(blobs['ID'].dtype)
         blobs.to_csv(csv_blobs, na_rep='')
 
     def save_MIP(self, fname = ''):

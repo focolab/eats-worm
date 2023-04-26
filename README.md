@@ -12,106 +12,18 @@ pip install git+https://github.com/focolab/eats-worm
 And that's basically it!
 
 ### Usage - calcium activity time series
-An example use case is found in `example.py` in the root directory. The minimal use case is to extract GCaMP timeseries out of a recording, and can be accomplished with the following lines:
+An example use case is found in `example.py` in the examples directory. The minimal use case is to extract GCaMP timeseries out of a recording. See `example.py` for details.
 
-```python3
-from eats_worm import *
-arguments = {
-    'root':'/Users/stevenban/Desktop/20191203_KP_FC083_worm20_gcamp6f_1/',
-    'numz':10,
-    'frames':[0,1,2,3,4,5],
-    'offset': 9,
-    #'t':150,
-    'gaussian':(41,5,3,1),
-    'quantile':0.985,
-    'reg_peak_dist':8,
-    'anisotropy':(10,1,1),
-    'blob_merge_dist_thresh': 8,
-    'register_frames':True,
-    'predict':True,
-    'regen_mft':False,
-    '3d':False
-}
-
-e = Extractor(**arguments)
-e.calc_blob_threads()
-e.quantify()
-c = Curator(e)
-c.log_curate()
-```
-
-The only 'coding' necessary here is to modify the 'root' directory that contains all your .tif files from your recording, the number of z-planes used, what frames you want to keep. If you're feeling really fancy, maybe even parameters like the size of your Gaussian filter, the percentile you threshold, the anisotropy/voxel size of your recording, and etc. 
+The only 'coding' necessary here is to modify the 'root' directory that contains all your .tif files from your recording, the number of z-planes used, what frames you want to keep. If you're feeling really fancy, maybe even parameters like the size of your Gaussian filter, the percentile you threshold, the anisotropy/voxel size of your recording, etc. 
 
 ### Usage - neuroPAL volumetric images
-An example use case is found in `NP_example.py` in the root directory. The minimal use case is to extract neuron centers out of a neuroPAL recording, and can be accomplished with the following lines:
+An example use case is found in `NP_example.py` in the examples directory. The minimal use case is to extract neuron centers out of a neuroPAL recording. See `NP_example.py`
 
-```python3
-from eats_worm import *
-from npex import npex
-
-data_directory= "/Users/danielsprague/FOCO_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
-output_directory = "/Users/danielsprague/FOCO_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
-npex_output = output_directory +'/peakfinding_output'
-
-eats_params = {
-    "root": data_directory,
-    "numz": 45,
-    "frames":[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44],
-    "numc": 6,
-    # "end_t": 100,
-    "offset": 0,
-    "gaussian": False,
-    "median": 3,
-    "quantile": 0.963,
-    "anisotropy": [2, 1, 1],
-    "blob_merge_dist_thresh": 5,
-    "remove_blobs_dist": 3,
-    "peakfind_channel":2,
-    "algorithm":"tmip_2d_template",
-    "algorithm_params": {
-        "window_size": 5,
-        "min_distance": 11,
-        "manage_collisions": "prune",
-        "fb_threshold_margin": 50
-    },
-    "processing_params": {
-        "neuroPAL": True,
-        "RGBW_channels": [0,2,4,1],
-        "resample":False,
-        "old_resolution": [0.3208,0.3208,0.75],
-        "new_resolution": [0.325, 0.325, 0.75],
-        "median_filter":True,
-        "median": 3,
-        "histogram_match":True,
-        "A_max": 4096,
-        "ref_max":65536,
-        "im_to_match": "/Users/danielsprague/FOCO_lab/data/NP_paper/all/11_YAalR"
-    },
-    "register_frames": True,
-    "output_dir": output_directory
-}
-
-npe_params = {
-    "f": data_directory+'/processed_data.tif',
-    "output_folder": npex_output,
-    "rgbw_channels": [0, 1, 2, 3],
-    "data_tag": data_directory.split('/')[-1],
-}
-
-e = Extractor(**eats_params)
-e.process_im()
-e.calc_blob_threads()
-e.quantify(quant_function=background_subtraction_quant_function)
-
-npe = npex.NPExtractor(**npe_params)
-npe.launch_gui(windows_mode=False)
-npe.export()
-```
 You can make the same edits to the input parameters as in the GCAMP timeseries extraction, with additional options for processing_params and parameters for the NPExtractor object. It will be important to specify processing_params as well as the 'RGBW_channels' (which channels correspond to RGBW pseudocolors in neuroPAL images).
 
 ### Slightly More Detailed Explanations 
 
-#### Arguments
+#### Arguments 
 
 * `root` : path to directory containing your recording
 * `numz` : number of z steps in your recording. 
