@@ -27,7 +27,7 @@ setuptools.setup(
           'napari[all]',
           'pyqtgraph==0.13',
           'magicgui',
-          'pandas==1.4.2',
+          'pandas>=1.4.2',
           'scikit-image',
           'pyqt5',
           'xmltodict',

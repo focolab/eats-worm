@@ -32,9 +32,9 @@ eats_params = {
     "processing_params": {
         "neuroPAL": True,
         "RGBW_channels": [0,2,4,1],
-        "resample":{
-        "old_resolution": [0.3208,0.3208,0.75],
-        "new_resolution": [0.325, 0.325, 0.75]},
+        #"resample":{
+        #"old_resolution": [0.3208,0.3208,0.75],
+        #"new_resolution": [0.325, 0.325, 0.75]},
         "median": 3,
         "histogram_match":{
         "A_max": 4096,

@@ -24,8 +24,8 @@ from skimage.registration import phase_cross_correlation
 from fastcluster import linkage
 import scipy.cluster
 from threading import Thread, Lock
-import neuroPAL.process.resample as res
-import neuroPAL.process.histogram as hist
+import improc.NPproc.process.resample as res
+import improc.NPproc.process.histogram as hist
 import tifffile
 import cv2
 
@@ -487,20 +487,6 @@ class Extractor:
 
             print('Preprocessing image')
 
-            if 'resample' in self.processing_params:   
-                print('Resampling image') 
-                new_res = self.processing_params['resample']["new_resolution"]
-                old_res = self.processing_params['resample']["old_resolution"]
-                NP_image = res.zoom_interpolate(new_res, old_res, NP_image)
-
-                print('Resampled image to: '+str(new_res))
-
-            if 'median' in self.processing_params:
-                print('Median filtering image')
-                size = self.processing_params.get("median", 3)
-
-                NP_image = medFilter2d(NP_image, size)
-
             if 'histogram_match' in self.processing_params:
                 # TODO: make sure reffiles are in tif format
                 print('Matching histogram of image to reference')
@@ -516,6 +502,20 @@ class Extractor:
                 NP_image = hist.match_histogram(NP_image, refRGBW, A_max, ref_max)
 
                 print('Matched histogram of image to reference')
+
+            if 'resample' in self.processing_params:   
+                print('Resampling image') 
+                new_res = self.processing_params['resample']["new_resolution"]
+                old_res = self.processing_params['resample']["old_resolution"]
+                NP_image = res.zoom_interpolate(new_res, old_res, NP_image)
+
+                print('Resampled image to: '+str(new_res))
+
+            if 'median' in self.processing_params:
+                print('Median filtering image')
+                size = self.processing_params.get("median", 3)
+
+                NP_image = medFilter2d(NP_image, size)
 
             NP_image = NP_image.astype('uint16')
             NP_image = np.transpose(NP_image, (2,3,1,0))
