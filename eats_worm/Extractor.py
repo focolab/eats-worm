@@ -477,7 +477,17 @@ class Extractor:
                 json.dump(kwargs, json_file)
 
     def process_im(self):
-        """Runs basic image pre-processing steps and saves processed image"""
+        """
+        Runs basic image pre-processing steps and saves processed image
+        
+        Image processing is currently only supported for single volume neuroPAL images. Will
+        eventually add support for timeseries volumetric data as well.
+        
+        Histogram matching currently only supports .mat file input for the reference image, 
+        the file type used in the original NeuroPAL paper. We will eventually add support 
+        for other filetypes as well, with the eventual goal of moving everything to the NWB
+        format. 
+        """
         if self.processing_params["neuroPAL"]:
             channels = self.processing_params["RGBW_channels"]
             NP_image = np.transpose(self.im.tf[0].asarray())
