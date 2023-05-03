@@ -129,9 +129,13 @@ class Curator:
             self.min, self.max = self.viewer.layers['channel 0'].contrast_limits
             self.viewer.layers['channel 0'].events.contrast_limits.connect(lambda:self.update_mm(self.viewer.layers['channel 0'].contrast_limits))
         if self.s:
-            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=2, scale=self.scale)
-
-            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
+            point_size=10
+            edge_width=1
+            edge_width_is_relative=False
+            point_symbol = 'disc'
+            face_color = np.array([0,0,0,0])
+            self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, edge_color='red', name='roi', size=point_size+1, scale=self.scale, edge_width=edge_width*1.25, edge_width_is_relative=edge_width_is_relative)
+            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, edge_color='green', name='other rois', size=point_size, scale=self.scale, edge_width=edge_width, edge_width_is_relative=edge_width_is_relative)
 
             if self.curator_layers:
                 for layer in self.curator_layers.keys():
