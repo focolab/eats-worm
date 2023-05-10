@@ -9,6 +9,7 @@ import pickle
 import os
 from .multifiletiff import *
 from improc.segfunctions import *
+from improc.segfunctions import peak_local_max as ani_peak_local_max
 def mkdir(path):
     try: os.mkdir(path)
     except: pass
@@ -601,9 +602,10 @@ class BlobThreadTracker():
 
         # handle an ugly workaround for peak_local_max not supporting anisotropy. this stuff is only needed when
         # using skimage or template matching, but putting it here allows us to avoid redoing the matmuls every iteration
-        expanded_shape = tuple([dim_len * ani for dim_len, ani in zip(self.im.get_t(0).shape, self.im.anisotropy)])
-        mask = np.zeros(expanded_shape, dtype=np.uint16)
-        mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
+        if all(isinstance(dimension, int) for dimension in self.im.anisotropy):
+            expanded_shape = tuple([dim_len * ani for dim_len, ani in zip(self.im.get_t(0).shape, self.im.anisotropy)])
+            mask = np.zeros(expanded_shape, dtype=np.uint16)
+            mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
 
         if 'tmip' in self.algorithm:
             window_size = self.algorithm_params.get('window_size', 10)
@@ -688,13 +690,15 @@ class BlobThreadTracker():
                             tmip = vol_tmip
 
                             # get peaks, min distance is in 3 dimensions
-                            expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
-                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
-                            expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
-                            expanded_im *= mask
-                            peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), exclude_border=self.algorithm_params.get('exclude_border', True)).astype(float)
-                            peaks /= self.im.anisotropy
-
+                            if all(isinstance(dimension, int) for dimension in self.im.anisotropy):
+                                expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
+                                expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+                                expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+                                expanded_im *= mask
+                                peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), exclude_border=self.algorithm_params.get('exclude_border', True)).astype(float)
+                                peaks /= self.im.anisotropy
+                            else:
+                                peaks = ani_peak_local_max(tmip, min_distance=self.algorithm_params.get('min_distance', 9), exclude_border=self.algorithm_params.get('exclude_border', True), anisotropy=self.im.anisotropy).astype(float)
                         else:
                             tmip = np.max(np.array(ims), axis=0)
                             expanded_im = np.repeat(tmip, self.im.anisotropy[0], axis=0)
