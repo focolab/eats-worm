@@ -8,7 +8,7 @@ Author-email: ban.steven1337@gmail.com
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.8
+Requires-Python: <3.11
 Description-Content-Type: # GCAMP Processing
 ## Author: FoCo Lab
 

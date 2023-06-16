@@ -27,10 +27,10 @@ arguments = {
     "output_dir": output_directory
 }
 
-e = Extractor(**arguments)
-e.calc_blob_threads()
-e.quantify(quant_function=background_subtraction_quant_function)
+#e = Extractor(**arguments)
+#e.calc_blob_threads()
+#e.quantify(quant_function=background_subtraction_quant_function)
 
-# e = load_extractor(output_dir)
+e = load_extractor(output_directory)
 
 c = Curator(e=e)

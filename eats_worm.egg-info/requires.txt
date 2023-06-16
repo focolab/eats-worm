@@ -7,12 +7,12 @@ improc@ git+https://github.com/focolab/image-processing
 npex@ git+https://git@github.com/focolab/npex
 imreg_dft
 fastcluster
-napari[all]
+pyqt6
+napari[pyqt6_experimental]
 pyqtgraph==0.13
 magicgui
 pandas>=1.4.2
 scikit-image
-pyqt5
 xmltodict
 pynwb
 nwbinspector

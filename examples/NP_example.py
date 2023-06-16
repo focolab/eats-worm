@@ -4,15 +4,15 @@
 from eats_worm import *
 from npex import npex
 
-data_directory= "/Users/danielsprague/FOCO_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
-output_directory = "/Users/danielsprague/FOCO_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
+data_directory= "/Users/danielysprague/foco_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
+output_directory = "/Users/danielysprague/foco_lab/data/NP_FOCO_eats/2022-02-12-w01-NP1"
 npex_output = output_directory +'/extractor-objects'
 
 eats_params = {
     "root": data_directory,
     "numz": 45,
     "frames":[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44],
-    "numc": 6,
+    "numc": 4, 
     # "end_t": 100,
     "offset": 0,
     "gaussian": False,
@@ -39,7 +39,7 @@ eats_params = {
         "histogram_match":{
         "A_max": 4096,
         "ref_max":65536,
-        "im_to_match": "/Users/danielsprague/FOCO_lab/data/NP_paper/all/11_YAalR"
+        "im_to_match": "/Users/danielysprague/FOCO_lab/data/NP_paper/all/11_YAalR"
         }
     },
     "register_frames": True,
@@ -58,10 +58,10 @@ e.process_im()
 e.calc_blob_threads()
 e.quantify(quant_function=background_subtraction_quant_function)
 
-#npe = npex.NPExtractor(**npe_params)
-#npe.launch_gui(windows_mode=False)
-#npe.export()
+npe = npex.NPExtractor(**npe_params)
+npe.launch_gui(windows_mode=False)
+npe.export()
 
 # e = load_extractor(output_dir)
 
-c = Curator(e=e)
+#c = Curator(e=e)
