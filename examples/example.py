@@ -1,7 +1,7 @@
 from eats_worm import *
 
-data_directory= "<path to folder containing tiff file(s) for recording>"
-output_directory = "<path to folder where output will be written>"
+data_directory= "/Users/danielysprague/foco_lab/data/2021-05-29-w08-A1-gcamp"
+output_directory = "/Users/danielysprague/foco_lab/data/eats_example"
 
 arguments = {
     "root": data_directory,

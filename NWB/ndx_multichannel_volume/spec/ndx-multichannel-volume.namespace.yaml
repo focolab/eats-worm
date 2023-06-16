@@ -1,0 +1,27 @@
+namespaces:
+- author:
+  - Daniel Sprague
+  contact:
+  - daniel.sprague@ucsf.edu
+  doc: extension to allow use of multichannel volumetric images
+  name: ndx-multichannel-volume
+  schema:
+  - namespace: core
+    neurodata_types:
+    - OpticalChannel
+    - RGBImage
+    - Image
+    - NWBData
+    - Device
+    - DynamicTable
+    - ImageSeries
+    - VectorData
+    - VectorIndex
+    - NWBDataInterface
+    - TimeSeries
+    - Subject
+  - namespace: hdmf-common
+    neurodata_types:
+    - Data
+  - source: ndx-multichannel-volume.extensions.yaml
+  version: 0.1.0

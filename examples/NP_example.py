@@ -58,10 +58,10 @@ e.process_im()
 e.calc_blob_threads()
 e.quantify(quant_function=background_subtraction_quant_function)
 
-npe = npex.NPExtractor(**npe_params)
-npe.launch_gui(windows_mode=False)
-npe.export()
+#npe = npex.NPExtractor(**npe_params)
+#npe.launch_gui(windows_mode=False)
+#npe.export()
 
 # e = load_extractor(output_dir)
 
-#c = Curator(e=e)
+c = Curator(e=e)
