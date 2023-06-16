@@ -430,8 +430,6 @@ class MultiFileTiff():
         if 'channel' in kwargs.keys():
             channel = kwargs['channel']
 
-
-
         if ti > (self.numframes)/self.numz:
             print('end of file')
             return False

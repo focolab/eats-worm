@@ -1,0 +1,307 @@
+groups:
+- neurodata_type_def: CElegansSubject
+  neurodata_type_inc: Subject
+  doc: Subject object with support for C. Elegans specific attributes
+  attributes:
+  - name: growth_stage_time
+    dtype: text
+    doc: amount of time in current growth stage in ISO 8601 duration format
+    required: false
+  datasets:
+  - name: growth_stage
+    dtype: text
+    doc: Growth stage of C. elegans. One of two-fold, three-fold, L1-L4, YA, OA, duaer,
+      post-dauer L4, post-dauer YA, post-dauer OA
+  - name: cultivation_temp
+    dtype: float32
+    doc: Worm cultivation temperature in C
+    quantity: '?'
+- neurodata_type_def: MultiChannelVolumeSeries
+  neurodata_type_inc: TimeSeries
+  doc: Time series of volumetric data with multiple channels
+  attributes:
+  - name: scan_line_rate
+    dtype: float32
+    doc: Lines imaged per second.
+    required: false
+  - name: binning
+    dtype: uint8
+    doc: Amount of pixels combined into bins; could be 1, 2, 4, 8, etc.
+    required: false
+  datasets:
+  - name: data
+    dtype: int16
+    dims:
+    - frame
+    - x
+    - y
+    - z
+    - channel
+    shape:
+    - null
+    - null
+    - null
+    - null
+    - null
+    doc: Data representing multichannel volumetric images across frames
+  - name: description
+    dtype: float32
+    doc: description of image series
+  - name: RGBW_channels
+    dtype: int8
+    dims:
+    - channels
+    shape:
+    - 4
+    doc: which channels in image map to RGBW
+  - name: resolution
+    dtype: float32
+    dims:
+    - xyz scale
+    shape:
+    - 3
+    doc: pixel resolution of each image
+  - name: pmt_gain
+    dtype: float32
+    dims:
+    - channels
+    shape:
+    - null
+    doc: Photomultiplier gain for each channel
+    quantity: '?'
+  - name: exposure_time
+    dtype: float32
+    dims:
+    - channels
+    shape:
+    - null
+    doc: Exposure time of the sample, in seconds; often the inverse of the frequency.
+    quantity: '?'
+  - name: power
+    dtype: float32
+    dims:
+    - channels
+    shape:
+    - null
+    doc: Power of the excitation in mW, if known.
+    quantity: '?'
+  links:
+  - name: imaging_volume
+    target_type: ImagingVolume
+    doc: Link to ImagingVolume object from which this data was generated.
+  - name: device
+    target_type: Device
+    doc: Link to the Device object that was used to capture these images
+- neurodata_type_def: MultiChannelVolume
+  neurodata_type_inc: NWBDataInterface
+  doc: An extension of the base NWBData type to allow for multichannel volumetric
+    images
+  datasets:
+  - name: resolution
+    dtype: float32
+    dims:
+    - xyz scale
+    shape:
+    - 3
+    doc: pixel resolution of the image
+  - name: description
+    dtype: text
+    doc: description of image
+  - name: RGBW_channels
+    dtype: int8
+    dims:
+    - channels
+    shape:
+    - 4
+    doc: which channels in image map to RGBW
+  - name: data
+    dtype: int16
+    dims:
+    - x
+    - y
+    - z
+    - channel
+    shape:
+    - null
+    - null
+    - null
+    - null
+    doc: Volumetric multichannel data
+  groups:
+  - name: Order_optical_channels
+    neurodata_type_inc: OpticalChannelReferences
+    doc: Ordered list of names of the optical channels in the data
+  links:
+  - name: imaging_volume
+    target_type: ImagingVolume
+    doc: Link to ImagingVolume object from which this data was generated.
+- neurodata_type_def: ImagingVolume
+  neurodata_type_inc: NWBDataInterface
+  doc: An Imaging Volume and its Metadata
+  attributes:
+  - name: origin_coords_unit
+    dtype: text
+    default_value: meters
+    doc: Measurement units for origin_coords. The default value is meters.
+    required: false
+  - name: grid_spacing_unit
+    dtype: text
+    default_value: meters
+    doc: Measurement units for grid_spacing. The default value is meters.
+    required: false
+  datasets:
+  - name: description
+    dtype: text
+    doc: Description of the imaging plane
+  - name: location
+    dtype: text
+    doc: Location of the imaging plane. Specify the area, layer, comments on estimation
+      of area/layer, stereotaxic coordinates if in vivo, etc. Use standard atlas names
+      for anatomical regions when possible.
+  - name: origin_coords
+    dtype: float32
+    dims:
+    - x, y, z
+    shape:
+    - 3
+    doc: Physical location of the first element of the imaging plane. see also reference_frame
+      for what the physical location is relative to (e.g., bregma).
+    quantity: '?'
+  - name: grid_spacing
+    dtype: float32
+    dims:
+    - x, y, z
+    shape:
+    - 3
+    doc: Space between voxels in (x,y,z) directions in the specified unit. Assumes
+      imaging plane is a regular grid. See also reference_frame to interpret the grid.
+    quantity: '?'
+  - name: reference_frame
+    dtype: text
+    doc: Describes reference frame of origin_coords and grid_spacing. See doc for
+      imaging_plane for more detail and examples.
+    quantity: '?'
+  groups:
+  - neurodata_type_inc: OpticalChannelPlus
+    doc: An optical channel used to record from an imaging volume
+    quantity: '*'
+  - name: Order_optical_channels
+    neurodata_type_inc: OpticalChannelReferences
+    doc: Ordered list of names of the optical channels in the data
+  links:
+  - name: device
+    target_type: Device
+    doc: Link to the Device object that was used to record from this electrode.
+- neurodata_type_def: OpticalChannelReferences
+  neurodata_type_inc: NWBDataInterface
+  doc: wrapper for optical channel references dataset
+  datasets:
+  - name: channels
+    dtype: text
+    dims:
+    - NumChannels
+    shape:
+    - null
+    doc: Ordered list of names of optical channels
+- neurodata_type_def: OpticalChannelPlus
+  neurodata_type_inc: OpticalChannel
+  doc: An optical channel used to record from an imaging volume. Contains both emission
+    and excitation bands.
+  datasets:
+  - name: emission_range
+    dtype: float32
+    dims:
+    - start and end
+    shape:
+    - 2
+    doc: boundaries of emission wavelength for channel, in nm
+  - name: excitation_range
+    dtype: float32
+    dims:
+    - start and end
+    shape:
+    - 2
+    doc: boundaries of excitation wavelength for channel, in nm
+  - name: excitation_lambda
+    dtype: float32
+    doc: Excitation wavelength for channle, in nm.
+- neurodata_type_def: VolumeSegmentation
+  neurodata_type_inc: DynamicTable
+  doc: Results from image segmentation of a specific imaging volume
+  datasets:
+  - name: image_mask
+    neurodata_type_inc: VectorData
+    dims:
+    - num_ROI
+    - num_x
+    - num_y
+    - num_z
+    shape:
+    - null
+    - null
+    - null
+    - null
+    doc: ROI masks for each ROI. Each image mask is the size of the original imaging
+      plane (or volume) and members of the ROI are finite non-zero.
+    quantity: '?'
+  - name: voxel_mask_index
+    neurodata_type_inc: VectorIndex
+    doc: Index into pixel_mask.
+    quantity: '?'
+  - name: voxel_mask
+    neurodata_type_inc: VectorData
+    dtype:
+    - name: x
+      dtype: uint32
+      doc: Voxel x-coordinate
+    - name: y
+      dtype: uint32
+      doc: Voxel y-coordinate
+    - name: z
+      dtype: uint32
+      doc: Voxel z-coordinate
+    - name: weight
+      dtype: float32
+      doc: Weight of the voxel
+    - name: ID
+      dtype: text
+      doc: Cell ID of the ROI
+    doc: 'Voxel masks for each ROI: a list of indices and weights for the ROI. Voxel
+      masks are concatenated and parsing of this dataset is maintained by the PlaneSegmentation'
+    quantity: '?'
+  - name: color_voxel_mask
+    neurodata_type_inc: VectorData
+    dtype:
+    - name: x
+      dtype: uint32
+      doc: Voxel x-coordinate
+    - name: y
+      dtype: uint32
+      doc: Voxel y-coordinate
+    - name: z
+      dtype: uint32
+      doc: Voxel z-coordinate
+    - name: weight
+      dtype: float32
+      doc: Weight of the voxel
+    - name: ID
+      dtype: text
+      doc: Cell ID of the ROI
+    - name: R
+      dtype: uint32
+      doc: Voxel red value
+    - name: G
+      dtype: uint32
+      doc: Voxel green value
+    - name: B
+      dtype: uint32
+      doc: Voxel blue value
+    - name: W
+      dtype: uint32
+      doc: voxel white value
+    doc: Voxel masks for each ROI including RGBW color values
+    quantity: '?'
+  links:
+  - name: imaging_volume
+    target_type: ImagingVolume
+    doc: Link to ImagingVolume object from which this data was generated.

@@ -18,12 +18,17 @@ import json
 import math
 from scipy.ndimage import generate_binary_structure, binary_dilation, rotate
 from scipy.spatial.distance import pdist, squareform
+import scipy.io as sio
 from skimage.feature import peak_local_max
 from skimage.filters import rank
 from skimage.registration import phase_cross_correlation
 from fastcluster import linkage
 import scipy.cluster
 from threading import Thread, Lock
+import improc.NPproc.process.resample as res
+import improc.NPproc.process.histogram as hist
+import tifffile
+import cv2
 
 default_arguments = {
     'root':'/Users/stevenban/Documents/Data/20190917/binned',
@@ -453,6 +458,7 @@ class Extractor:
         self.mip_movie = kwargs.get('mip_movie', True)
         self.marker_movie = kwargs.get('marker_movie', True)
         _regen_mft = kwargs.get('regen_mft')
+        self.processing_params = kwargs.get('processing_params', {"neuroPAL":False})
         self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         self.im.t = 0
@@ -470,6 +476,64 @@ class Extractor:
             kwargs['regen']=True
             with open(os.path.join(self.output_dir, 'params.json'), 'w') as json_file:
                 json.dump(kwargs, json_file)
+
+    def process_im(self):
+        """
+        Runs basic image pre-processing steps and saves processed image
+        
+        Image processing is currently only supported for single volume neuroPAL images. Will
+        eventually add support for timeseries volumetric data as well.
+        
+        Histogram matching currently only supports .mat file input for the reference image, 
+        the file type used in the original NeuroPAL paper. We will eventually add support 
+        for other filetypes as well, with the eventual goal of moving everything to the NWB
+        format. 
+        """
+        if self.processing_params["neuroPAL"]:
+            channels = self.processing_params["RGBW_channels"]
+            NP_image = np.transpose(self.im.tf[0].asarray())
+            print(self.im.tf[0].asarray().shape)
+            NP_image = np.squeeze(NP_image[:,:,:,channels])
+            NP_image = NP_image.astype('int32')
+
+            print('Preprocessing image')
+
+            if 'histogram_match' in self.processing_params:
+                # TODO: make sure reffiles are in tif format
+                print('Matching histogram of image to reference')
+
+                A_max = self.processing_params['histogram_match']["A_max"]
+                ref_max = self.processing_params['histogram_match']["ref_max"]
+
+                reffile = sio.loadmat(self.processing_params['histogram_match']["im_to_match"])
+                refchannels = reffile['prefs']['RGBW'][0][0]-1
+                refdata = reffile['data']
+                refRGBW = np.squeeze(refdata[:,:,:,refchannels])
+
+                NP_image = hist.match_histogram(NP_image, refRGBW, A_max, ref_max)
+
+                print('Matched histogram of image to reference')
+
+            if 'resample' in self.processing_params:   
+                print('Resampling image') 
+                new_res = self.processing_params['resample']["new_resolution"]
+                old_res = self.processing_params['resample']["old_resolution"]
+                NP_image = res.zoom_interpolate(new_res, old_res, NP_image)
+
+                print('Resampled image to: '+str(new_res))
+
+            if 'median' in self.processing_params:
+                print('Median filtering image')
+                size = self.processing_params.get("median", 3)
+
+                NP_image = medFilter2d(NP_image, size)
+
+            NP_image = NP_image.astype('uint16')
+            NP_image = np.transpose(NP_image, (2,3,1,0))
+
+            tifffile.imwrite(self.root+'/processed_data.tif', NP_image, imagej = True)
+
+            print('Saved processed image to output directory')
 
     def calc_blob_threads(self):
         """peakfinding and tracking"""
@@ -506,6 +570,18 @@ class Extractor:
         print('Export threads+quant:', csv)
         df = self.results_as_dataframe()
         df.to_csv(csv, float_format='%6g')
+        csv_blobs = os.path.join(self.output_dir, 'df_peaks_detected.csv')
+        print('Export blobs: ', csv_blobs)
+        blobs = df.loc[df['T']==0]
+        newcols = ['X', 'Y', 'Z', 'prov', 'ID']
+        blobs = blobs[newcols]
+        blobs = blobs.replace('infilled', 'detected')
+        blobs = blobs.fillna("")
+        blobs = blobs.astype({'X':'int32', 'Y':'int32', 'Z':'int32'})
+        blobs['Status'] = 0
+        blobs['ID'] = blobs['ID'].astype('string')
+        blobs['ID'] = ""
+        blobs.to_csv(csv_blobs, na_rep='')
 
     def save_MIP(self, fname = ''):
 
@@ -572,6 +648,7 @@ class BlobThreadTracker():
         self.median = params.get('median', 3)
         self.quantile = params.get('quantile', 0.99)
         self.reg_peak_dist = params.get('reg_peak_dist', 40)
+        self.peakfind_channel = params.get('peakfind_channel',0)
         self.blob_merge_dist_thresh = params.get('blob_merge_dist_thresh', 6)
         self.remove_blobs_dist = params.get('remove_blobs_dist', 20)
         self.suppress_output = params.get('suppress_output', False)
@@ -616,7 +693,7 @@ class BlobThreadTracker():
             if self.algorithm.endswith('2d_template') and self.curator_layers:
                 self.curator_layers = {'filtered': {'type': 'image', 'data': []}}
             for i in range(self.start_t, self.end_t):
-                im1 = self.im.get_t(i)
+                im1 = self.im.get_t(i, channel = self.peakfind_channel)
 
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
@@ -718,7 +795,7 @@ class BlobThreadTracker():
 
         else:
             for i in range(self.start_t, self.end_t):
-                im1 = self.im.get_t(i)
+                im1 = self.im.get_t(i, channel = self.peakfind_channel)
                 im1 = medFilter2d(im1, self.median)
                 if self.gaussian:
                     im1 = gaussian3d(im1, self.gaussian)
