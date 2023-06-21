@@ -1,0 +1,10 @@
+name: eats-worm
+contributions:
+  commands:
+    - id: eats-worm.select_extractor_directory
+      title: Say hello, world!
+      python_name: eats_worm:show_select_extractor_dialog
+  widgets:
+    - command: eats-worm.select_extractor_directory
+      display_name: Load Extractor
+      autogenerate: true

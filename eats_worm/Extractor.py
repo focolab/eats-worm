@@ -448,7 +448,9 @@ class Extractor:
             print('did not pass root directory')
             return 0
 
-        self.output_dir = os.path.join(kwargs.get('output_dir', self.root), 'extractor-objects')
+        self.output_dir = kwargs.get('output_dir', self.root)
+        if not self.output_dir.endswith('extractor-objects') and not self.output_dir.endswith('extractor-objects/'):
+            self.output_dir = os.path.join(self.output_dir, 'extractor-objects')
         os.makedirs(self.output_dir, exist_ok=True)
         self.numz = kwargs.get('numz', 10)
         self.numc = kwargs.get('numc', 1)
