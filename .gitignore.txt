@@ -8,3 +8,7 @@
 *.jpeg
 *.jpg
 *.pyc
+*__pycache__*
+*.egg-info*
+.DS_Store
+*.ipynb

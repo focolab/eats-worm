@@ -8,10 +8,26 @@ import pyqtgraph as pg
 from .Extractor import *
 from .multifiletiff import *
 from napari.layers.points._points_constants import Mode
+from napari.utils.notifications import show_info
 from .Threads import *
-from qtpy.QtWidgets import QAbstractItemView, QAction, QCheckBox, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget
+from qtpy.QtWidgets import QAbstractItemView, QAction, QCheckBox, QSlider, QButtonGroup, QFileDialog, QGridLayout, QLabel, QListView, QListWidget, QListWidgetItem, QMenu, QPushButton, QRadioButton, QWidget, QFileDialog
 from qtpy.QtCore import Qt, QPoint, QSize
 from qtpy.QtGui import QBrush, QCursor, QIcon, QImage, QPen, QPixmap
+
+def show_select_extractor_dialog():
+    viewer = next(iter(napari.Viewer._instances))
+    run_button = None
+    for widget_name, widget in viewer.window._dock_widgets.items():
+        if widget_name == 'Load Extractor (eats-worm)':
+            run_button = widget
+            break
+    directory = str(QFileDialog.getExistingDirectory(None, "Select extractor-objects directory to load"))
+    if directory.endswith('extractor-objects'):
+        e = load_extractor(directory)
+        run_button.setVisible(False)
+        c = Curator(e=e, viewer=viewer)
+    else:
+        show_info("Invalid extractor directory selection. Please select an existing extractor-objects directory.")
 
 viewer_settings = {
     1: [{'colormap': 'gray', 'visible': True}],
@@ -40,7 +56,7 @@ class Curator:
         max of image data (for setting ranges)
 
     """
-    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100, labels={}, new_curation=False):
+    def __init__(self, mft=None, spool=None, timeseries=None, e=None, window=100, labels={}, new_curation=False, viewer=None):
         if e:
             self.s = e.spool
             self.timeseries = e.timeseries
@@ -112,6 +128,8 @@ class Curator:
         
         self.threads_edited = False
 
+        self.viewer = viewer
+
         self.restart()
         atexit.register(self.log_curate)
 
@@ -120,7 +138,10 @@ class Curator:
         pg.setConfigOption('antialias', True)
 
         ### initialize napari viewer
-        self.viewer = napari.Viewer(ndisplay=3)
+        new_viewer = False
+        if self.viewer is None:
+            new_viewer = True
+            self.viewer = napari.Viewer(ndisplay=3)
         if self.tf:
             for c in range(self.tf.numc):
                 self.viewer.add_image(self.tf.get_t(self.t + self.t_offset, channel=c), name='channel {}'.format(c), scale=self.scale, blending='additive', **viewer_settings[self.tf.numc][c])
@@ -129,9 +150,13 @@ class Curator:
             self.min, self.max = self.viewer.layers['channel 0'].contrast_limits
             self.viewer.layers['channel 0'].events.contrast_limits.connect(lambda:self.update_mm(self.viewer.layers['channel 0'].contrast_limits))
         if self.s:
-            self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='red', edge_color='red', name='roi', size=2, scale=self.scale)
-
-            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol='ring', face_color='blue', edge_color='blue', name='other rois', size=1, scale=self.scale)
+            point_size=10
+            edge_width=1
+            edge_width_is_relative=False
+            point_symbol = 'disc'
+            face_color = np.array([0,0,0,0])
+            self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, edge_color='red', name='roi', size=point_size+1, scale=self.scale, edge_width=edge_width*1.25, edge_width_is_relative=edge_width_is_relative)
+            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, edge_color='green', name='other rois', size=point_size, scale=self.scale, edge_width=edge_width, edge_width_is_relative=edge_width_is_relative)
 
             if self.curator_layers:
                 for layer in self.curator_layers.keys():
@@ -293,7 +318,8 @@ class Curator:
 
         ### Update buttons in case of previous curation
         self.update_buttons()
-        napari.run()
+        if new_viewer:
+            napari.run()
     
     ## Attempting to get autosave when instance gets deleted, not working right now TODO     
     def __del__(self):

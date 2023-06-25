@@ -11,41 +11,19 @@ pip install git+https://github.com/focolab/eats-worm
 ```
 And that's basically it!
 
-### Usage
-An example use case is found in `example.py` in the root directory. The minimal use case is to extract GCaMP timeseries out of a recording, and can be accomplished with the following lines:
+### Usage - calcium activity time series
+An example use case is found in `example.py` in the examples directory. The minimal use case is to extract GCaMP timeseries out of a recording. See `example.py` for details.
 
-```python3
-from eats_worm import *
-arguments = {
-    'root':'/Users/stevenban/Desktop/20191203_KP_FC083_worm20_gcamp6f_1/',
-    'numz':10,
-    'frames':[0,1,2,3,4,5],
-    'offset': 9,
-    #'t':150,
-    'gaussian':(41,5,3,1),
-    'quantile':0.985,
-    'reg_peak_dist':8,
-    'anisotropy':(10,1,1),
-    'blob_merge_dist_thresh': 8,
-    'register_frames':True,
-    'predict':True,
-    'regen_mft':False,
-    '3d':False
-}
+The only 'coding' necessary here is to modify the 'root' directory that contains all your .tif files from your recording, the number of z-planes used, what frames you want to keep. If you're feeling really fancy, maybe even parameters like the size of your Gaussian filter, the percentile you threshold, the anisotropy/voxel size of your recording, etc. 
 
-e = Extractor(**arguments)
-e.calc_blob_threads()
-e.quantify()
-c = Curator(e)
-c.log_curate()
-```
+### Usage - neuroPAL volumetric images
+An example use case is found in `NP_example.py` in the examples directory. The minimal use case is to extract neuron centers out of a neuroPAL recording. See `NP_example.py`
 
-The only 'coding' necessary here is to modify the 'root' directory that contains all your .tif files from your recording, the number of z-planes used, what frames you want to keep. If you're feeling really fancy, maybe even parameters like the size of your Gaussian filter, the percentile you threshold, the anisotropy/voxel size of your recording, and etc. 
-
+You can make the same edits to the input parameters as in the GCAMP timeseries extraction, with additional options for processing_params and parameters for the NPExtractor object. It will be important to specify processing_params as well as the 'RGBW_channels' (which channels correspond to RGBW pseudocolors in neuroPAL images).
 
 ### Slightly More Detailed Explanations 
 
-#### Arguments
+#### Arguments 
 
 * `root` : path to directory containing your recording
 * `numz` : number of z steps in your recording. 
@@ -60,11 +38,25 @@ The only 'coding' necessary here is to modify the 'root' directory that contains
 * `register_frames` : whether to perform dft image registration in-between each frame. doesn't significantly affect runtime, and is helpful if there is a huge translational shift (worm suddenly moves backwards in channel). 
 * `predict` : whether to register new incoming points to predicted positions of existing threads. set to True, if not registering frames, and False if you are registering frames. 
 * `regen_mft` : set to False in most cases. set to True if re-initializing an extractor with the exact same parameters. 
+* `neuroPAL` : indicates that this is a neuroPAL image and pre-processing should be run.
+* `RGBW_channels` : order of RGBW channels in neuroPAL image.
+* `resample` : set to True if you want to resample the resolution of the image.
+* `old_resolution` : the original resolution of the neuroPAL image in um/pixel. Should be a list in order of [X res, Y res, Z res].
+* `new_resolution` : the new resolution you want to resample to.
+* `median_filter` : set to True if you want to run a median filtering on the image.
+* `median` : set size of median filter kernel. Default is 3x3.
+* `histogram_match` : set to True if you want to match the color channel histogram of this image to a reference image. 
+* `A_max` : max gray count for your neuroPAL image. e.g. if your acquiring in 12bit, this would be 4096
+* `ref_max` : max gray count of the reference image that you're matching the histogram to. e.g. if it's acquired in 16bit, this would be 65536
+* `im_to_match` : path to reference image to match the histogram of yours too. 
+* `npe_params f` : path to the neuroPAL image tif that you want to show in the NPEX gui. In the above example, it is set to the processed image outputted by the e.process_im() step
+* `data_tag` : short description of the dataset you are working with. In the above example, this is 2022-02-12-w01-NP1 which contains the date, number worm, and number image that is being used. For our lab, this is enough information to know exactly where the data comes from.
 
 #### Extractor methods
 
 
 * `e = Extractor(**arguments)` : initializes the extractor based on arguments above. may take a while to open based on your recording size, since the first thing it does is read through your entire recording to calculate how many frames there are. 
+* `e.process_im()` : runs some basic image preprocessing steps based on input arguments in processing_params. Currently supports median filtering, resolution resampling, and histogram matching. For histogram matching, user must supply a path to another file containing reference data to match the histogram to. In this example, we use one of the datasets from the original neuroPAL paper. You should only use this if you are processing single neuroPAL images and not for time series data.
 * `e.calc_blob_threads()` : calculates blob threads. also performs automatic border-collision detection and destroys threads that automatically collide with the image border. automatically saves as a numpy pickle object that can be reloaded. 
 * `e.quantify()` : performs quantification based on calculated threads. default quantification function is the average of top 10 pixel values in a 7x7 box around the calculated pixel index. automatically saves timeseries in a .txt file that can be read with np.genfromtxt('../timeseries.txt') and re-loaded into a python environment as a numpy array 
 * `e.save_MIP()` : saves a maximum intensity projection of your recording in extractor-objects/MIP.tif. note, this only performs a MIP that includes the frames specified in the 'frames' argument. optionally, you can specify a filename or a specific directory to save the MIP. Default is to save it under 'extractor-objects/MIP.tif', but you could pass it 'MIP1.tif' or 'path/to/directory' or 'path/to/directory/MIP.tif' and etc. 
@@ -73,11 +65,16 @@ The only 'coding' necessary here is to modify the 'root' directory that contains
 * `e = load_extractor(root)` : reloads the extractor using the same root directory as specified when it was created. 
 * `Curator(e)` : launched an interactive matplotlib GUI that allows you to accept/reject individual blob threads. upon closing of the Python environment, automatically saves your labels as a .json that gets reloaded the next time you run Curator on the loaded extractor. Optionally, it takes an additional argument called "window", which specifies how wide the zoomed-in view of the ROI+neuron goes. There is a known issue that if the ROI is too close to the edge of the image, the red dot in the zoomed in version doesn't necessarily correspond to where the actual found position is. If you suspect that's the case, reduce the window size so that the zoom-in doesn't get affected by image boundaries. 
 
-#### Curator Methods
+#### Curator Methods - curating calcium activity time series
 * `c = Curator(e)` : creates a Curator object based on an extractor. 
 * `c.log_curate()` : force-save the JSON containing which threads you've seen, decided to keep, or decided to trash. This **normally** gets automatcially saved when you quit the Python environment, but in some cases it doesn't happen (not sure why). Just to be save, call this function after every Curator session 
 * `c.restart()` : if you're running this in an interactive Python session (line-by-line, or in an IDE), and you have already run `c = Curator(e)` but closed the window and want to resume where you've left off, run `c.restart()` to re-open the matplotlib window and pick up curating where you left off. 
 
+#### Curator Methods - curating neuroPAL volumetric image 
+
+* `npe = npex.NPExtractor(**npe_params)` : creates a NPExtractor object based on input parameters. Will access files created in the Extractor output folder.
+* `npe.launch_gui()` : opens up the NPEX GUI where the user can curate detected neuron centers. Users can confirm, delete, or add neuron centers in this view. Make sure to click export blobs in the GUI to export the results of your curation.
+* `npe.export()` :  exports relevant metadata from NPExtractor object to json in output folder. 
 
 Generally, you will follow the sequence of:
 ```python3
@@ -91,6 +88,29 @@ e.calc_blob_threads()
 e.quantify()
 c = Curator(e)
 c.log_curate()
+```
+
+Or, if you are working with neuroPAL volumetric images:
+
+```python3
+from eats_worm import *
+from npex import npex
+eats_params = {
+...
+}
+
+npe_params = {
+...
+}
+
+e = Extractor(**eats_params)
+e.process_im()
+e.calc_blob_threads()
+e.quantify()
+
+npe = npex.NPExtractor(**npe_params)
+npe.launch_gui()
+npe.export()
 ```
 
 

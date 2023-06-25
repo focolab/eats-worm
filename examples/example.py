@@ -1,10 +1,7 @@
-#!/usr/bin/env python3
-## Example use case of eats-worm package
-
 from eats_worm import *
 
-data_directory= "<path to folder containing tiff file(s) for recording>"
-output_directory = "<path to folder where output will be written>"
+data_directory= "/Users/danielysprague/foco_lab/data/2021-05-29-w08-A1-gcamp"
+output_directory = "/Users/danielysprague/foco_lab/data/eats_example"
 
 arguments = {
     "root": data_directory,
@@ -30,10 +27,10 @@ arguments = {
     "output_dir": output_directory
 }
 
-e = Extractor(**arguments)
-e.calc_blob_threads()
-e.quantify(quant_function=background_subtraction_quant_function)
+#e = Extractor(**arguments)
+#e.calc_blob_threads()
+#e.quantify(quant_function=background_subtraction_quant_function)
 
-# e = load_extractor(output_dir)
+e = load_extractor(output_directory)
 
 c = Curator(e=e)
