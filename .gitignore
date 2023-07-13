@@ -1,0 +1,4 @@
+*egg-info
+.DS_Store
+*.toml
+*__pycache__*
