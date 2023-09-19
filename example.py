@@ -10,7 +10,7 @@ from eats_worm import *
 #data_directory = "E:/SCAPE/Data/tiff_stacks/20230908_GreenBeads4um_run2/20230908_GreenBeads4um_run2"; numZ = 200; endT = 3; pixelSize = [1.8, 1, 1.16]
 #data_directory = "E:/SCAPE/Data/20230911/tiff_stacks/20230911_GreenBeads4um_run3/Deskewed_-60"; numZ = 200; endT = 3; pixelSize = [0.55, 1, 0.47]
 #data_directory = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230913/tiff_stacks/20230913_OH16290_3_run1/Deskewed_-45"; numZ = 200; endT = 10; pixelSize = (0.55, 1, 0.47)
-data_directory = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230915/tiff_stacks/20230915_OH16290_3_run1/Deskewed_-45"; numZ = 200; endT = 2; pixelSize = (0.55, 1, 0.47)
+data_directory = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230917/tiff_stacks/20230917_OH16290_1_run1/Deskewed_-45"; numZ = 200; endT = 2; pixelSize = (0.55, 1, 0.47)
 output_directory = data_directory + "/output/"
 
 
@@ -30,9 +30,9 @@ arguments = {
     "algorithm":"tmip_2d_template",
     "algorithm_params": {
         "window_size": 5, #3
-        "min_distance": 11, #1
+        "min_distance": 10, #1
         "manage_collisions": "prune",
-        "fb_threshold_margin": 50 #10
+        "fb_threshold_margin": 10,
     },
     "register_frames": False, #True
     "output_dir": output_directory
