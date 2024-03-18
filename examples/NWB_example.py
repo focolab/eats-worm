@@ -1,15 +1,13 @@
-from eats_worm import *
+from eats_worm import * 
 
-data_directory= "/Users/danielysprague/foco_lab/data/2021-05-29-w08-A1-gcamp"
-output_directory = "/Users/danielysprague/foco_lab/data/eats_example"
+data_directory= '/Users/danielysprague/foco_lab/data/final_nwb/SK1/20230506-15-01-45.nwb'
+output_directory = "/Users/danielysprague/foco_lab/data/eats_worm_test"
 
 arguments = {
     "root": data_directory,
     "numz": 12,
-    "frames":[1,2,3,4,5,6,7,8,9,10,11],
     "numc": 1,
     # "end_t": 100,
-    "offset": 0,
     "gaussian": False,
     "median": 3,
     "quantile": 0.963,
@@ -24,7 +22,8 @@ arguments = {
         "fb_threshold_margin": 50
     },
     "register_frames": True,
-    "output_dir": output_directory
+    "output_dir": output_directory,
+    "regen_mft": True,
 }
 
 e = Extractor(**arguments)
@@ -34,3 +33,5 @@ e.quantify(quant_function=background_subtraction_quant_function)
 #e = load_extractor(output_directory)
 
 c = Curator(e=e)
+
+c.tf.io.close()
