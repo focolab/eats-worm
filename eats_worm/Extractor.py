@@ -8,6 +8,7 @@ from .Threads import *
 import pickle
 import os
 from .multifiletiff import *
+from .NWB_loader import *
 from improc.segfunctions import *
 from improc.segfunctions import peak_local_max as ani_peak_local_max
 def mkdir(path):
@@ -318,7 +319,6 @@ def load_extractor(path, root_override=None, output_override=None):
             path += '/'
         folders.append(path)
         
-        
     paramsf = folders[0]+'/params.json'
     mftf = folders[0]+'/mft.obj'
     threadf = folders[0]+'/threads.obj'
@@ -461,7 +461,10 @@ class Extractor:
         self.marker_movie = kwargs.get('marker_movie', True)
         _regen_mft = kwargs.get('regen_mft')
         self.processing_params = kwargs.get('processing_params', {"neuroPAL":False})
-        self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
+        if os.path.isdir(self.root):
+            self.im = MultiFileTiff(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
+        elif self.root[-4:] == '.nwb':  
+            self.im = NWBLoader(self.root, output_dir=self.output_dir, anisotropy=self.anisotropy, offset=self.offset, numz=self.numz, numc=self.numc, frames=self.frames, regen=_regen_mft)
         self.im.save()
         self.im.t = 0
         self.start_t = kwargs.get('start_t', 0)
