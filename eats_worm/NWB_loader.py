@@ -13,7 +13,7 @@ from .multifiletiff import *
 from pynwb import NWBHDF5IO
 import pandas as pd
 import h5py
-from dandi.dandiapi import DandiAPIClient
+#from dandi.dandiapi import DandiAPIClient
 import remfile
 import pickle
 

@@ -773,3 +773,128 @@ class Curator:
         if self.threads_edited:
             self.s.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
             self.e.save_dataframe()
+
+    def save_nwb(self):
+
+        if self.e.root[-4:] != '.nwb':
+            print('Root is not nwb file')
+            #TODO: create NWB file if none exists and prompt input of metadata
+
+        else:
+
+            calc_imvol = self.tf.nwb.acquisition['CalciumImageSeries'].imaging_volume
+            
+            try:
+                self.tf.nwb.processing['CalciumActivity'].data_interfaces.pop('SignalDFoF')
+            except:
+                try:
+                    self.tf.nwb.processing['CalciumActivity'].data_interfaces.pop('SignalRawFluor')
+                except: 
+                    pass
+
+            try:
+                self.tf.nwb.processing['CalciumActivity'].data_interfaces.pop('CalciumSeriesSegmentation')
+            except:
+                pass
+
+            try:
+                self.tf.nwb.processing['CalciumActivity'].data_interfaces.pop('NeuronIDs')
+            except:
+                pass
+
+            identifier = self.tf.nwb.identifier[:]
+
+            rate = self.tf.nwb.acquisition['CalciumImageSeries'].rate
+
+            gce_quant = pd.read_csv(os.path.join(self.e.output_dir, 'spool.csv'))
+
+            gce_df = gce_quant[['X', 'Y', 'Z', 'gce_quant', 'ID', 'T', 'blob_ix']]
+
+            blobquant = None
+            for idx in gce_quant['blob_ix'].unique():
+                blob = gce_df[gce_df['blob_ix']==idx]
+                blobarr = np.asarray(blob[['X','Y','Z','gce_quant','ID']])
+                blobarr = blobarr[np.newaxis,:,:]
+                if blobquant is None:
+                    blobquant=blobarr
+                else:
+                    blobquant = np.vstack((blobquant, blobarr))
+
+            volsegs = []
+
+            for t in range(blobquant.shape[1]):
+                blobs = np.squeeze(blobquant[:,t,0:3])
+                IDs = np.squeeze(blobquant[:,t,4])
+                labels = IDs.astype(str)
+                labels = np.where(labels!='nan', labels, '')
+
+                vsname = 'Seg_tpoint_'+str(t)
+                description = 'Neuron segmentation for time point ' +str(t) + ' in calcium image series'
+                volseg = create_vol_seg_centers(vsname, description, calc_imvol, blobs)
+
+                volsegs.append(volseg)
+
+            CalcImSeg = ImageSegmentation(
+                name = 'CalciumSeriesSegmentation',
+                plane_segmentations = volsegs
+            )
+
+            gce_data = np.transpose(blobquant[:,:,3])
+            gce_data = gce_data.astype(float)
+
+            rt_region = volsegs[0].create_roi_table_region(
+                description = 'Segmented neurons associated with calcium image series. This rt_region uses the location of the neurons at the first time point',
+                region = list(np.arange(blobquant.shape[0]))
+            )
+
+            RoiResponse = RoiResponseSeries(
+                name = 'SignalCalciumImResponseSeries',
+                description = 'DF/F activity for calcium imaging data',
+                data = gce_data,
+                rois = rt_region,
+                unit = 'Percentage',
+                rate = rate
+            )
+
+            SignalFluor = DfOverF(
+                name = 'SignalDFoF',
+                roi_response_series = RoiResponse
+            )
+
+            self.tf.nwb.processing['CalciumActivity'].add(CalcImSeg)
+            self.tf.nwb.processing['CalciumActivity'].add(SignalFluor)
+
+            export_filename = os.path.join(self.e.output_dir, identifier +'.nwb')
+            with NWBHDF5IO(export_filename, mode="w") as export_io:
+                export_io.export(src_io=self.tf.io, nwbfile=self.tf.nwb)
+
+def create_vol_seg_centers(name, description, ImagingVolume, positions, reference_images = None):
+
+    '''
+    Use this function to create volume segmentation where each ROI is coordinates
+    for a single neuron center in XYZ space.
+
+    Positions should be a 2d array of size (N,3) where N is the number of neurons and
+    3 refers to the XYZ coordinates of the neuron in that order.
+
+    Labels should be an array of cellIDs in the same order as the neuron positions.
+    '''
+
+    vs = PlaneSegmentation(
+        name = name,
+        description = description,
+        imaging_plane = ImagingVolume,
+        reference_images = reference_images
+    )
+
+    for i in range(positions.shape[0]):
+        voxel_mask = []
+        x = positions[i,0]
+        y = positions[i,1]
+        z = positions[i,2]
+
+        voxel_mask.append([np.uint(x),np.uint(y),np.uint(z),1])  # add weight of 1 to each ROI
+
+        vs.add_roi(voxel_mask=voxel_mask)
+    
+    return vs

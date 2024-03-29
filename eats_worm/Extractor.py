@@ -319,7 +319,6 @@ def load_extractor(path, root_override=None, output_override=None):
             path += '/'
         folders.append(path)
         
-        
     paramsf = folders[0]+'/params.json'
     mftf = folders[0]+'/mft.obj'
     threadf = folders[0]+'/threads.obj'
