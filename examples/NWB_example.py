@@ -8,6 +8,7 @@ arguments = {
     "root": data_directory,
     "numz": 12,
     "numc": 1,
+    #"end_t":500,
     "gaussian": False,
     "median": 3,
     "quantile": 0.963,

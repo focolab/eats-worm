@@ -8,7 +8,7 @@ arguments = {
     "numz": 12,
     "frames":[1,2,3,4,5,6,7,8,9,10,11],
     "numc": 1,
-    # "end_t": 100,
+    "end_t": 100,
     "offset": 0,
     "gaussian": False,
     "median": 3,
