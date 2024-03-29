@@ -8,7 +8,7 @@ arguments = {
     "root": data_directory,
     "numz": 12,
     "numc": 1,
-    #"end_t":500,
+    "end_t":100,
     "gaussian": False,
     "median": 3,
     "quantile": 0.963,
@@ -32,7 +32,6 @@ e.calc_blob_threads()
 e.quantify(quant_function=background_subtraction_quant_function)
 
 #e = load_extractor(output_directory)
-#e.im.io.close()
 
 c = Curator(e=e)
 c.save_nwb()
