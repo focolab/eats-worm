@@ -12,5 +12,5 @@ contributions:
       display_name: Dimension Slicer
   readers:
     - command: eats_worm.get_reader
-      filename_patterns: ["/*.tiff"]
+      filename_patterns: ["*/*.tiff"]
       accepts_directories: true
