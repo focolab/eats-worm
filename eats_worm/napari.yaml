@@ -10,3 +10,7 @@ contributions:
   widgets:
     - command: eats_worm.main_widget
       display_name: Dimension Slicer
+  readers:
+    - command: eats_worm.get_reader
+      filename_patterns: ["/*.tiff"]
+      accepts_directories: true

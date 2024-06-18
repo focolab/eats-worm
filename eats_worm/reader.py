@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import napari
 from napari.utils.notifications import show_info
@@ -17,15 +16,13 @@ def read_multi_tiffs(path):
         show_info("The plugin eats-worm is not activated. \nPlease select eats-worm from Plugins in the menu bar.")
     else:
         for k, v in napari.current_viewer().window._dock_widgets.items():
-            if "eats-worm" in k:
-                loading_param = v.widget().loading_param
-                loading_param.numz=200
-                loading_param.numc=1
-                loading_param.anisotropy = (0.39, 1, 0.55)
+            if "eats_worm" in k:
+                loading_param = v.widget()
+                loading_param.load_path.setText(str(path))
+                loading_param.numz.setText(str(200))
+                loading_param.numcsetText(str(1))
+                loading_param.anisotropysetText(str((0.39, 1, 0.55)))
                 break
         m = MultiFileTiff(path, numz=200, numc=1, anisotropy=(0.39, 1, 0.55))
-        return {
-            'data':m.get_dask_array(),
-            'scale':m.anisotropy,
-        }
+        return [(m.get_dask_array(), {'colormap': 'inferno', 'scale': m.anisotropy})]
 
