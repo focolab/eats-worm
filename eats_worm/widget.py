@@ -1,3 +1,4 @@
+import ast
 import os.path
 from napari.utils.notifications import show_warning
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLineEdit, QLabel, QGridLayout
@@ -30,8 +31,8 @@ class MainWidget(QWidget):
         param_box_layout.addWidget(QLabel("Num. Color"), 3, 0)
         param_box_layout.addWidget(self.numc, 3, 1)
         param_box_layout.addWidget(QLabel("Anisotropy"), 4, 0)
-        param_box_layout.addWidget(self.anisotropy, 5, 1)
-        param_box_layout.addWidget(btn_apply_loading_param, 6, 0, 1, 2)
+        param_box_layout.addWidget(self.anisotropy, 4, 1)
+        param_box_layout.addWidget(btn_apply_loading_param, 5, 0, 1, 2)
         loading_param.setLayout(param_box_layout)
 
         main_layout.addWidget(loading_param)
@@ -42,11 +43,11 @@ class MainWidget(QWidget):
         if os.path.isdir(self.load_path.text()):
             m = MultiFileTiff(
                 self.load_path.text(),
-                numz=int(self.numz),
-                numc=int(self.numc),
-                anisotropy=self.anisotropy
+                numz=int(self.numz.text()),
+                numc=int(self.numc.text()),
+                anisotropy=ast.literal_eval(self.anisotropy.text())
             )
             self.viewer.layers[-1].data = m.get_dask_array()
-            self.viewer.refresh()
+            self.viewer.layers[-1].refresh()
         else:
             show_warning('Path is not a directory.')
