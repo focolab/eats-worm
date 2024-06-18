@@ -3,9 +3,10 @@
 
 from eats_worm import *
 
-#data_dir = "D:/SCAPE/Data/Voleti_et_al_Nat_Meth_2019/Immobilized_actual_properScale/green_actual_properScale"; numz = 157; end_t = 3575; pixel_size = (0.75, 0.24, 0.20)
-#data_dir = "D:/SCAPE/Data/Voleti_et_al_Nat_Meth_2019/Moving_actual_properScale/green_actual_properScale"; numz = 127; end_t = 460; pixel_size = (1.42, 0.37, 0.32)
-#data_dir = "D:/SCAPE/Data/Zyla_4.2PLUS/165mm/NeuroPAL/tiff_stacks/20230716_OH16290_1_run1"; numz = 127; end_t = 1682; pixel_size = (0.35, 0.75, 0.25)
+#data_dir = "E:/SCAPE/Data/Voleti_et_al_Nat_Meth_2019/Immobilized_actual_properScale/green_actual_properScale"; numz = 157; end_t = 3575; pixel_size = (0.75, 0.24, 0.20)
+#data_dir = "E:/SCAPE/Data/Voleti_et_al_Nat_Meth_2019/Moving_actual_properScale/green_actual_properScale"; numz = 127; end_t = 460; pixel_size = (1.42, 0.37, 0.32)
+#data_dir = "E:/SCAPE/Data/Zyla_4.2PLUS/165mm/NeuroPAL/tiff_stacks/20230716_OH16290_1_run1"; numz = 127; end_t = 1682; pixel_size = (0.35, 0.75, 0.25)
+#data_dir = "E:/HiCAM_2000/GreenBeads/20240521/tiff_stacks/20240521_GreenBeads4um_run2/Deskewed_-45"; numz = 200; end_t = 683; pixel_size = (0.55, 1, 0.39)
 data_dir = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230914/tiff_stacks/20230914_OH16290_3_run1/Deskewed_-45"; numz = 200; end_t = 818; pixel_size = (0.55, 1, 0.39)
 output_dir = data_dir + "/output/"
 
