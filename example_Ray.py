@@ -8,11 +8,14 @@ segmentation_algorithm = "tmip_2d_template"
 #data_dir = "D:/SCAPE/Data/Voleti_et_al_Nat_Meth_2019/Moving_actual_properScale/green_actual_properScale"; numz = 127; end_t = 10; pixel_size = (032, 0.32, 0.32) #pixel_size = (0.32, 1.42, 0.37)
 #data_dir = "D:/SCAPE/Data/Zyla/165mm/NeuroPAL/tiff_stacks/20230716_OH16290_1_run1"; numz = 127; end_t = 1030; pixel_size = (0.25, 0.75, 0.35) #end_t = 1682
 #data_dir = "D:/SCAPE/Data/Zyla/165mm/NeuroPAL/tiff_stacks/20230724_OH16290_1_run1"; numz = 120; end_t = 1030; pixel_size = (0.25, 0.75, 0.35) #end_t = 1682
-data_dir = "D:/SCAPE/Data/Zyla/165mm/NeuroPAL/tiff_stacks/20230726_OH16290_1_run2"; numz = 125; end_t = 1030; pixel_size = (0.25, 0.75, 0.35) #end_t = 1682
+#data_dir = "D:/SCAPE/Data/Zyla/165mm/NeuroPAL/tiff_stacks/20230726_OH16290_1_run2"; numz = 125; end_t = 1030; pixel_size = (0.25, 0.75, 0.35) #end_t = 1682
 #data_dir = "E:/SCAPE/Data/20230911/tiff_stacks/20230911_GreenBeads4um_run3/Deskewed_-60"; numz = 200; end_t = 3; pixel_size = (0.55, 1, 0.47)
 #data_dir = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230924/tiff_stacks/20230924_OH16290_1_run2/Deskewed_-45"; numz = 200; end_t = 818; pixel_size = (0.39, 1, 0.55)
 #data_dir = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230926/tiff_stacks/20230926_OH16290_2_run1/Deskewed_-45"; numz = 200; end_t = 824; pixel_size = (0.39, 0.75, 0.55) #end_t = 827
 #data_dir = "E:/SCAPE/Data/HiCAM_2000/165mm/NeuroPAL/20230928/tiff_stacks/20230928_OH16290_1_run1/Deskewed_-40"; numz = 200; end_t = 824; pixel_size = (0.35, 0.75, 0.55)
+
+data_dir = "E:/HiCAM_2000/NeuroPAL/20240525_OH16289_1_run1/Deskewed_-45"; numz = 84; end_t = 683; pixel_size = (0.39, 1, 0.55)
+
 #output_dir = data_dir + "/output/"
 output_dir = data_dir + "/output_window_size_5_min_distance_10_fb_threshold_margin_50_3min"
 
@@ -60,10 +63,10 @@ arguments = {
     },
 }
 
-e = Extractor(**arguments)
-e.calc_blob_threads()
-e.quantify(quant_function=background_subtraction_quant_function)
+#e = Extractor(**arguments)
+#e.calc_blob_threads()
+#e.quantify(quant_function=background_subtraction_quant_function)
 
-#e = load_extractor(output_dir)
+e = load_extractor(output_dir)
 
 c = Curator(e=e)
