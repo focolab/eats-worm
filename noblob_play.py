@@ -14,7 +14,7 @@ from qtpy.QtCore import QTimer
 
 #m = MultiFileTiff('D:/HiCAM_2000/GreenBeads/20240526/tiff_stacks/20240526_GreenBeads4um_run6/Deskewed_-45', numz=800, numc=1, anisotropy=(0.39, 1, 0.55))
 #m = MultiFileTiff('D:/HiCAM_2000/NeuroPAL/20240525/tiff_stacks/20240525_OH16289_1_run1/Deskewed_-45', numz=84, numc=1, anisotropy=(0.39, 1, 0.55))
-m = MultiFileTiff('D:/HiCAM_2000/NeuroPAL/20240605/tiff_stacks/20240605_OH16290_1_SmallArena_v4_run1/Deskewed_-45', end_t = 1360, numz=81, numc=1, anisotropy=(0.39, 1, 0.55))
+m = MultiFileTiff('D:/HiCAM_2000/NeuroPAL/20240618/tiff_stacks/20240618_OH16290_1_SmallArena_v4_run2/Deskewed_-41', end_t = 1365, numz=200, numc=1, anisotropy=(0.36, 1, 0.55))
 
 #m = MultiFileTiff('E:/HiCAM_2000/GreenBeads/20240526_GreenBeads4um_run6/Deskewed_-45', numz=800, numc=1, anisotropy=(0.39, 1, 0.55))
 #m = MultiFileTiff('E:/HiCAM_2000/NeuroPAL/20240525_OH16289_1_run1/Deskewed_-45', numz=84, numc=1, anisotropy=(0.39, 1, 0.55))
