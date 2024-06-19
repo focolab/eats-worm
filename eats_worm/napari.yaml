@@ -1,10 +1,16 @@
-name: eats-worm
+name: eats_worm
 contributions:
   commands:
-    - id: eats-worm.select_extractor_directory
-      title: Say hello, world!
-      python_name: eats_worm:show_select_extractor_dialog
+    - id: eats_worm.main_widget
+      title: Dimension Slicer
+      python_name: eats_worm.widget:MainWidget
+    - id: eats_worm.get_reader
+      title: Read image folder
+      python_name: eats_worm.reader:napari_get_reader
   widgets:
-    - command: eats-worm.select_extractor_directory
-      display_name: Load Extractor
-      autogenerate: true
+    - command: eats_worm.main_widget
+      display_name: Dimension Slicer
+  readers:
+    - command: eats_worm.get_reader
+      filename_patterns: ["*/*.tiff"]
+      accepts_directories: true
