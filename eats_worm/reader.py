@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from PIL import Image
 import napari
 from napari.utils.notifications import show_info
 from skimage.io import imread
@@ -18,7 +19,8 @@ def read_multi_tiffs(path):
         show_info("The plugin eats-worm is not activated. \nPlease select eats-worm from Plugins in the menu bar.")
     else:
         img_list = list(Path(path).glob('*.tiff'))
-        numz = imread(img_list[0]).shape[0]
+        with Image.open(img_list[0]) as img:
+            numz = img.size[0]
         for k, v in napari.current_viewer().window._dock_widgets.items():
             if "eats_worm" in k:
                 loading_param = v.widget()
