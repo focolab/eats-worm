@@ -1,6 +1,7 @@
 import ast
 import os.path
 
+from PyQt5.QtCore import QTimer
 from napari.layers import Image
 from napari.utils.notifications import show_warning, show_error
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLineEdit, QLabel, QGridLayout, QComboBox
@@ -12,6 +13,7 @@ class MainWidget(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
+        self.data = None
         self.initUI()
 
     def initUI(self):
@@ -42,8 +44,12 @@ class MainWidget(QWidget):
         param_box_layout.addWidget(QLabel("Dimension"), 6, 0)
         param_box_layout.addWidget(self.dim_to_slice, 6, 1)
         param_box_layout.addWidget(btn_slice_data, 7, 0, 1, 2)
-        loading_param.setLayout(param_box_layout)
 
+        btn_play_movie = QPushButton('Play Movie')
+        btn_play_movie.clicked.connect(self.play_movie)
+        param_box_layout.addWidget(btn_play_movie, 8, 0, 1, 2)
+
+        loading_param.setLayout(param_box_layout)
         main_layout.addWidget(loading_param)
         main_layout.addStretch(1)
         self.setLayout(main_layout)
@@ -55,13 +61,13 @@ class MainWidget(QWidget):
                 show_error('Anisotropy must be Tuple.')
                 return
             if os.path.isdir(self.load_path.text()):
-                m = MultiFileTiff(
+                self.data = MultiFileTiff(
                     self.load_path.text(),
                     numz=int(self.numz.text()),
                     numc=int(self.numc.text()),
                     anisotropy=ast.literal_eval(self.anisotropy.text())
                 )
-                selected_layer.data = m.get_dask_array()
+                selected_layer.data = self.data.get_dask_array()
                 selected_layer.refresh()
             else:
                 show_warning('Path is not a directory.')
@@ -98,3 +104,21 @@ class MainWidget(QWidget):
     def update_dimension(self, dims=4):
         self.dim_to_slice.clear()
         self.dim_to_slice.addItems([str(i) for i in (range(dims))])
+
+    def play_movie(self):
+        if self.data is None or len(self.viewer.layers) < 1:
+            show_error('Load data first!')
+            return
+        current_frame = 0
+
+        def update_frame():
+            nonlocal current_frame
+            if current_frame < self.data.end_t:
+                self.viewer.dims.set_current_step(0, current_frame)
+                current_frame += 1
+            else:
+                timer.stop()
+
+        timer = QTimer()
+        timer.timeout.connect(update_frame)
+        timer.start(85)
