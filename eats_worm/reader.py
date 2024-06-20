@@ -28,7 +28,7 @@ def read_multi_tiffs(path):
                 loading_param.anisotropy.setText(str((0.36, 1, 0.55)))
                 break
         m = MultiFileTiff(path, numz=numz, numc=1, anisotropy=(0.36, 1, 0.55))
-        data = m.get_dask_array()
+        loading_param.data = m
         loading_param.update_dimension()
-        return [(data, {'colormap': 'inferno', 'scale': m.anisotropy})]
+        return [(m.get_dask_array(), {'colormap': 'inferno', 'scale': m.anisotropy})]
 
