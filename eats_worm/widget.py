@@ -106,6 +106,9 @@ class MainWidget(QWidget):
         self.dim_to_slice.addItems([str(i) for i in (range(dims))])
 
     def play_movie(self):
+        if self.data is None or len(self.viewer.layers) < 1:
+            show_error('Load data first!')
+            return
         current_frame = 0
 
         def update_frame():
