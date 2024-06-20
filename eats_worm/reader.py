@@ -19,7 +19,7 @@ def read_multi_tiffs(path):
     else:
         img_list = list(Path(path).glob('*.tiff'))
         with tifffile.TiffFile(img_list[0]) as tif:
-            numz = tif.pages[0].shape[0]
+            numz = tif.series[0].get_shape()[0]
         for k, v in napari.current_viewer().window._dock_widgets.items():
             if "eats_worm" in k:
                 loading_param = v.widget()
@@ -31,5 +31,6 @@ def read_multi_tiffs(path):
         m = MultiFileTiff(path, numz=numz, numc=1, anisotropy=(0.36, 1, 0.55))
         loading_param.data = m
         loading_param.update_dimension()
+        loading_param.viewer.dims.ndisplay = 3
         return [(m.get_dask_array(), {'colormap': 'inferno', 'scale': m.anisotropy})]
 
