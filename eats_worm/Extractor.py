@@ -67,7 +67,7 @@ def background_subtraction_quant_function(im, spool, t, frames, quant_radius=3, 
     activity: list
         list of quantifications corresponding to the positions specified
     """
-    intensities = [np.NaN] * len(spool.threads)
+    intensities = [np.nan] * len(spool.threads)
     positions = spool.get_positions_t(t, indices=threads_to_quantify)
     positions = np.rint(np.copy(positions)).astype(int)
     max_z = len(frames) # in case of max_x, max_y, max_z, we're using these as indices so don't subtract 1 because slicing is exclusive 
@@ -234,13 +234,13 @@ def quantify(mft=None, extractor=None, quant_function=background_subtraction_qua
             print(e)
 
     timeseries = np.empty((num_t,num_threads))
-    timeseries[:] = np.NaN
+    timeseries[:] = np.nan
     quantified_voxels = {i: {} for i in range(num_threads)}
     quant_lock = Lock()
     processed_counter = [0]
     def quantify_in_parallel_thread(start, stop):
         thread_timeseries = np.empty((stop - start, num_threads))
-        thread_timeseries[:] = np.NaN
+        thread_timeseries[:] = np.nan
         thread_quantified_voxels = None
         if save_quantification_voxels:
             thread_quantified_voxels = {i: {} for i in range(num_threads)}

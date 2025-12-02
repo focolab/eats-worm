@@ -438,7 +438,7 @@ class Thread:
         self.found = np.zeros((maxt))
         #self.positions = []
         self.t = []
-        if position != []:
+        if list(position) != []:
             self.positions[t] = np.array(position)
             #self.t = t + 1
             #self.positions.append(np.array(position))

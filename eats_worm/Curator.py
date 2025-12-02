@@ -155,8 +155,8 @@ class Curator:
             edge_width_is_relative=False
             point_symbol = 'disc'
             face_color = np.array([0,0,0,0])
-            self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, edge_color='red', name='roi', size=point_size+1, scale=self.scale, edge_width=edge_width*1.25, edge_width_is_relative=edge_width_is_relative)
-            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, edge_color='green', name='other rois', size=point_size, scale=self.scale, edge_width=edge_width, edge_width_is_relative=edge_width_is_relative)
+            self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, border_color='red', name='roi', size=point_size+1, scale=self.scale, border_width=edge_width*1.25, border_width_is_relative=edge_width_is_relative)
+            self.other_rois = self.viewer.add_points(np.empty((0, 3)), symbol=point_symbol, face_color=face_color, border_color='green', name='other rois', size=point_size, scale=self.scale, border_width=edge_width, border_width_is_relative=edge_width_is_relative)
 
             if self.curator_layers:
                 for layer in self.curator_layers.keys():
@@ -741,7 +741,7 @@ class Curator:
             self.num_neurons += 1
             print('Saving blob timeseries as numpy object...')
             self.e.timeseries = np.hstack((self.e.timeseries, np.empty((self.e.timeseries.shape[0], 1))))
-            self.e.timeseries[:,-1] = np.NaN
+            self.e.timeseries[:,-1] = np.nan
             self.e.spool.export(f=os.path.join(self.e.output_dir, 'threads.obj'))
             self.e.save_timeseries()
             self.e.save_dataframe()
