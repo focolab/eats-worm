@@ -1,5 +1,52 @@
 [build-system]
-build-backend = 'setuptools.build_meta'
-requires = [
-    'setuptools',
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eats_worm"
+version = "0.0.3"
+requires-python = "<3.14"
+description = "Method for extracting GCaMP signal from volumetric imaging recordings"
+readme = "README.md"
+authors = [
+  {name = "UCSF FOCO Lab", email = "focolabdev@gmail.com"}
 ]
+license = {text = "MIT License"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Framework :: napari",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "tifffile",
+    "opencv-python-headless",
+    "matplotlib",
+    "foco-improc",
+    "npex @ git+https://github.com/focolab/npex",
+    "imreg_dft",
+    "fastcluster",
+    "pyqtgraph",
+    "magicgui",
+    "pandas",
+    "scikit-image",
+    "xmltodict",
+    "pynwb",
+    "nwbinspector",
+    "dandi",
+    "remfile",
+    # MacOS (Darwin) specific dependencies
+    "pyqt6; sys_platform == 'darwin'",
+    "napari[pyqt6_experimental]; sys_platform == 'darwin'",
+    # Linux/Windows specific dependencies
+    "napari[all]; sys_platform != 'darwin'",
+]
+
+[project.entry-points."napari.manifest"]
+eats-worm = "eats_worm:napari.yaml"
+
+[tool.setuptools]
+packages = ["eats_worm"] 
+include-package-data = true
