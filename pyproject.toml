@@ -28,7 +28,8 @@ dependencies = [
     "npex @ git+https://github.com/focolab/npex",
     "ndx-multichannel-volume @ git+https://github.com/focolab/ndx-multichannel-volume",
     "imreg_dft",
-    "fastcluster",
+    "fastcluster==1.3.0; python_version >= '3.9'",
+    "fastcluster==1.2.6; python_version < '3.9'",
     "pyqtgraph",
     "magicgui",
     "pandas",
@@ -42,7 +43,8 @@ dependencies = [
     "pyqt6; sys_platform == 'darwin'",
     "napari[pyqt6_experimental]; sys_platform == 'darwin'",
     # Linux/Windows specific dependencies
-    "napari[all]; sys_platform != 'darwin'",
+    "napari[all]; sys_platform != 'darwin' and python_version >= '3.8'",
+    "napari; python_version < '3.8'"
 ]
 
 [project.entry-points."napari.manifest"]
