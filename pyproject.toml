@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "eats_worm"
+name = "eats-worm"
 version = "0.0.3"
 requires-python = "<3.14"
 description = "Method for extracting GCaMP signal from volumetric imaging recordings"
@@ -15,7 +15,7 @@ license = {text = "MIT License"}
 classifiers = [
     "Programming Language :: Python :: 3",
     "Framework :: napari",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI zApproved :: MIT License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -26,6 +26,7 @@ dependencies = [
     "matplotlib",
     "foco-improc",
     "npex @ git+https://github.com/focolab/npex",
+    "ndx-multichannel-volume @ git+https://github.com/focolab/ndx-multichannel-volume",
     "imreg_dft",
     "fastcluster",
     "pyqtgraph",
