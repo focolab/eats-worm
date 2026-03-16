@@ -100,7 +100,7 @@ class Spool:
                 interpolated = (self.threads[match[0]].get_position_mostrecent()-positions[match[1]]) / delta_t
                 for t in range(delta_t):
                     self.dvec[self.t - 1 + t] -= interpolated
-                    self.threads[match[0]].update_position(positions[match[1]] + interpolated * (delta_t - t), t=self.t+t, found = True)
+                    self.threads[match[0]].update_position(positions[match[1]] + interpolated * (delta_t -1 - t), t=self.t+t, found = True)
             if matchings.any():
                 for t in range(delta_t):
                     self.dvec[self.t - 1 + t] *= 1/len(matchings)
