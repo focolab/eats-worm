@@ -1,7 +1,7 @@
 import numpy as np
 from improc.segfunctions import *
 from improc.segfunctions import peak_local_max as ani_peak_local_max
-from scipy.ndimage import rotate
+from scipy.ndimage import rotate, gaussian_laplace
 from skimage.registration import phase_cross_correlation
 from skimage.filters import rank
 from skimage.feature import peak_local_max
@@ -18,12 +18,16 @@ class Segmenter(object):
     def __new__(cls, algorithm, *args, **kwargs):
         tmip_options = ['tmip', 'tmip_2d_template', 'seeded_tmip', 'seeded_tmip_2d_template']
         fbf_options = ['skimage', 'threed', 'template', 'curated', 'seeded_skimage', 'findpeaks2d']
+        legacy_options = tmip_options + fbf_options
 
-        valid_options = tmip_options + fbf_options
+        new_options = ['laplacian']
+
+        valid_options = legacy_options + new_options
 
         if cls is Segmenter:
             if algorithm in tmip_options : return super(Segmenter, cls).__new__(TMIPSegmenter)
             if algorithm in fbf_options : return super(Segmenter, cls).__new__(FrameByFrameSegmenter)
+            if algorithm == 'laplacian' : return super(Segmenter, cls).__new__(LaplacianSegmenter)
 
             raise ValueError(f"Unknown algorithm {algorithm}. Options are: {valid_options}")
         else:
@@ -62,6 +66,7 @@ class Segmenter(object):
 
 
 class TMIPSegmenter(Segmenter):
+    # Legacy segmentation algorithms from eats-worm v0.0.3
     def __init__(self, algorithm, im, algorithm_params):
         super().__init__(algorithm, im, algorithm_params)
         self.window_size = self.algorithm_params.get('window_size', 10)
@@ -172,6 +177,8 @@ class TMIPSegmenter(Segmenter):
 
 
 class FrameByFrameSegmenter(Segmenter):
+    # Legacy segmentation algorithms from eats-worm v0.0.3
+
     def __init__(self, algorithm, im, algorithm_params):
         super().__init__(algorithm, im, algorithm_params)
         if algorithm in ['skimage', 'template']:
@@ -253,15 +260,13 @@ class FrameByFrameSegmenter(Segmenter):
             expanded_im *= self.mask
             peaks = peak_local_max(expanded_im, min_distance=13)
             peaks //= self.im.anisotropy
-        
         elif self.algorithm == 'curated':
             if t == 0:
                 peaks = np.array(self.algorithm_params['peaks'])
                 self.last_peaks = peaks
             else:
                 peaks = self.last_peaks
-            
-        elif algorithm == 'seeded_skimage':
+        elif self.algorithm == 'seeded_skimage':
             if t == 0:
                 peaks = np.array(self.algorithm_params['peaks'])
             else:
@@ -271,6 +276,9 @@ class FrameByFrameSegmenter(Segmenter):
                 expanded_im *= self.mask
                 peaks = peak_local_max(expanded_im, min_distance=self.algorithm_params.get('min_distance', 9), num_peaks=self.algorithm_params.get('num_peaks', 50))
                 peaks //= self.im.anisotropy
+        elif self.algorithm == 'findpeaks2d':
+            peaks = findpeaks2d(im1)
+            peaks = reg_peaks(im1, peaks, thresh=self.reg_peak_dist)
 
         if self.register and t != self.start_t:
             _off = phase_cross_correlation(self.last_im1, im1, upsample_factor=100)[0][1:]
@@ -284,8 +292,94 @@ class FrameByFrameSegmenter(Segmenter):
 
         
 
+class LaplacianSegmenter(Segmenter):
+    """
+    Implements 3D Spot Detection using Laplacian of Gaussian (LoG).
+    This acts as a band-pass filter, enhancing sphere-like objects of a specific size (sigma)
+    while suppressing noise and slow-varying background.
+    """
+    def __init__(self, algorithm, im, algorithm_params):
+        super().__init__(algorithm, im, algorithm_params)
         
+        # Pre-calculate anisotropic mask for peak finding
+        if all(isinstance(dimension, int) for dimension in self.im.anisotropy):
+            expanded_shape = tuple([dim_len * ani for dim_len, ani in zip(self.im.get_t(0).shape, self.im.anisotropy)])
+            self.mask = np.zeros(expanded_shape, dtype=np.uint16)
+            self.mask[tuple([np.s_[::ani] for ani in self.im.anisotropy])] = 1
+
+
+        self.sigma_z = 1/self.im.anisotropy[0]
+        self.sigma_y = 1/self.im.anisotropy[1]
+        self.sigma_x = 1/self.im.anisotropy[2]
+
+
+        self.last_im = None # Used for registration
+        self.std_bgrnd = self.algorithm_params.get('std_bgrnd', 2)
+        self.offsets = []
+
+    def process_step(self, t):
+        im1 = self.im.get_t(t, channel=self.peakfind_channel)
         
+        # 1. Median Filter (Denoise)
+        im1 = medFilter2d(im1, self.median)
+
+        # 2. Rigid registration
+        if self.register and t != self.start_t:
+            _off = phase_cross_correlation(self.last_im, im1, upsample_factor=100)[0][1:]
+            _off = np.insert(_off, 0, 0)
+            # track offset relative to t=0 so that all tmips are spatially aligned
+            _off += self.last_offset
+            self.offsets.append(_off)
+            shift = tuple(np.rint(_off).astype(int))
+            self.last_im = np.copy(im1)
+            im1 = shift3d(im1, shift)
+        else:
+            self.last_im = np.copy(im1)
+            self.offsets.append(np.array([0, 0, 0]))
+
+        self.last_offset = self.offsets[-1]
+
+        # 3. Laplacian of Gaussian (LoG)
+        # We construct the sigma tuple (Z, Y, X)
+        sigma_tuple = (self.sigma_z, self.sigma_y, self.sigma_x)
+        
+        # Scipy's LoG returns negative valleys at the center of bright blobs.
+        # We multiply by -1 to invert this so peaks are positive.
+        im1 = im1.astype(np.float32)
+        im1 = np.log1p(im1)
+        im_filtered = -1 * gaussian_laplace(im1, sigma=sigma_tuple)
+
+        # 4. Thresholding
+        # Zero out any pixels below the specified quantile
+        bg_mean = np.mean(im_filtered)
+        bg_std = np.std(im_filtered)
+        thresh_val = bg_mean + self.std_bgrnd * bg_std
+        im_filtered = np.where(im_filtered > thresh_val, im_filtered, 0)
+
+        # 5. Peak Finding
+        # Using the anisotropy expansion trick to handle non-cubic voxels
+        if all(isinstance(dimension, int) for dimension in self.im.anisotropy):
+            expanded_im = np.repeat(im_filtered, self.im.anisotropy[0], axis=0)
+            expanded_im = np.repeat(expanded_im, self.im.anisotropy[1], axis=1)
+            expanded_im = np.repeat(expanded_im, self.im.anisotropy[2], axis=2)
+            expanded_im *= self.mask
+            
+            peaks = peak_local_max(
+                expanded_im, 
+                min_distance=self.algorithm_params.get('min_distance', 9), 
+                num_peaks=self.algorithm_params.get('num_peaks', 50)
+            )
+            peaks //= self.im.anisotropy
+        else:
+            # Fallback for non-integer anisotropy
+            peaks = ani_peak_local_max(
+                im_filtered, 
+                min_distance=self.algorithm_params.get('min_distance', 9), 
+                anisotropy=self.im.anisotropy,
+                exclude_border=True
+            )
+
+        return PeaksResult(peaks - self.last_offset)
 
 
 
