@@ -723,7 +723,7 @@ class BlobThreadTracker():
                         shift = tuple(np.rint(_off).astype(int))
                         axis = tuple(np.arange(im1.ndim))
                         last_im = np.copy(im1)
-                        if np.max(shift) > 0:
+                        if np.max(np.abs(shift)) > 0:
                             im1 = np.roll(im1, shift, axis)
                             if shift[0] >= 0:
                                 im1[:shift[0], :, :] = 0
@@ -733,7 +733,7 @@ class BlobThreadTracker():
                                 im1[:, :shift[1], :] = 0
                             else:
                                 im1[:, shift[1]:, :] = 0
-                            if shift[2] >- 0:
+                            if shift[2] >= 0:
                                 im1[:, :, :shift[2]] = 0
                             else:
                                 im1[:, :, shift[2]:] = 0
