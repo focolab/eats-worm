@@ -3,7 +3,7 @@
 
 
 ### Installation Instructions
-1. Setup your development environment. If you need help with this, there are many resources on Google. Most people in the lab use Conda as a package manager and develop in Conda virtual environments as well. 
+1. Setup your development environment. If you need help with this, there are many resources on Google. Most people in the lab use Conda as a package manager and develop in Conda virtual environments as well. Python versions 3.10-3.13 are recommended. 3.8-3.9 seem to work with minor graphical bugs in Napari but we cannot guarantee consistent results for these versions.
 
 2. Start your virtual environment, and run the command
 ```bash
